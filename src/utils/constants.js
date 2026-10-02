@@ -1,7 +1,6 @@
 export const APP = {
   name: 'TANGO',
   subtitle: 'Flood Response System',
-  logo: '🕺',
 }
 
 export const EVENT = {

@@ -3,6 +3,7 @@ import { USE_MOCK } from '../../config/apiConfig'
 import { DATA_PARTS, useDamageData } from '../../hooks/useDamageData'
 import { useCopilotStore } from '../../store/copilotStore'
 import { APP, EVENT } from '../../utils/constants'
+import TangoIcon from '../Icons/TangoIcon'
 import { formatDate } from '../../utils/formatters'
 
 // Each status light turns on when its datasets have actually arrived.
@@ -74,9 +75,7 @@ export default function SplashScreen({ onReady }) {
       }`}
     >
       <div className="flex flex-col items-center gap-2">
-        <div className="splash-bounce text-6xl sm:text-7xl" aria-hidden>
-          {APP.logo}
-        </div>
+        <TangoIcon size={88} />
         <h1 className="text-4xl font-bold tracking-[0.12em] text-[#ff6b6b] sm:text-5xl">{APP.name}</h1>
         <p className="text-sm text-[#c0c0c0]">{t.subtitle}</p>
       </div>
