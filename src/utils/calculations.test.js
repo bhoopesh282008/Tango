@@ -8,7 +8,7 @@ import {
   sizeClass,
   zoneFilterExpression,
 } from './calculations'
-import { getMapStyle } from '../config/mapConfig'
+import { FIRST_LABEL_LAYER, loadMapStyle } from '../config/mapConfig'
 import { DEFAULT_FILTERS } from './constants'
 
 const stats = computeStats(demo)
@@ -68,21 +68,41 @@ describe('zoneFilterExpression', () => {
   })
 })
 
-describe('getMapStyle', () => {
-  test('street map follows the theme, imagery does not', () => {
-    expect(getMapStyle('street', false)).toMatch(/liberty$/)
-    expect(getMapStyle('street', true)).toMatch(/dark$/)
-    expect(getMapStyle('sentinel', true)).toBe(getMapStyle('sentinel', false))
-    expect(getMapStyle('unknown', false)).toMatch(/liberty$/)
-  })
+describe('loadMapStyle', () => {
+  const layerIds = (style) => style.layers.map((layer) => layer.id)
+  afterEach(() => vi.unstubAllGlobals())
 
-  test('imagery basemaps carry their own place labels', () => {
+  test('imagery basemaps get the shared label layers', async () => {
     for (const id of ['sentinel', 'imagery']) {
-      const style = getMapStyle(id, false)
+      const style = await loadMapStyle(id, false)
       expect(style.glyphs).toContain('{fontstack}')
       expect(style.layers[0].type).toBe('raster')
-      expect(style.layers.map((layer) => layer.id)).toContain('label-place')
+      expect(layerIds(style)).toEqual(expect.arrayContaining([FIRST_LABEL_LAYER, 'label-village', 'label-district']))
     }
+  })
+
+  test('falls back to a plain labelled style when the street style cannot be fetched', async () => {
+    vi.stubGlobal('fetch', vi.fn().mockRejectedValue(new Error('offline')))
+    const style = await loadMapStyle('street', true)
+    expect(layerIds(style)).toEqual(expect.arrayContaining(['background', FIRST_LABEL_LAYER]))
+  })
+
+  test('street style keeps its map layers but swaps in the shared labels', async () => {
+    const fetched = {
+      version: 8,
+      sources: { openmaptiles: { type: 'vector', url: 'x' } },
+      layers: [
+        { id: 'water', type: 'fill', source: 'openmaptiles', 'source-layer': 'water' },
+        { id: 'place_village', type: 'symbol', source: 'openmaptiles', 'source-layer': 'place' },
+      ],
+    }
+    const fetch = vi.fn().mockResolvedValue({ ok: true, json: async () => fetched })
+    vi.stubGlobal('fetch', fetch)
+    const style = await loadMapStyle('street', true)
+    expect(fetch).toHaveBeenCalledWith(expect.stringMatching(/styles\/dark$/))
+    expect(layerIds(style)).toContain('water')
+    expect(layerIds(style)).not.toContain('place_village')
+    expect(layerIds(style)).toContain('label-village')
   })
 })
 

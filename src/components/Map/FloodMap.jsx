@@ -4,7 +4,13 @@ import workerUrl from 'maplibre-gl/dist/maplibre-gl-worker.mjs?worker&url'
 import { Copy, Layers, Maximize2, Minimize2, Ruler, SlidersHorizontal, X } from 'lucide-react'
 import { useEffect, useMemo, useRef, useState } from 'react'
 import Map, { Layer, NavigationControl, Popup, ScaleControl, Source } from 'react-map-gl/maplibre'
-import { getMapStyle, MAP_DEFAULTS, TERRAIN_SOURCE } from '../../config/mapConfig'
+import {
+  FIRST_LABEL_LAYER,
+  isDarkBase,
+  loadMapStyle,
+  MAP_DEFAULTS,
+  TERRAIN_SOURCE,
+} from '../../config/mapConfig'
 import { useMapStore } from '../../store/mapStore'
 import { useUIStore } from '../../store/uiStore'
 import { filterZones } from '../../utils/calculations'
@@ -14,6 +20,7 @@ import { formatLatLng, formatNumber, formatPercent } from '../../utils/formatter
 import FilterControls from '../Tools/FilterControls'
 import MeasurementTool, { MeasurementLayer } from '../Tools/MeasurementTool'
 import DamageOverlay from './DamageOverlay'
+import Spinner from '../Common/Spinner'
 import LayerControl from './LayerControl'
 import { InfrastructureMarkers, SettlementLayer, STATUS_LABEL } from './MapMarkers'
 
@@ -77,7 +84,17 @@ export default function FloodMap({ data }) {
   const [coordinate, setCoordinate] = useState(null)
   const [popup, setPopup] = useState(null)
   const [hovering, setHovering] = useState(false)
+  const [mapStyle, setMapStyle] = useState(null)
   const mapRef = useRef(null)
+
+  // The previous style stays on screen until the next one has been fetched.
+  useEffect(() => {
+    let current = true
+    loadMapStyle(baseMap, darkMode).then((style) => current && setMapStyle(style))
+    return () => {
+      current = false
+    }
+  }, [baseMap, darkMode])
 
   // Entering or leaving full screen changes the container size.
   useEffect(() => {
@@ -89,7 +106,7 @@ export default function FloodMap({ data }) {
     [data.floodZones, filters],
   )
   // Lines drawn over the basemap need to contrast with it.
-  const darkBase = baseMap !== 'street' || darkMode
+  const darkBase = isDarkBase(baseMap, darkMode)
 
   const togglePanel = (name) => setPanel((current) => (current === name ? null : name))
   const toggleMeasure = () => {
@@ -179,12 +196,18 @@ export default function FloodMap({ data }) {
 
       {/* isolate keeps the map's internal z-indexes from covering the page header */}
       <div className={`relative isolate ${expanded ? 'flex-1' : 'h-[60vh] min-h-[360px] lg:h-[560px]'}`}>
+        {!mapStyle && (
+          <div className="flex h-full items-center justify-center">
+            <Spinner label="Loading map" />
+          </div>
+        )}
+        {mapStyle && (
         <Map
           ref={mapRef}
           initialViewState={{ longitude: center.lng, latitude: center.lat, zoom }}
           minZoom={MAP_DEFAULTS.minZoom}
           maxZoom={MAP_DEFAULTS.maxZoom}
-          mapStyle={getMapStyle(baseMap, darkMode)}
+          mapStyle={mapStyle}
           style={{ width: '100%', height: '100%' }}
           // While measuring, features must not swallow clicks.
           interactiveLayerIds={measureMode ? [] : CLICKABLE_LAYERS}
@@ -203,6 +226,7 @@ export default function FloodMap({ data }) {
           <Source id="terrain" {...TERRAIN_SOURCE}>
             <Layer
               id="hillshade"
+              beforeId={FIRST_LABEL_LAYER}
               type="hillshade"
               layout={visibility(visibleLayers.elevation)}
               paint={{ 'hillshade-exaggeration': 0.6 }}
@@ -214,6 +238,7 @@ export default function FloodMap({ data }) {
           <Source id="buildings" type="geojson" data={data.buildings}>
             <Layer
               id="buildings"
+              beforeId={FIRST_LABEL_LAYER}
               type="fill"
               layout={visibility(visibleLayers.buildings)}
               paint={{
@@ -227,6 +252,7 @@ export default function FloodMap({ data }) {
           <Source id="roads" type="geojson" data={data.roads}>
             <Layer
               id="roads-intact"
+              beforeId={FIRST_LABEL_LAYER}
               type="line"
               filter={['!', DAMAGED]}
               layout={{ ...visibility(visibleLayers.roads), 'line-cap': 'round' }}
@@ -234,6 +260,7 @@ export default function FloodMap({ data }) {
             />
             <Layer
               id="roads-damaged"
+              beforeId={FIRST_LABEL_LAYER}
               type="line"
               filter={DAMAGED}
               layout={visibility(visibleLayers.roads)}
@@ -274,6 +301,7 @@ export default function FloodMap({ data }) {
             </Popup>
           )}
         </Map>
+        )}
 
         {panel && (
           <div className="no-print card absolute inset-x-0 bottom-0 z-10 max-h-[70%] overflow-y-auto rounded-b-none p-3 shadow-lg sm:inset-x-auto sm:bottom-auto sm:right-3 sm:top-3 sm:max-h-[calc(100%-1.5rem)] sm:w-72 sm:rounded-b-xl">

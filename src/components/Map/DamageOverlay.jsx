@@ -1,5 +1,6 @@
 import { useMemo } from 'react'
 import { Layer, Source } from 'react-map-gl/maplibre'
+import { FIRST_LABEL_LAYER } from '../../config/mapConfig'
 import { useMapStore } from '../../store/mapStore'
 import { zoneFilterExpression } from '../../utils/calculations'
 import { DAMAGE_TYPES } from '../../utils/constants'
@@ -16,12 +17,14 @@ export default function DamageOverlay({ zones, visible }) {
   const filters = useMapStore((s) => s.filters)
   const filter = useMemo(() => zoneFilterExpression(filters), [filters])
   // Layers stay mounted and are hidden via layout, so draw order never changes.
+  // They sit beneath the place names so those stay readable over flooded areas.
   const layout = { visibility: visible ? 'visible' : 'none' }
 
   return (
     <Source id="zones" type="geojson" data={zones}>
       <Layer
         id="zones-fill"
+        beforeId={FIRST_LABEL_LAYER}
         type="fill"
         filter={filter}
         layout={layout}
@@ -29,6 +32,7 @@ export default function DamageOverlay({ zones, visible }) {
       />
       <Layer
         id="zones-outline"
+        beforeId={FIRST_LABEL_LAYER}
         type="line"
         filter={filter}
         layout={layout}

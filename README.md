@@ -40,7 +40,7 @@ The map uses MapLibre GL JS through `react-map-gl/maplibre` and needs WebGL. All
 | High-resolution imagery | Esri World Imagery |
 | Terrain shading | Mapzen Terrarium elevation tiles on AWS |
 
-The two imagery basemaps have no labels of their own, so place, river and peak names from the OpenFreeMap tiles are drawn over them. Settlement names come from the app's own data.
+Labels are the same on every basemap: countries, provinces, cities, towns, villages, hamlets, rivers, peaks, parks, main roads and (from zoom 14) hospitals, schools, police and fire stations, all from the OpenFreeMap tiles and defined in `labelLayers()` in `src/config/mapConfig.js`. Those tiles carry no district names, so six districts around the corridor are labelled from a short list in the same file, at approximate positions. Settlement names come from the app's own data. Flood zones, buildings and roads are drawn beneath the labels.
 
 These are public services with no guarantee of availability. Before field use, host or cache the tiles you rely on. Sources and default view are set in `src/config/mapConfig.js`.
 
