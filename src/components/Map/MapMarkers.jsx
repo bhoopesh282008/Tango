@@ -10,7 +10,7 @@ export const STATUS_LABEL = {
   operational: 'Operational',
 }
 
-export function SettlementLayer({ settlements, visible }) {
+export function SettlementLayer({ settlements, visible, darkBase }) {
   const highlighted = useMapStore((s) => s.highlightedSettlement)
   const data = useMemo(
     () => ({
@@ -24,18 +24,36 @@ export function SettlementLayer({ settlements, visible }) {
     [settlements],
   )
   const isHighlighted = ['==', ['get', 'id'], highlighted ?? '']
+  const layout = { visibility: visible ? 'visible' : 'none' }
 
   return (
     <Source id="settlements" type="geojson" data={data}>
       <Layer
         id="settlements"
         type="circle"
-        layout={{ visibility: visible ? 'visible' : 'none' }}
+        layout={layout}
         paint={{
           'circle-radius': ['case', isHighlighted, 13, 8],
           'circle-color': ['case', ['==', ['get', 'connected'], true], '#1f9d55', '#e03131'],
           'circle-stroke-color': '#ffffff',
           'circle-stroke-width': ['case', isHighlighted, 3, 2],
+        }}
+      />
+      <Layer
+        id="settlement-labels"
+        type="symbol"
+        layout={{
+          ...layout,
+          'text-field': ['get', 'name'],
+          'text-font': ['Noto Sans Bold'],
+          'text-size': 12,
+          'text-anchor': 'top',
+          'text-offset': [0, 0.9],
+        }}
+        paint={{
+          'text-color': darkBase ? '#ffffff' : '#1a1a1a',
+          'text-halo-color': darkBase ? 'rgba(0, 0, 0, 0.85)' : '#ffffff',
+          'text-halo-width': 1.5,
         }}
       />
     </Source>

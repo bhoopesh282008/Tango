@@ -241,7 +241,11 @@ export default function FloodMap({ data }) {
             />
           </Source>
 
-          <SettlementLayer settlements={data.settlements} visible={visibleLayers.settlements} />
+          <SettlementLayer
+            settlements={data.settlements}
+            visible={visibleLayers.settlements}
+            darkBase={darkBase}
+          />
           <MeasurementLayer />
 
           {visibleLayers.infrastructure && (

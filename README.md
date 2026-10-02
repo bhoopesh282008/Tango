@@ -40,6 +40,8 @@ The map uses MapLibre GL JS through `react-map-gl/maplibre` and needs WebGL. All
 | High-resolution imagery | Esri World Imagery |
 | Terrain shading | Mapzen Terrarium elevation tiles on AWS |
 
+The two imagery basemaps have no labels of their own, so place, river and peak names from the OpenFreeMap tiles are drawn over them. Settlement names come from the app's own data.
+
 These are public services with no guarantee of availability. Before field use, host or cache the tiles you rely on. Sources and default view are set in `src/config/mapConfig.js`.
 
 Background on the library choice is in [docs/map-library-research.md](docs/map-library-research.md), with figures in [docs/map-benchmark.csv](docs/map-benchmark.csv) and a guide to the code changes in [docs/map-migration.md](docs/map-migration.md).

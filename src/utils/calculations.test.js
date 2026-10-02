@@ -75,6 +75,15 @@ describe('getMapStyle', () => {
     expect(getMapStyle('sentinel', true)).toBe(getMapStyle('sentinel', false))
     expect(getMapStyle('unknown', false)).toMatch(/liberty$/)
   })
+
+  test('imagery basemaps carry their own place labels', () => {
+    for (const id of ['sentinel', 'imagery']) {
+      const style = getMapStyle(id, false)
+      expect(style.glyphs).toContain('{fontstack}')
+      expect(style.layers[0].type).toBe('raster')
+      expect(style.layers.map((layer) => layer.id)).toContain('label-place')
+    }
+  })
 })
 
 describe('measurement', () => {

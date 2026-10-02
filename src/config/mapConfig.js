@@ -11,10 +11,79 @@ export const EVENT_BBOX = [27.9, 85.1, 28.32, 85.45]
 
 const OPENFREEMAP = 'https://tiles.openfreemap.org/styles'
 
+const OPENFREEMAP_FONTS = 'https://tiles.openfreemap.org/fonts/{fontstack}/{range}.pbf'
+
+// Latin name with the local-script name beneath it, as the OpenFreeMap styles do.
+const labelText = (separator) => [
+  'case',
+  ['has', 'name:nonlatin'],
+  ['concat', ['get', 'name:latin'], separator, ['get', 'name:nonlatin']],
+  ['coalesce', ['get', 'name_en'], ['get', 'name']],
+]
+const LABEL_PAINT = {
+  'text-color': '#ffffff',
+  'text-halo-color': 'rgba(0, 0, 0, 0.85)',
+  'text-halo-width': 1.4,
+}
+
+// Place, river and peak names drawn over imagery, which has no labels of its own.
+const LABEL_LAYERS = [
+  {
+    id: 'label-waterway',
+    type: 'symbol',
+    source: 'openmaptiles',
+    'source-layer': 'waterway',
+    minzoom: 9,
+    layout: {
+      'symbol-placement': 'line',
+      'text-field': labelText(' '),
+      'text-font': ['Noto Sans Italic'],
+      'text-size': 12,
+    },
+    paint: { ...LABEL_PAINT, 'text-color': '#cfe8ff' },
+  },
+  {
+    id: 'label-peak',
+    type: 'symbol',
+    source: 'openmaptiles',
+    'source-layer': 'mountain_peak',
+    minzoom: 9,
+    layout: {
+      'text-field': labelText('\n'),
+      'text-font': ['Noto Sans Italic'],
+      'text-size': 11,
+    },
+    paint: LABEL_PAINT,
+  },
+  {
+    id: 'label-place',
+    type: 'symbol',
+    source: 'openmaptiles',
+    'source-layer': 'place',
+    filter: [
+      'all',
+      ['in', ['get', 'class'], ['literal', ['city', 'town', 'village', 'hamlet', 'suburb']]],
+      // Small places only once zoomed in to district level.
+      ['any', ['in', ['get', 'class'], ['literal', ['city', 'town']]], ['>=', ['zoom'], 8]],
+    ],
+    layout: {
+      'text-field': labelText('\n'),
+      'text-font': ['Noto Sans Regular'],
+      'text-size': ['match', ['get', 'class'], 'city', 15, 'town', 13, 12],
+      'text-max-width': 8,
+    },
+    paint: LABEL_PAINT,
+  },
+]
+
 const rasterStyle = (id, tiles, attribution, maxzoom) => ({
   version: 8,
-  sources: { [id]: { type: 'raster', tiles: [tiles], tileSize: 256, attribution, maxzoom } },
-  layers: [{ id, type: 'raster', source: id }],
+  glyphs: OPENFREEMAP_FONTS,
+  sources: {
+    [id]: { type: 'raster', tiles: [tiles], tileSize: 256, attribution, maxzoom },
+    openmaptiles: { type: 'vector', url: 'https://tiles.openfreemap.org/planet' },
+  },
+  layers: [{ id, type: 'raster', source: id }, ...LABEL_LAYERS],
 })
 
 // Built once: MapLibre reloads the whole style whenever it is handed a new object.
