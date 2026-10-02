@@ -1,6 +1,5 @@
 import 'maplibre-gl/dist/maplibre-gl.css'
-import { setWorkerUrl } from 'maplibre-gl'
-import workerUrl from 'maplibre-gl/dist/maplibre-gl-worker.mjs?worker&url'
+import '../../config/maplibreWorker'
 import { Copy, Layers, Maximize2, Minimize2, Ruler, SlidersHorizontal, X } from 'lucide-react'
 import { useEffect, useMemo, useRef, useState } from 'react'
 import Map, { Layer, NavigationControl, Popup, ScaleControl, Source } from 'react-map-gl/maplibre'
@@ -23,9 +22,6 @@ import DamageOverlay from './DamageOverlay'
 import Spinner from '../Common/Spinner'
 import LayerControl from './LayerControl'
 import { InfrastructureMarkers, SettlementLayer, STATUS_LABEL } from './MapMarkers'
-
-// MapLibre 6 loads its worker from a separate file; let Vite bundle it and hand over the URL.
-setWorkerUrl(workerUrl)
 
 // Layers that answer clicks; the click event lists the topmost feature first.
 const CLICKABLE_LAYERS = ['zones-fill', 'buildings', 'roads-intact', 'roads-damaged', 'settlements']

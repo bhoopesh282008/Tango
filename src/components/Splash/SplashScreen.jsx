@@ -1,5 +1,5 @@
 import { Check } from 'lucide-react'
-import { useState } from 'react'
+import { lazy, Suspense, useState } from 'react'
 import { USE_MOCK } from '../../config/apiConfig'
 import { useDamageData } from '../../hooks/useDamageData'
 import { useCopilotStore } from '../../store/copilotStore'
@@ -49,50 +49,41 @@ const TEXT = {
   },
 }
 
-// Optional background footage. Drop the files into public/videos/ and they are used;
-// without them the splash keeps its plain dark background.
-const VIDEO = {
-  webm: '/videos/tango-splash.webm',
-  mp4: '/videos/tango-splash.mp4',
-  poster: '/videos/splash-poster.jpg',
-}
+// The background is a live globe: Earth seen from orbit, settling over India.
+// It needs the map library and a few imagery tiles, so it loads after the text is up.
+const SplashGlobe = lazy(() => import('./SplashGlobe'))
 
-// Footage is skipped where it would cost the user: slow or metered connections,
-// and for people who have asked for reduced motion.
-function videoAllowed() {
-  if (typeof window === 'undefined') return false
-  if (window.matchMedia?.('(prefers-reduced-motion: reduce)').matches) return false
+// On slow or metered connections the splash stays plain, so nothing delays the data.
+// The globe also needs WebGL2, which some older devices lack.
+function richBackgroundAllowed() {
+  if (typeof navigator === 'undefined') return false
   const connection = navigator.connection
   if (connection?.saveData) return false
-  return !['slow-2g', '2g', '3g'].includes(connection?.effectiveType)
+  if (['slow-2g', '2g', '3g'].includes(connection?.effectiveType)) return false
+  try {
+    return !!document.createElement('canvas').getContext('webgl2')
+  } catch {
+    return false
+  }
 }
 
 function SplashBackground() {
-  const [playing, setPlaying] = useState(false)
-  const [allowed] = useState(videoAllowed)
+  const [allowed] = useState(richBackgroundAllowed)
+  const [globeShown, setGlobeShown] = useState(false)
 
   return (
-    <div className="absolute inset-0 -z-10 overflow-hidden" aria-hidden>
-      {/* The poster is a CSS background, so a missing file simply shows nothing. */}
-      <div className="absolute inset-0 bg-cover bg-center" style={{ backgroundImage: `url(${VIDEO.poster})` }} />
+    <div className="absolute inset-0 -z-10 overflow-hidden bg-[#05050d]" aria-hidden>
       {allowed && (
-        <video
-          autoPlay
-          muted
-          loop
-          playsInline
-          preload="auto"
-          onPlaying={() => setPlaying(true)}
-          className={`absolute inset-0 h-full w-full object-cover transition-opacity duration-500 ${
-            playing ? 'opacity-100' : 'opacity-0'
-          }`}
+        <div
+          className={`absolute inset-0 transition-opacity duration-1000 ${globeShown ? 'opacity-100' : 'opacity-0'}`}
         >
-          <source src={VIDEO.webm} type="video/webm" />
-          <source src={VIDEO.mp4} type="video/mp4" />
-        </video>
+          <Suspense fallback={null}>
+            <SplashGlobe onShown={() => setGlobeShown(true)} />
+          </Suspense>
+        </div>
       )}
-      {/* Darkens whatever is behind so the text keeps its contrast. */}
-      <div className="absolute inset-0 bg-[rgba(15,15,30,0.62)]" />
+      {/* Darkens the imagery so the text keeps its contrast. */}
+      <div className="absolute inset-0 bg-[rgba(8,8,20,0.5)]" />
     </div>
   )
 }
@@ -193,6 +184,9 @@ export default function SplashScreen({ onReady }) {
         <p className="mt-10 text-[11px] leading-relaxed text-[#b0b0b0] [text-shadow:0_1px_3px_rgba(0,0,0,0.7)]">
           {t.imagery}: {formatDate(EVENT.afterDate)} · {EVENT.location}
           {USE_MOCK && <span className="font-semibold text-[#ffcc00]"> · {t.demo}</span>}
+          <span className="block" lang="en">
+            Earth imagery: NASA Blue Marble
+          </span>
         </p>
       </div>
     </div>

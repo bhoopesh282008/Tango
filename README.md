@@ -15,15 +15,7 @@ npm run build
 
 The app opens on a TANGO splash screen once per browser session: the title, a three-line checklist and a launch button. Each checklist line is ticked when its data has actually arrived (`DATA_PARTS` in `src/hooks/useDamageData.js`), not on a timer, and **Launch monitoring** appears when everything has loaded. The language chosen there is the copilot's language; the dashboard itself is in English.
 
-Background footage is optional. Put these in `public/videos/` and the splash plays the clip behind the text, darkened for contrast:
-
-| File | Notes |
-| --- | --- |
-| `tango-splash.webm` | VP9, 1920×1080 or smaller, 5–8 s loop, no audio, 2–5 MB |
-| `tango-splash.mp4` | H.264 copy of the same clip |
-| `splash-poster.jpg` | One frame of the clip, shown while it loads |
-
-Without the files the splash keeps a plain dark background. The clip is not played on slow or data-saving connections or when reduced motion is requested; the poster is shown instead.
+Behind the text is a live globe (`src/components/Splash/SplashGlobe.jsx`): NASA Blue Marble imagery on MapLibre's globe projection, swinging in from the Arabian Sea and holding over India with a slow drift. It is not a video file, so there is nothing large to download: a handful of imagery tiles plus the map library the dashboard needs anyway. The globe is skipped, leaving a plain dark background, on slow or data-saving connections and on devices without WebGL2; with reduced motion it is shown still.
 
 ## Demo data vs. backend
 
