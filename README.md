@@ -15,9 +15,17 @@ npm run build
 
 The app opens on a TANGO splash screen once per browser session: the title, a three-line checklist and a launch button. Each checklist line is ticked when its data has actually arrived (`DATA_PARTS` in `src/hooks/useDamageData.js`), not on a timer, and **Launch monitoring** appears when everything has loaded. The language chosen there is the copilot's language; the dashboard itself is in English.
 
-Behind the text is a space scene (`src/components/Splash/SpaceScene.jsx`): a still star field, the Earth, and a drawn satellite pointing an observation beam at it. The Earth (`SplashGlobe.jsx`) is NASA Blue Marble imagery on MapLibre's globe projection; it turns until India faces the satellite and then drifts slowly. On wide screens the Earth sits lower right with the satellite upper left; on phones the Earth is at the bottom.
+Behind the text is a space scene (`src/components/Splash/SpaceScene.jsx`) built from NASA material:
 
-It is not a video file, so there is nothing large to download: a handful of imagery tiles plus the map library the dashboard needs anyway. On slow or data-saving connections and on devices without WebGL2 the Earth is left out and only the stars and satellite show; with reduced motion nothing moves.
+| Part | What it is | Source |
+| --- | --- | --- |
+| Stars | Tycho star map, `public/images/starmap.webp` | [nasa/NASA-3D-Resources](https://github.com/nasa/NASA-3D-Resources) |
+| Satellite | Landsat 8 3D model, `public/models/landsat8.glb`, rendered live with three.js (`SatelliteModel.jsx`) | same repository |
+| Earth | Blue Marble imagery on MapLibre's globe projection (`SplashGlobe.jsx`); it turns until India faces the viewer, then drifts slowly | NASA GIBS tiles |
+
+NASA states these assets are free and without copyright. The model is Draco-compressed, so the decoder files in `public/draco/` (copied from three.js) must ship with it. Landsat 8 stands in for the Sentinel-1 radar satellite the data comes from, for which NASA has no model.
+
+The scene loads after the text and costs about 1.6 MB (star map, model, decoder) plus three.js. On slow or data-saving connections and on devices without WebGL2 only the star map is shown; with reduced motion nothing moves.
 
 ## Demo data vs. backend
 

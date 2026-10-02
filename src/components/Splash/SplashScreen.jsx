@@ -146,7 +146,7 @@ export default function SplashScreen({ onReady }) {
           {t.imagery}: {formatDate(EVENT.afterDate)} · {EVENT.location}
           {USE_MOCK && <span className="font-semibold text-[#ffcc00]"> · {t.demo}</span>}
           <span className="block" lang="en">
-            Earth imagery: NASA Blue Marble
+            Earth imagery, star map and satellite model: NASA
           </span>
         </p>
       </div>
