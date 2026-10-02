@@ -28,9 +28,10 @@ function layout(width, height) {
   const planet = narrow
     ? { x: width * 0.5, y: height * 0.82, diameter: Math.min(width * 1.05, height * 0.6) }
     : { x: width * 0.74, y: height * 0.68, diameter: Math.min(width, height) * 0.8 }
-  const satellite = narrow
-    ? { x: width * 0.3, y: height * 0.11, size: 170 }
-    : { x: width * 0.17, y: height * 0.24, size: Math.min(width, height) * 0.46 }
+  // The satellite is much wider than it is tall, so its square box can sit partly above
+  // the screen: the wings end up across the top-left corner, clear of the title.
+  const size = narrow ? 170 : Math.min(width, height) * 0.34
+  const satellite = { x: size / 2 + 12, y: size * 0.3 + 10, size }
   return { planet, satellite }
 }
 

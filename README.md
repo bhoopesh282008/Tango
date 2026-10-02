@@ -20,12 +20,12 @@ Behind the text is a space scene (`src/components/Splash/SpaceScene.jsx`) built 
 | Part | What it is | Source |
 | --- | --- | --- |
 | Stars | Tycho star map, `public/images/starmap.webp` | [nasa/NASA-3D-Resources](https://github.com/nasa/NASA-3D-Resources) |
-| Satellite | Landsat 8 3D model, `public/models/landsat8.glb`, rendered live with three.js (`SatelliteModel.jsx`) | same repository |
+| Satellite | Jason-1 3D model (gold body, two solar wings), `public/models/jason1.glb`, rendered live with three.js (`SatelliteModel.jsx`) | same repository |
 | Earth | Blue Marble imagery on MapLibre's globe projection (`SplashGlobe.jsx`); it turns until India faces the viewer, then drifts slowly | NASA GIBS tiles |
 
-NASA states these assets are free and without copyright. The model is Draco-compressed, so the decoder files in `public/draco/` (copied from three.js) must ship with it. Landsat 8 stands in for the Sentinel-1 radar satellite the data comes from, for which NASA has no model.
+NASA states these assets are free and without copyright. The model is Draco-compressed, so the decoder files in `public/draco/` (copied from three.js) must ship with it. Jason-1, a radar altimeter satellite, stands in for the Sentinel-1 radar satellite the data comes from, for which NASA has no model.
 
-The scene loads after the text and costs about 1.6 MB (star map, model, decoder) plus three.js. On slow or data-saving connections and on devices without WebGL2 only the star map is shown; with reduced motion nothing moves.
+The scene loads after the text and costs about 1.4 MB (star map, model, decoder) plus three.js. On slow or data-saving connections and on devices without WebGL2 only the star map is shown; with reduced motion nothing moves.
 
 ## Demo data vs. backend
 

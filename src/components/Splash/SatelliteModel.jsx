@@ -13,11 +13,15 @@ import {
 import { DRACOLoader } from 'three/examples/jsm/loaders/DRACOLoader.js'
 import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader.js'
 
-// NASA's Landsat 8 model (github.com/nasa/NASA-3D-Resources). It is Draco-compressed,
-// so the decoder in public/draco is needed to read it.
-const MODEL_URL = '/models/landsat8.glb'
+// NASA's Jason-1 model (github.com/nasa/NASA-3D-Resources): a gold body with a solar wing
+// on each side. The Draco decoder in public/draco is there for compressed models.
+const MODEL_URL = '/models/jason1.glb'
 const DRACO_PATH = '/draco/'
-const SPIN_RADIANS_PER_SECOND = 0.05
+// The satellite rocks gently about this pose, so both wings stay in view.
+// At y = ±90° the wings spread left and right with their faces to the viewer.
+const POSE = { x: 0.3, y: -1.9, z: 0.1 }
+const ROCK_RADIANS = 0.22
+const ROCK_PERIOD_MS = 24000
 
 // Renders the satellite on a transparent canvas that fills its parent.
 export default function SatelliteModel({ onShown }) {
@@ -42,9 +46,9 @@ export default function SatelliteModel({ onShown }) {
     camera.position.set(0, 0, 6)
 
     // Sunlight from one side and almost nothing else, as in orbit.
-    const sun = new DirectionalLight(0xfff4e0, 4)
-    sun.position.set(-3, 4, 6)
-    scene.add(sun, new AmbientLight(0x8fb4ff, 0.7))
+    const sun = new DirectionalLight(0xfff4e0, 3.6)
+    sun.position.set(2, 3, 6)
+    scene.add(sun, new AmbientLight(0x8fb4ff, 0.6))
 
     const satellite = new Group()
     scene.add(satellite)
@@ -72,16 +76,15 @@ export default function SatelliteModel({ onShown }) {
       model.position.sub(box.getCenter(new Vector3()))
       satellite.add(model)
       satellite.scale.setScalar(3 / Math.max(size.x, size.y, size.z))
-      // Three-quarter view: solar array and instrument end both visible.
-      satellite.rotation.set(0.5, 0.9, -0.9)
+      satellite.rotation.set(POSE.x, POSE.y, POSE.z)
       renderer.render(scene, camera)
       shownRef.current?.()
 
       if (window.matchMedia?.('(prefers-reduced-motion: reduce)').matches) return
-      let last = performance.now()
+      const started = performance.now()
       const tick = (now) => {
-        satellite.rotation.y += ((now - last) / 1000) * SPIN_RADIANS_PER_SECOND
-        last = now
+        const phase = ((now - started) / ROCK_PERIOD_MS) * 2 * Math.PI
+        satellite.rotation.y = POSE.y + Math.sin(phase) * ROCK_RADIANS
         renderer.render(scene, camera)
         frame = requestAnimationFrame(tick)
       }
