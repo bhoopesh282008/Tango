@@ -1,19 +1,21 @@
-import { fireEvent, render, screen, waitFor } from '@testing-library/react'
+import { fireEvent, render, screen } from '@testing-library/react'
 import { useCopilotStore } from '../../store/copilotStore'
 import SplashScreen from './SplashScreen'
 
-test('offers Start once the data has loaded, then hands over', async () => {
+test('ticks off each data source, then offers Launch and hands over', async () => {
   const onReady = vi.fn()
   render(<SplashScreen onReady={onReady} />)
 
   expect(screen.getByRole('heading', { name: 'TANGO' })).toBeInTheDocument()
+  expect(screen.getAllByText('loading')).toHaveLength(3)
   expect(screen.queryByRole('button', { name: /launch monitoring/i })).not.toBeInTheDocument()
 
   const start = await screen.findByRole('button', { name: /launch monitoring/i }, { timeout: 5000 })
-  expect(screen.getByRole('progressbar')).toHaveAttribute('aria-valuenow', '100')
+  expect(screen.getAllByText('loaded')).toHaveLength(3)
+  expect(screen.getByRole('status')).toHaveTextContent('System operational')
 
   fireEvent.click(start)
-  await waitFor(() => expect(onReady).toHaveBeenCalledTimes(1))
+  expect(onReady).toHaveBeenCalledTimes(1)
 })
 
 test('language toggle switches the splash text and the copilot language', async () => {

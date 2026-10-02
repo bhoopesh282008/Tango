@@ -1,13 +1,13 @@
-import { useState } from 'react'
+import { Check } from 'lucide-react'
 import { USE_MOCK } from '../../config/apiConfig'
-import { DATA_PARTS, useDamageData } from '../../hooks/useDamageData'
+import { useDamageData } from '../../hooks/useDamageData'
 import { useCopilotStore } from '../../store/copilotStore'
 import { APP, EVENT } from '../../utils/constants'
-import TangoIcon from '../Icons/TangoIcon'
-import Starfield from './Starfield'
 import { formatDate } from '../../utils/formatters'
+import TangoIcon from '../Icons/TangoIcon'
 
-// Each status light turns on when its datasets have actually arrived.
+// The checklist is the loading indicator: each line is ticked when its datasets
+// have actually arrived (see DATA_PARTS in useDamageData).
 const SOURCES = [
   { id: 'sentinel1', parts: ['satelliteData', 'floodZones'] },
   { id: 'layers', parts: ['buildings', 'roads'] },
@@ -17,31 +17,33 @@ const SOURCES = [
 const TEXT = {
   en: {
     subtitle: APP.subtitle,
-    tagline: '“When satellites and rescuers dance together”',
-    loading: 'Loading satellite data…',
-    ready: 'Data loaded',
+    sentinel1: 'Sentinel-1 flood analysis',
+    layers: 'Buildings and roads',
+    settlements: 'Settlements and infrastructure',
+    loading: 'Receiving data…',
+    ready: 'System operational. Ready to begin.',
     failed: 'Could not load the flood data.',
     retry: 'Try again',
     start: 'Launch monitoring',
-    sentinel1: 'Sentinel-1 analysis',
-    layers: 'Buildings and roads',
-    settlements: 'Settlements',
-    asOf: (date) => `Imagery as of ${date}`,
+    imagery: 'Imagery',
     demo: 'Demo data',
+    done: 'loaded',
+    pending: 'loading',
   },
   np: {
     subtitle: 'बाढी प्रतिकार्य प्रणाली',
-    tagline: '“जब भू-उपग्रह र उद्धारकर्ता सँगै ताल मिलाउँछन्”',
-    loading: 'भू-उपग्रह तथ्याङ्क लोड हुँदैछ…',
-    ready: 'तथ्याङ्क तयार छ',
+    sentinel1: 'Sentinel-1 बाढी विश्लेषण',
+    layers: 'भवन र सडक',
+    settlements: 'बस्ती र पूर्वाधार',
+    loading: 'तथ्याङ्क प्राप्त हुँदैछ…',
+    ready: 'प्रणाली सञ्चालनमा छ। सुरु गर्न तयार।',
     failed: 'बाढीको तथ्याङ्क लोड हुन सकेन।',
     retry: 'फेरि प्रयास गर्नुहोस्',
     start: 'अनुगमन सुरु गर्नुहोस्',
-    sentinel1: 'Sentinel-1 विश्लेषण',
-    layers: 'भवन र सडक',
-    settlements: 'बस्तीहरू',
-    asOf: (date) => `तस्बिर मिति: ${date}`,
+    imagery: 'तस्बिर',
     demo: 'नमुना तथ्याङ्क',
+    done: 'लोड भयो',
+    pending: 'लोड हुँदैछ',
   },
 }
 
@@ -54,84 +56,19 @@ export default function SplashScreen({ onReady }) {
   const { data, error, reload } = useDamageData()
   const language = useCopilotStore((s) => s.language)
   const setLanguage = useCopilotStore((s) => s.setLanguage)
-  const [leaving, setLeaving] = useState(false)
 
   const t = TEXT[language] ?? TEXT.en
-  const parts = Object.keys(DATA_PARTS)
-  const loadedCount = parts.filter((part) => data.loadedParts[part]).length
-  const progress = Math.round((loadedCount / parts.length) * 100)
   const ready = data.loaded
-
-  const start = () => {
-    // Fade out, then hand over to the dashboard.
-    setLeaving(true)
-    setTimeout(onReady, 250)
-  }
 
   return (
     <div
       lang={language === 'np' ? 'ne' : 'en'}
-      className={`relative isolate flex min-h-screen flex-col items-center justify-center gap-5 overflow-hidden bg-gradient-to-br from-[#0f0f1e] to-[#1a1a2e] px-5 py-6 text-center text-white transition-opacity duration-300 sm:gap-8 ${
-        leaving ? 'opacity-0' : 'opacity-100'
-      }`}
+      className="relative flex min-h-screen flex-col items-center justify-center bg-[#0f0f1e] px-6 py-16 text-white"
     >
-      <Starfield className="absolute inset-0 -z-10 h-full w-full" />
-
-      <div className="flex flex-col items-center gap-2">
-        <TangoIcon size={88} />
-        <h1 className="text-4xl font-bold tracking-[0.12em] text-[#ff6b6b] [text-shadow:0_0_20px_rgba(255,107,107,0.5)] sm:text-5xl">
-          {APP.name}
-        </h1>
-        <p className="text-sm text-[#c0c0c0]">{t.subtitle}</p>
-      </div>
-
-      <p className="max-w-xs text-sm italic leading-relaxed text-[#a0a0a0]">{t.tagline}</p>
-
-      <div className="flex w-full max-w-xs flex-col items-center gap-2.5">
-        <p className="text-[13px] text-[#c0c0c0]" role="status">
-          {error ? t.failed : ready ? t.ready : t.loading}
-        </p>
-        <div
-          className="h-1.5 w-full overflow-hidden rounded-full border border-[rgba(255,107,107,0.2)] bg-[#1a1a2e]"
-          role="progressbar"
-          aria-valuemin={0}
-          aria-valuemax={100}
-          aria-valuenow={progress}
-        >
-          <div
-            className="h-full rounded-full bg-gradient-to-r from-[#ff6b6b] to-[#ff8800] transition-[width] duration-300"
-            style={{ width: `${progress}%` }}
-          />
-        </div>
-        <p className="text-xs font-semibold text-[#ff8800]">{progress}%</p>
-      </div>
-
-      <ul className="flex flex-wrap justify-center gap-3">
-        {SOURCES.map((source) => {
-          const active = source.parts.every((part) => data.loadedParts[part])
-          return (
-            <li
-              key={source.id}
-              className={`flex items-center gap-2 rounded-md border px-3 py-2 text-xs font-medium transition-colors duration-300 ${
-                active
-                  ? 'border-[rgba(0,204,102,0.3)] bg-[rgba(0,204,102,0.05)] text-[#00cc66]'
-                  : 'border-[rgba(255,107,107,0.1)] bg-[rgba(26,26,46,0.6)] text-[#a0a0a0]'
-              }`}
-            >
-              <span className={`text-[8px] ${active ? '' : 'splash-pulse'}`} aria-hidden>
-                ●
-              </span>
-              {t[source.id]}
-              <span className="sr-only">{active ? ': loaded' : ': loading'}</span>
-            </li>
-          )
-        })}
-      </ul>
-
       <div
         role="group"
         aria-label="Language"
-        className="flex gap-1 rounded-md border border-[rgba(255,107,107,0.1)] bg-[rgba(26,26,46,0.8)] p-1 backdrop-blur"
+        className="absolute right-4 top-4 flex rounded-md border border-[#2e2e48] p-0.5"
       >
         {LANGUAGES.map((option) => (
           <button
@@ -139,8 +76,8 @@ export default function SplashScreen({ onReady }) {
             type="button"
             onClick={() => setLanguage(option.id)}
             aria-pressed={language === option.id}
-            className={`min-h-[40px] rounded px-4 text-xs font-semibold transition-colors ${
-              language === option.id ? 'bg-[#ff6b6b] text-[#1a1a1a]' : 'text-[#c0c0c0] hover:text-white'
+            className={`min-h-[40px] rounded px-3 text-xs font-semibold ${
+              language === option.id ? 'bg-[#1a1a2e] text-white' : 'text-[#a0a0a0] hover:text-white'
             }`}
           >
             {option.label}
@@ -148,33 +85,64 @@ export default function SplashScreen({ onReady }) {
         ))}
       </div>
 
-      {/* Fixed height so the layout does not jump when the button appears. */}
-      <div className="flex h-12 items-center">
-        {ready && (
-          <button
-            type="button"
-            autoFocus
-            onClick={start}
-            className="min-h-[48px] rounded-lg bg-gradient-to-br from-[#ff6b6b] to-[#ff8800] px-8 text-sm font-bold text-[#1a1a1a] shadow-[0_4px_16px_rgba(255,107,107,0.3)] transition hover:-translate-y-0.5"
-          >
-            {t.start}
-          </button>
-        )}
-        {error && (
-          <button
-            type="button"
-            onClick={reload}
-            className="min-h-[48px] rounded-lg border border-[#ff6b6b] px-8 text-sm font-semibold text-white"
-          >
-            {t.retry}
-          </button>
-        )}
-      </div>
+      <div className="flex w-full max-w-sm flex-col">
+        <TangoIcon size={48} animated={false} />
+        <h1 className="mt-4 text-[56px] font-bold leading-none tracking-[1px] text-[#ff6b6b] sm:text-[64px]">
+          {APP.name}
+        </h1>
+        <p className="mt-2 text-sm text-[#a0a0a0]">{t.subtitle}</p>
 
-      <p className="flex flex-wrap items-center justify-center gap-x-3 gap-y-1 text-xs text-[#a0a0a0]">
-        <span>{t.asOf(formatDate(EVENT.afterDate))}</span>
-        {USE_MOCK && <span className="rounded bg-[rgba(255,204,0,0.15)] px-2 py-0.5 font-semibold text-[#ffcc00]">{t.demo}</span>}
-      </p>
+        <ul className="mt-10 flex flex-col gap-3">
+          {SOURCES.map((source) => {
+            const done = source.parts.every((part) => data.loadedParts[part])
+            return (
+              <li key={source.id} className="flex items-center gap-3 text-[13px] font-medium">
+                <span className="flex h-4 w-4 shrink-0 items-center justify-center" aria-hidden>
+                  {done ? (
+                    <Check size={16} strokeWidth={3} className="text-[#00cc66]" />
+                  ) : (
+                    <span className="splash-pulse h-1.5 w-1.5 rounded-full bg-[#707070]" />
+                  )}
+                </span>
+                <span className={done ? 'text-white' : 'text-[#707070]'}>{t[source.id]}</span>
+                <span className="sr-only">{done ? t.done : t.pending}</span>
+              </li>
+            )
+          })}
+        </ul>
+
+        <p className="mt-8 text-sm text-[#a0a0a0]" role="status">
+          {error ? t.failed : ready ? t.ready : t.loading}
+        </p>
+
+        {/* Fixed height so nothing shifts when the button appears. */}
+        <div className="mt-4 h-12">
+          {ready && (
+            <button
+              type="button"
+              autoFocus
+              onClick={onReady}
+              className="h-12 w-full rounded-lg bg-[#ff8800] px-8 text-sm font-bold text-[#1a1a1a] transition-colors hover:bg-[#ff9d2e] sm:w-auto"
+            >
+              {t.start}
+            </button>
+          )}
+          {error && (
+            <button
+              type="button"
+              onClick={reload}
+              className="h-12 w-full rounded-lg border border-[#ff8800] px-8 text-sm font-semibold text-white sm:w-auto"
+            >
+              {t.retry}
+            </button>
+          )}
+        </div>
+
+        <p className="mt-12 font-mono text-[11px] leading-relaxed text-[#808080]">
+          {t.imagery}: {formatDate(EVENT.afterDate)} · {EVENT.location}
+          {USE_MOCK && <span className="text-[#ffcc00]"> · {t.demo}</span>}
+        </p>
+      </div>
     </div>
   )
 }

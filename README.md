@@ -13,7 +13,7 @@ npm run build
 
 ## Splash screen
 
-The app opens on a TANGO splash screen once per browser session. Its progress bar and three status lights follow the real data requests (`DATA_PARTS` in `src/hooks/useDamageData.js`), not a timer, and **Launch monitoring** appears when everything has loaded. The starfield behind it is a small 2D canvas animation (`src/components/Splash/Starfield.jsx`) with no extra dependencies. The language chosen there is the copilot's language; the dashboard itself is in English.
+The app opens on a TANGO splash screen once per browser session. It is deliberately plain: the title, a three-line checklist and a launch button on a solid dark background. Each checklist line is ticked when its data has actually arrived (`DATA_PARTS` in `src/hooks/useDamageData.js`), not on a timer, and **Launch monitoring** appears when everything has loaded. The language chosen there is the copilot's language; the dashboard itself is in English.
 
 ## Demo data vs. backend
 
