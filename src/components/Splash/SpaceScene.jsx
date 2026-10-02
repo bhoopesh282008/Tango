@@ -31,9 +31,10 @@ function layout(width, height) {
     const diameter = Math.min(width * 0.92, height * 0.5)
     planet = { x: width * 0.5, y: height - diameter / 2 - 12, diameter }
   } else {
-    const diameter = Math.min(width, height) * 0.72
+    // No wider than about half the window, so there is room to sit it to the right.
+    const diameter = Math.min(Math.min(width, height) * 0.72, width * 0.52)
     // Right of centre, pulled in on narrower windows so the edge is not cut off.
-    planet = { x: Math.min(width * 0.74, width - diameter / 2 - 16), y: height * 0.57, diameter }
+    planet = { x: Math.min(width * 0.82, width - diameter / 2 - 16), y: height * 0.57, diameter }
   }
 
   const size = narrow ? 170 : Math.min(width, height) * 0.34
