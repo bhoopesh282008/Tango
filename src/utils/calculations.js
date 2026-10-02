@@ -99,6 +99,19 @@ export function rankPriority(settlementRows, infrastructure = []) {
     .map((row, index) => ({ ...row, rank: index + 1 }))
 }
 
+function meanConfidence(zones) {
+  const totalArea = sum(zones, (z) => z.area_km2)
+  return totalArea ? sum(zones, (z) => z.confidence * z.area_km2) / totalArea : 0
+}
+
+// People and settlements per priority band, for bands that have any.
+export function summarisePriority(priority) {
+  return PRIORITY_BANDS.map((band) => {
+    const members = priority.filter((p) => p.band === band.id)
+    return { ...band, count: members.length, people: sum(members, (p) => p.population) }
+  }).filter((band) => band.count > 0)
+}
+
 export function computeStats({ floodZones, buildings, roads, settlements, infrastructure }) {
   const zones = floodZones.features.map((f) => f.properties)
   const areaOf = (type) => sum(zones.filter((z) => z.type === type), (z) => z.area_km2)
@@ -120,7 +133,22 @@ export function computeStats({ floodZones, buildings, roads, settlements, infras
       debris: round(areaOf('debris')),
       uncertain: round(areaOf('uncertain')),
     },
-    meanConfidence: totalArea ? sum(zones, (z) => z.confidence * z.area_km2) / totalArea : 0,
+    meanConfidence: meanConfidence(zones),
+    // Area-weighted mean and range of model confidence per damage type
+    confidenceByType: Object.fromEntries(
+      ['water', 'debris', 'uncertain'].map((type) => {
+        const ofType = zones.filter((z) => z.type === type)
+        const values = ofType.map((z) => z.confidence)
+        return [
+          type,
+          {
+            mean: meanConfidence(ofType),
+            min: values.length ? Math.min(...values) : 0,
+            max: values.length ? Math.max(...values) : 0,
+          },
+        ]
+      }),
+    ),
     zones: [...zones].sort((a, b) => b.area_km2 - a.area_km2),
 
     damagedStructures: sum(settlementRows, (s) => s.damaged),

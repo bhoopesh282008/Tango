@@ -5,36 +5,43 @@ import { formatNumber, formatPercent } from '../../utils/formatters'
 function ConfidenceCard({ stats }) {
   return (
     <div className="card p-4">
-      <h3 className="section-title">Model confidence levels</h3>
-      <ul className="mt-3 space-y-3">
+      <h3 className="section-title">Detection confidence</h3>
+      <ul className="mt-3 space-y-3.5">
         {Object.entries(DAMAGE_TYPES).map(([type, meta]) => {
-          const zones = stats.zones.filter((z) => z.type === type)
-          const range = zones.length
-            ? `${formatPercent(Math.min(...zones.map((z) => z.confidence)))} to ${formatPercent(
-                Math.max(...zones.map((z) => z.confidence)),
-              )}`
-            : 'none detected'
+          const confidence = stats.confidenceByType[type]
+          const detected = stats.areaByType[type] > 0
           return (
-            <li key={type} className="flex items-start gap-3">
-              <span
-                className="mt-0.5 h-4 w-4 shrink-0 rounded border border-line"
-                style={{ background: meta.color }}
-                aria-hidden
-              />
-              <span className="min-w-0 text-sm">
-                <span className="font-medium">{meta.label}</span>
-                <span className="text-ink-soft">
-                  {' '}
-                  · {formatNumber(stats.areaByType[type], 1)} km² · confidence {range}
-                </span>
-                <span className="block text-xs text-ink-soft">{meta.hint}</span>
-              </span>
+            <li key={type}>
+              <div className="flex items-baseline justify-between gap-3 text-sm">
+                <span className="font-semibold">{meta.label}</span>
+                <span className="font-semibold">{detected ? formatPercent(confidence.mean) : 'none'}</span>
+              </div>
+              <div
+                className="mt-1 h-2 overflow-hidden rounded-full bg-surface-alt"
+                role="meter"
+                aria-label={`${meta.label} detection confidence`}
+                aria-valuemin={0}
+                aria-valuemax={100}
+                aria-valuenow={Math.round(confidence.mean * 100)}
+              >
+                <div
+                  className="h-full rounded-full"
+                  style={{ width: `${confidence.mean * 100}%`, background: meta.color }}
+                />
+              </div>
+              <p className="mt-1 text-xs text-ink-soft">
+                {formatNumber(stats.areaByType[type], 1)} km²
+                {detected &&
+                  ` · zones range ${formatPercent(confidence.min)} to ${formatPercent(confidence.max)}`}
+                {' · '}
+                {meta.hint}
+              </p>
             </li>
           )
         })}
       </ul>
       <p className="mt-3 border-t border-line pt-3 text-xs text-ink-soft">
-        Area-weighted mean confidence: {formatPercent(stats.meanConfidence)}
+        Area-weighted mean across all zones: {formatPercent(stats.meanConfidence)}
       </p>
     </div>
   )
@@ -49,7 +56,7 @@ function InfrastructureCard({ stats }) {
       total: String(stats.healthPostsUnreachable.length),
     },
     { label: 'Power lines down', items: stats.powerLinesDown, total: `${formatNumber(stats.powerLineKmDown, 1)} km` },
-    { label: 'Road destroyed', items: [], total: `${formatNumber(stats.damagedRoadKm, 1)} km` },
+    { label: 'Road destroyed', items: stats.damagedRoads, total: `${formatNumber(stats.damagedRoadKm, 1)} km` },
   ]
   return (
     <div className="card p-4">

@@ -7,54 +7,80 @@ import {
   LinearScale,
   Tooltip,
 } from 'chart.js'
-import { Building2, ChevronDown, Droplets, Route, Users } from 'lucide-react'
+import { Bridge, Building2, ChevronDown, Droplets, Hospital, Route, Users, Zap } from 'lucide-react'
 import { useState } from 'react'
 import { Bar, Doughnut } from 'react-chartjs-2'
 import { useUIStore } from '../../store/uiStore'
 import { DAMAGE_TYPES } from '../../utils/constants'
-import { formatNumber } from '../../utils/formatters'
+import { formatNumber, formatPercent } from '../../utils/formatters'
 
 ChartJS.register(ArcElement, BarElement, CategoryScale, LinearScale, Tooltip, Legend)
 
 const TONES = {
-  blue: { icon: 'bg-primary-soft text-primary', value: 'text-primary' },
-  red: { icon: 'bg-critical-soft text-critical', value: 'text-critical' },
-  orange: { icon: 'bg-danger-soft text-danger', value: 'text-danger' },
+  blue: { border: 'border-l-primary', tint: 'bg-primary-soft', value: 'text-primary' },
+  red: { border: 'border-l-critical', tint: 'bg-critical-soft', value: 'text-critical' },
+  orange: { border: 'border-l-danger', tint: 'bg-danger-soft', value: 'text-danger' },
 }
 
-function buildCards(stats) {
+// The three headline figures; each opens a breakdown.
+function primaryCards(stats) {
   return [
     {
       id: 'area',
       label: 'Flooded area',
       value: formatNumber(stats.floodedAreaKm2, 1),
       unit: 'km²',
+      detail: `${formatNumber(stats.areaByType.water, 1)} km² open water`,
       icon: Droplets,
       tone: 'blue',
-    },
-    {
-      id: 'structures',
-      label: 'Damaged structures',
-      value: formatNumber(stats.damagedStructures),
-      unit: `of ${formatNumber(stats.totalStructures)} mapped`,
-      icon: Building2,
-      tone: 'red',
-    },
-    {
-      id: 'roads',
-      label: 'Road damage',
-      value: formatNumber(stats.damagedRoadKm, 1),
-      unit: 'km destroyed',
-      icon: Route,
-      tone: 'orange',
     },
     {
       id: 'population',
       label: 'Population affected',
       value: formatNumber(stats.populationAffected),
-      unit: 'people cut off',
+      unit: 'people',
+      detail: `cut off in ${stats.cutOff.length} settlements`,
       icon: Users,
       tone: 'red',
+    },
+    {
+      id: 'structures',
+      label: 'Damaged structures',
+      value: formatNumber(stats.damagedStructures),
+      unit: 'structures',
+      share: stats.totalStructures ? formatPercent(stats.damagedStructures / stats.totalStructures) : null,
+      detail: `of ${formatNumber(stats.totalStructures)} mapped`,
+      icon: Building2,
+      tone: 'orange',
+    },
+  ]
+}
+
+function secondaryCards(stats) {
+  return [
+    { id: 'bridges', label: 'Bridges destroyed', value: stats.bridgesDestroyed.length, icon: Bridge, tone: 'red' },
+    {
+      id: 'health',
+      label: 'Health posts unreachable',
+      value: stats.healthPostsUnreachable.length,
+      icon: Hospital,
+      tone: 'orange',
+    },
+    {
+      id: 'power',
+      label: 'Power lines down',
+      value: formatNumber(stats.powerLineKmDown, 1),
+      unit: 'km',
+      icon: Zap,
+      tone: 'orange',
+    },
+    {
+      id: 'roads',
+      label: 'Road destroyed',
+      value: formatNumber(stats.damagedRoadKm, 1),
+      unit: 'km',
+      icon: Route,
+      tone: 'orange',
     },
   ]
 }
@@ -79,8 +105,9 @@ function barChart(labels, values, color, textColor, gridColor) {
 function Breakdown({ id, stats }) {
   // Chart.js draws on canvas, so theme colours are passed in rather than inherited.
   const darkMode = useUIStore((s) => s.darkMode)
-  const textColor = darkMode ? '#cccccc' : '#666666'
-  const gridColor = darkMode ? '#3d3d3d' : '#e0e0e0'
+  const textColor = darkMode ? '#c0c0c0' : '#666666'
+  const gridColor = darkMode ? '#2e2e48' : '#e0e0e0'
+  const barColor = darkMode ? '#ff6b6b' : '#e03131'
 
   if (id === 'area') {
     const types = Object.keys(DAMAGE_TYPES)
@@ -120,25 +147,8 @@ function Breakdown({ id, stats }) {
     const rows = [...stats.settlementRows].sort((a, b) => b.damaged - a.damaged)
     return (
       <div className="h-72">
-        {barChart(rows.map((r) => r.name), rows.map((r) => r.damaged), '#e03131', textColor, gridColor)}
+        {barChart(rows.map((r) => r.name), rows.map((r) => r.damaged), barColor, textColor, gridColor)}
       </div>
-    )
-  }
-
-  if (id === 'roads') {
-    return (
-      <ul className="text-sm">
-        {stats.damagedRoads.map((r) => (
-          <li key={r.id} className="flex justify-between gap-3 border-b border-line py-1.5 last:border-0">
-            <span>{r.name}</span>
-            <span className="shrink-0 font-semibold">{formatNumber(r.length_km, 1)} km</span>
-          </li>
-        ))}
-        <li className="pt-2 text-xs text-ink-soft">
-          {formatNumber(stats.damagedRoadKm, 1)} km destroyed of {formatNumber(stats.totalRoadKm, 1)} km
-          mapped.
-        </li>
-      </ul>
     )
   }
 
@@ -148,7 +158,7 @@ function Breakdown({ id, stats }) {
         {barChart(
           stats.cutOff.map((s) => s.name),
           stats.cutOff.map((s) => s.population),
-          '#e03131',
+          barColor,
           textColor,
           gridColor,
         )}
@@ -162,13 +172,13 @@ function Breakdown({ id, stats }) {
 
 export default function StatisticsCards({ stats }) {
   const [expanded, setExpanded] = useState(null)
-  const cards = buildCards(stats)
-  const active = cards.find((c) => c.id === expanded)
+  const primary = primaryCards(stats)
+  const active = primary.find((c) => c.id === expanded)
 
   return (
-    <section aria-label="Key statistics">
-      <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
-        {cards.map((card) => {
+    <section aria-label="Key statistics" className="flex flex-col gap-3">
+      <div className="grid gap-3 sm:grid-cols-3">
+        {primary.map((card) => {
           const tone = TONES[card.tone]
           const isOpen = expanded === card.id
           return (
@@ -177,36 +187,61 @@ export default function StatisticsCards({ stats }) {
               type="button"
               onClick={() => setExpanded(isOpen ? null : card.id)}
               aria-expanded={isOpen}
-              className={`card p-3 text-left transition duration-150 hover:-translate-y-0.5 hover:shadow-md sm:p-4 ${
+              className={`flex items-start gap-3 rounded-xl border border-l-[5px] border-line p-4 text-left shadow-sm transition duration-150 hover:-translate-y-0.5 hover:shadow-md ${tone.border} ${tone.tint} ${
                 isOpen ? 'ring-2 ring-primary' : ''
               }`}
             >
-              <span className="flex items-center justify-between">
-                <span className={`flex h-9 w-9 items-center justify-center rounded-lg ${tone.icon}`}>
-                  <card.icon size={20} aria-hidden />
+              <card.icon size={28} className={`mt-1 shrink-0 ${tone.value}`} aria-hidden />
+              <span className="min-w-0 flex-1">
+                <span className="flex flex-wrap items-baseline gap-x-1.5">
+                  <span className={`text-3xl font-bold leading-tight ${tone.value}`}>{card.value}</span>
+                  <span className="text-xs font-medium text-ink-soft">{card.unit}</span>
+                  {card.share && (
+                    <span className="rounded bg-surface px-1.5 py-0.5 text-xs font-semibold">{card.share}</span>
+                  )}
                 </span>
-                <ChevronDown
-                  size={16}
-                  className={`no-print text-ink-soft transition ${isOpen ? 'rotate-180' : ''}`}
-                  aria-hidden
-                />
+                <span className="mt-0.5 block text-xs font-semibold uppercase tracking-wide text-ink">
+                  {card.label}
+                </span>
+                <span className="mt-0.5 block text-xs text-ink-soft">{card.detail}</span>
               </span>
-              <span className={`mt-2 block text-2xl font-bold leading-tight sm:text-3xl ${tone.value}`}>
-                {card.value}
-              </span>
-              <span className="block text-xs text-ink-soft">{card.unit}</span>
-              <span className="mt-1 block text-sm font-medium text-ink">{card.label}</span>
+              <ChevronDown
+                size={16}
+                className={`no-print shrink-0 text-ink-soft transition ${isOpen ? 'rotate-180' : ''}`}
+                aria-hidden
+              />
             </button>
           )
         })}
       </div>
 
       {active && (
-        <div className="card mt-3 p-4">
+        <div className="card p-4">
           <h3 className="mb-3 text-sm font-semibold">{active.label}: breakdown</h3>
           <Breakdown id={active.id} stats={stats} />
         </div>
       )}
+
+      <dl className="grid grid-cols-2 gap-3 lg:grid-cols-4">
+        {secondaryCards(stats).map((card) => {
+          const tone = TONES[card.tone]
+          return (
+            <div
+              key={card.id}
+              className={`flex items-center gap-3 rounded-xl border border-l-[5px] border-line px-3 py-2.5 shadow-sm ${tone.border} ${tone.tint}`}
+            >
+              <card.icon size={22} className={`shrink-0 ${tone.value}`} aria-hidden />
+              <div className="flex min-w-0 flex-col-reverse">
+                <dt className="text-[11px] font-semibold uppercase tracking-wide text-ink">{card.label}</dt>
+                <dd className="text-lg font-bold leading-tight">
+                  <span className={tone.value}>{card.value}</span>
+                  {card.unit && <span className="ml-1 text-xs font-medium text-ink-soft">{card.unit}</span>}
+                </dd>
+              </div>
+            </div>
+          )
+        })}
+      </dl>
     </section>
   )
 }

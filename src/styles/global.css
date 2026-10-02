@@ -10,6 +10,8 @@
   --success: #00cc66;
   --warning: #ffd700;
   --neutral: #999999;
+  /* Text colour for use on a solid --critical background */
+  --on-critical: #ffffff;
 
   --primary-soft: #e8f3ff;
   --danger-soft: #fff0ea;
@@ -38,22 +40,29 @@
 }
 
 :root[data-theme='dark'] {
-  --bg-primary: #1a1a1a;
-  --bg-secondary: #2a2a2a;
-  --border: #3d3d3d;
+  /* Navy surfaces: page darkest, cards one step lighter */
+  --bg-primary: #1a1a2e;
+  --bg-secondary: #0f0f1e;
+  --border: #2e2e48;
   --text-primary: #ffffff;
-  --text-secondary: #cccccc;
-  --text-muted: #8c8c8c;
+  --text-secondary: #c0c0c0;
+  --text-muted: #808080;
 
-  --primary-soft: #16324d;
-  --danger-soft: #4a2617;
-  --critical-soft: #4a1c1c;
-  --success-soft: #123d27;
-  --warning-soft: #453c0a;
+  /* Brighter severity colours hold their contrast on dark surfaces */
+  --critical: #ff6b6b;
+  --danger: #ff8800;
+  --warning: #ffcc00;
+  --on-critical: #1a1a1a;
 
-  --shadow-sm: 0 1px 3px rgba(0, 0, 0, 0.5);
-  --shadow-md: 0 4px 8px rgba(0, 0, 0, 0.5);
-  --shadow-lg: 0 8px 16px rgba(0, 0, 0, 0.6);
+  --primary-soft: rgba(30, 144, 255, 0.18);
+  --danger-soft: rgba(255, 136, 0, 0.15);
+  --critical-soft: rgba(255, 107, 107, 0.15);
+  --success-soft: rgba(0, 204, 102, 0.15);
+  --warning-soft: rgba(255, 204, 0, 0.15);
+
+  --shadow-sm: 0 2px 8px rgba(0, 0, 0, 0.2);
+  --shadow-md: 0 4px 16px rgba(0, 0, 0, 0.3);
+  --shadow-lg: 0 8px 24px rgba(0, 0, 0, 0.4);
   color-scheme: dark;
 }
 

@@ -64,6 +64,8 @@ Background on the library choice is in [docs/map-library-research.md](docs/map-l
 
 `src/utils/calculations.js` derives every statistic from the loaded layers (`computeStats`). The stat cards, analysis cards, exports and copilot answers all read from that one result. In demo mode the copilot fills the templates in `src/data/copilotTemplates.js` with those figures; it does not generate free text.
 
+The copilot page is a conversation: preset questions, or a typed question. In demo mode there is no language model behind it. A typed question is matched by keyword to one of the four topics (`matchQuestion` in `src/services/copilotService.js`), and anything else gets a notice saying it cannot be answered. With a backend configured, typed questions are sent to `POST /copilot/ask` as written.
+
 The Nepali templates have not been reviewed by a native speaker.
 
 ## Layout

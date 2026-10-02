@@ -1,5 +1,5 @@
 import * as demo from '../data/mockData'
-import { buildAnswer } from '../services/copilotService'
+import { buildAnswer, matchQuestion } from '../services/copilotService'
 import {
   calculateRescuePriority,
   computeStats,
@@ -7,6 +7,7 @@ import {
   measureAreaKm2,
   measureDistanceKm,
   sizeClass,
+  summarisePriority,
   zoneFilterExpression,
 } from './calculations'
 import { FIRST_LABEL_LAYER, loadMapStyle } from '../config/mapConfig'
@@ -152,6 +153,36 @@ describe('measurement', () => {
   test('area needs three points', () => {
     expect(measureAreaKm2([[85, 28], [85.01, 28]])).toBe(0)
     expect(measureAreaKm2([[85, 28], [85.01, 28], [85.01, 28.01], [85, 28.01]])).toBeCloseTo(1.09, 1)
+  })
+})
+
+describe('matchQuestion', () => {
+  test.each([
+    ['Which settlement needs rescue most urgently?', 'priority'],
+    ['How many bridges and roads are damaged?', 'infrastructure'],
+    ['which villages are cut off', 'cut-off'],
+    ['Where did the flood hit?', 'flood-extent'],
+    ['कुन बस्ती सम्पर्कविहीन छन्?', 'cut-off'],
+    ['What is the weather tomorrow?', null],
+  ])('%s -> %s', (text, topic) => {
+    expect(matchQuestion(text)).toBe(topic)
+  })
+})
+
+describe('priority summary', () => {
+  test('counts settlements and people per band, skipping empty bands', () => {
+    expect(summarisePriority(stats.priority).map((b) => [b.id, b.count, b.people])).toEqual([
+      ['critical', 1, 1700],
+      ['medium', 3, 1550],
+      ['low', 1, 310],
+    ])
+  })
+
+  test('confidence per damage type is an area-weighted mean within its range', () => {
+    for (const { mean, min, max } of Object.values(stats.confidenceByType)) {
+      expect(mean).toBeGreaterThanOrEqual(min)
+      expect(mean).toBeLessThanOrEqual(max)
+    }
   })
 })
 

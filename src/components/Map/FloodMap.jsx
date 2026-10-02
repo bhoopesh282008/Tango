@@ -75,7 +75,7 @@ function describeInfrastructure(item) {
   }
 }
 
-export default function FloodMap({ data, priority }) {
+export default function FloodMap({ data, priority, confidence }) {
   const {
     zoom, center, baseMap, visibleLayers, filters, measureMode, focus,
     setMeasureMode, setView, addMeasurePoint,
@@ -331,7 +331,7 @@ export default function FloodMap({ data, priority }) {
                 <X size={16} />
               </button>
             </div>
-            {panel === 'layers' ? <LayerControl /> : <FilterControls />}
+            {panel === 'layers' ? <LayerControl confidence={confidence} /> : <FilterControls />}
           </div>
         )}
 

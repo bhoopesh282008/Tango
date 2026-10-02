@@ -1,7 +1,8 @@
-import { Building2, Footprints, MapPin, ShieldAlert, Users } from 'lucide-react'
+import { CircleAlert, CircleCheck, MapPin, Siren, TriangleAlert } from 'lucide-react'
 import { useState } from 'react'
 import { USE_MOCK } from '../../config/apiConfig'
 import { useMapStore } from '../../store/mapStore'
+import { summarisePriority } from '../../utils/calculations'
 import { ACCESS_LEVELS, PRIORITY_BANDS } from '../../utils/constants'
 import { formatNumber, formatPercent } from '../../utils/formatters'
 
@@ -16,21 +17,69 @@ const SORTS = [
   },
 ]
 
-// Yellow and green need dark text to stay readable.
+// Each band is told apart by icon and label as well as colour.
+// Orange, yellow and green carry dark text; they are too light for white.
 const BAND_STYLE = {
-  critical: { border: 'border-l-critical', fill: 'bg-critical', chip: 'bg-critical text-white' },
-  high: { border: 'border-l-danger', fill: 'bg-danger', chip: 'bg-danger text-white' },
-  medium: { border: 'border-l-warning', fill: 'bg-warning', chip: 'bg-warning text-[#1a1a1a]' },
-  low: { border: 'border-l-success', fill: 'bg-success', chip: 'bg-success text-[#1a1a1a]' },
+  critical: {
+    icon: Siren,
+    border: 'border-l-critical',
+    tint: 'bg-critical-soft',
+    fill: 'bg-critical',
+    chip: 'bg-critical text-critical-on',
+  },
+  high: {
+    icon: TriangleAlert,
+    border: 'border-l-danger',
+    tint: 'bg-danger-soft',
+    fill: 'bg-danger',
+    chip: 'bg-danger text-[#1a1a1a]',
+  },
+  medium: {
+    icon: CircleAlert,
+    border: 'border-l-warning',
+    tint: 'bg-warning-soft',
+    fill: 'bg-warning',
+    chip: 'bg-warning text-[#1a1a1a]',
+  },
+  low: {
+    icon: CircleCheck,
+    border: 'border-l-success',
+    tint: 'bg-success-soft',
+    fill: 'bg-success',
+    chip: 'bg-success text-[#1a1a1a]',
+  },
 }
 
-function Metric({ icon: Icon, label, children }) {
+function RiskSummary({ priority }) {
   return (
-    <div className="min-w-0">
-      <dt className="flex items-center gap-1.5 text-[11px] uppercase tracking-wide text-ink-soft">
-        <Icon size={13} aria-hidden /> {label}
-      </dt>
-      <dd className="mt-0.5 text-sm font-semibold text-ink">{children}</dd>
+    <ul className="mt-3 grid grid-cols-2 gap-3 lg:grid-cols-4">
+      {summarisePriority(priority).map((band) => {
+        const style = BAND_STYLE[band.id]
+        return (
+          <li
+            key={band.id}
+            className={`flex items-center gap-3 rounded-lg border-l-4 px-3 py-2.5 ${style.border} ${style.tint}`}
+          >
+            <style.icon size={22} className="shrink-0 text-ink" aria-hidden />
+            <span className="min-w-0">
+              <span className="block text-sm font-semibold">
+                {band.count} {band.label}
+              </span>
+              <span className="block text-xs text-ink-soft">{formatNumber(band.people)} people</span>
+            </span>
+          </li>
+        )
+      })}
+    </ul>
+  )
+}
+
+function Metric({ label, children }) {
+  return (
+    // Value above its label visually; label first in the markup, as a definition list needs.
+    <div className="flex min-w-0 flex-col-reverse px-1 text-center">
+      <dt className="mt-0.5 text-[11px] uppercase tracking-wide text-ink-soft">{label}</dt>
+      <dd className="text-sm font-bold leading-tight text-ink">{children}</dd>
     </div>
   )
 }
@@ -40,63 +89,63 @@ function PriorityCard({ settlement: s }) {
   const band = PRIORITY_BANDS.find((b) => b.id === s.band)
   const style = BAND_STYLE[s.band]
   const access = ACCESS_LEVELS[(s.access_difficulty ?? 1) - 1] ?? ACCESS_LEVELS[0]
-  const critical = [
+  const issues = [
     s.healthPostUnreachable && 'Health post unreachable',
     s.bridgeDestroyed && 'Bridge destroyed',
     s.water_source_cut && 'Water supply cut',
   ].filter(Boolean)
 
   return (
-    <li className={`card flex flex-col border-l-[5px] p-4 ${style.border}`}>
-      <div className="flex items-start justify-between gap-3">
-        <div className="min-w-0">
-          <h3 className="truncate text-base font-semibold">{s.name}</h3>
-          <p className="text-xs text-ink-soft">Cut off: no road access</p>
-        </div>
+    <li
+      className={`flex flex-col gap-3 rounded-xl border border-l-[6px] border-line p-4 shadow-sm ${style.border} ${style.tint}`}
+    >
+      <div className="flex items-center gap-3">
         <span
-          className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-full text-sm font-bold ${style.chip}`}
+          className={`flex h-11 w-11 shrink-0 items-center justify-center rounded-full text-sm font-bold ${style.chip}`}
           aria-label={`Priority rank ${s.rank}`}
         >
           #{s.rank}
         </span>
+        <div className="min-w-0 flex-1">
+          <h3 className="truncate text-base font-semibold leading-tight">{s.name}</h3>
+          <p className="mt-0.5 flex items-center gap-1 text-xs font-bold uppercase tracking-wide">
+            <style.icon size={13} aria-hidden /> {band.label}
+          </p>
+        </div>
+        <div className="shrink-0 text-right">
+          <div className="text-2xl font-bold leading-none">{s.priority}</div>
+          <div className="mt-0.5 text-[10px] uppercase tracking-wide text-ink-soft">of 100</div>
+        </div>
       </div>
 
-      <div className="mt-3 flex items-baseline justify-between">
-        <span className={`rounded px-2 py-0.5 text-xs font-bold uppercase tracking-wide ${style.chip}`}>
-          {band.label}
-        </span>
-        <span className="text-sm">
-          <span className="text-xl font-bold">{s.priority}</span>
-          <span className="text-ink-soft"> / 100</span>
-        </span>
-      </div>
       <div
-        className="mt-1.5 h-2 overflow-hidden rounded-full bg-surface-alt"
+        className="h-1.5 overflow-hidden rounded-full bg-surface"
         role="meter"
         aria-label="Rescue priority score"
         aria-valuemin={0}
         aria-valuemax={100}
         aria-valuenow={s.priority}
       >
-        <div className={`h-full ${style.fill}`} style={{ width: `${s.priority}%` }} />
+        <div className={`h-full rounded-full ${style.fill}`} style={{ width: `${s.priority}%` }} />
       </div>
 
-      <dl className="mt-3 grid grid-cols-2 gap-3 rounded-lg bg-surface-alt p-3">
-        <Metric icon={Users} label="Population">
-          {formatNumber(s.population)}
-        </Metric>
-        <Metric icon={Building2} label="Damage">
-          {formatNumber(s.damaged)} / {formatNumber(s.total)} ({formatPercent(s.damageRatio)})
-        </Metric>
-        <Metric icon={Footprints} label="Access">
-          {access.label}
-        </Metric>
-        <Metric icon={ShieldAlert} label="Critical">
-          {critical.length ? critical.join(', ') : 'None reported'}
-        </Metric>
+      <dl className="grid grid-cols-3 divide-x divide-line border-y border-line py-2">
+        <Metric label="People">{formatNumber(s.population)}</Metric>
+        <Metric label="Damaged">{formatPercent(s.damageRatio)}</Metric>
+        <Metric label="Access">{access.label}</Metric>
       </dl>
 
-      <button type="button" className="btn no-print mt-3 w-full" onClick={() => focusSettlement(s)}>
+      {issues.length > 0 && (
+        <ul className="flex flex-wrap gap-1.5" aria-label="Critical infrastructure issues">
+          {issues.map((issue) => (
+            <li key={issue} className="rounded bg-surface px-2 py-1 text-xs font-medium">
+              {issue}
+            </li>
+          ))}
+        </ul>
+      )}
+
+      <button type="button" className="btn no-print mt-auto w-full" onClick={() => focusSettlement(s)}>
         <MapPin size={16} aria-hidden /> Show on map
       </button>
     </li>
@@ -135,6 +184,8 @@ export default function SettlementPriorityRanking({ stats }) {
           ))}
         </div>
       </div>
+
+      <RiskSummary priority={stats.priority} />
 
       <ul className="mt-3 grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
         {settlements.map((settlement) => (
