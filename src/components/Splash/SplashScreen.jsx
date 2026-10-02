@@ -4,6 +4,7 @@ import { DATA_PARTS, useDamageData } from '../../hooks/useDamageData'
 import { useCopilotStore } from '../../store/copilotStore'
 import { APP, EVENT } from '../../utils/constants'
 import TangoIcon from '../Icons/TangoIcon'
+import Starfield from './Starfield'
 import { formatDate } from '../../utils/formatters'
 
 // Each status light turns on when its datasets have actually arrived.
@@ -21,7 +22,7 @@ const TEXT = {
     ready: 'Data loaded',
     failed: 'Could not load the flood data.',
     retry: 'Try again',
-    start: 'Start monitoring',
+    start: 'Launch monitoring',
     sentinel1: 'Sentinel-1 analysis',
     layers: 'Buildings and roads',
     settlements: 'Settlements',
@@ -70,13 +71,17 @@ export default function SplashScreen({ onReady }) {
   return (
     <div
       lang={language === 'np' ? 'ne' : 'en'}
-      className={`flex min-h-screen flex-col items-center justify-center gap-5 bg-gradient-to-br from-[#0f0f1e] to-[#1a1a2e] px-5 py-6 sm:gap-8 text-center text-white transition-opacity duration-300 ${
+      className={`relative isolate flex min-h-screen flex-col items-center justify-center gap-5 overflow-hidden bg-gradient-to-br from-[#0f0f1e] to-[#1a1a2e] px-5 py-6 text-center text-white transition-opacity duration-300 sm:gap-8 ${
         leaving ? 'opacity-0' : 'opacity-100'
       }`}
     >
+      <Starfield className="absolute inset-0 -z-10 h-full w-full" />
+
       <div className="flex flex-col items-center gap-2">
         <TangoIcon size={88} />
-        <h1 className="text-4xl font-bold tracking-[0.12em] text-[#ff6b6b] sm:text-5xl">{APP.name}</h1>
+        <h1 className="text-4xl font-bold tracking-[0.12em] text-[#ff6b6b] [text-shadow:0_0_20px_rgba(255,107,107,0.5)] sm:text-5xl">
+          {APP.name}
+        </h1>
         <p className="text-sm text-[#c0c0c0]">{t.subtitle}</p>
       </div>
 
@@ -126,7 +131,7 @@ export default function SplashScreen({ onReady }) {
       <div
         role="group"
         aria-label="Language"
-        className="flex gap-1 rounded-md border border-[rgba(255,107,107,0.1)] bg-[rgba(26,26,46,0.8)] p-1"
+        className="flex gap-1 rounded-md border border-[rgba(255,107,107,0.1)] bg-[rgba(26,26,46,0.8)] p-1 backdrop-blur"
       >
         {LANGUAGES.map((option) => (
           <button

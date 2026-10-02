@@ -7,9 +7,9 @@ test('offers Start once the data has loaded, then hands over', async () => {
   render(<SplashScreen onReady={onReady} />)
 
   expect(screen.getByRole('heading', { name: 'TANGO' })).toBeInTheDocument()
-  expect(screen.queryByRole('button', { name: /start monitoring/i })).not.toBeInTheDocument()
+  expect(screen.queryByRole('button', { name: /launch monitoring/i })).not.toBeInTheDocument()
 
-  const start = await screen.findByRole('button', { name: /start monitoring/i }, { timeout: 5000 })
+  const start = await screen.findByRole('button', { name: /launch monitoring/i }, { timeout: 5000 })
   expect(screen.getByRole('progressbar')).toHaveAttribute('aria-valuenow', '100')
 
   fireEvent.click(start)
