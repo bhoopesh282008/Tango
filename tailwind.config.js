@@ -11,6 +11,7 @@ export default {
     },
     extend: {
       colors: {
+        brand: 'var(--brand)',
         primary: { DEFAULT: 'var(--primary)', soft: 'var(--primary-soft)' },
         danger: { DEFAULT: 'var(--danger)', soft: 'var(--danger-soft)' },
         critical: { DEFAULT: 'var(--critical)', soft: 'var(--critical-soft)', on: 'var(--on-critical)' },

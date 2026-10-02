@@ -10,6 +10,8 @@
   --success: #00cc66;
   --warning: #ffd700;
   --neutral: #999999;
+  /* App title colour; darker on light surfaces to stay readable */
+  --brand: #e03131;
   /* Text colour for use on a solid --critical background */
   --on-critical: #ffffff;
 
@@ -53,6 +55,7 @@
   --danger: #ff8800;
   --warning: #ffcc00;
   --on-critical: #1a1a1a;
+  --brand: #ff6b6b;
 
   --primary-soft: rgba(30, 144, 255, 0.18);
   --danger-soft: rgba(255, 136, 0, 0.15);

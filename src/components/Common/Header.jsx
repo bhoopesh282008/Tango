@@ -18,8 +18,8 @@ export default function Header() {
             {APP.logo}
           </span>
           <span className="min-w-0">
-            <span className="block truncate text-base font-bold leading-tight tracking-wide text-ink">
-              {APP.name} <span className="font-normal tracking-normal text-ink-soft">· Trishuli Response</span>
+            <span className="block truncate text-base font-bold leading-tight tracking-wide text-brand sm:text-lg">
+              {APP.name} {APP.subtitle}
             </span>
             <span className="block truncate text-xs text-ink-soft">
               {EVENT.location} · {formatDate(EVENT.beforeDate)} to {formatDate(EVENT.afterDate)}
