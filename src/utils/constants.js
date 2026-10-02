@@ -1,3 +1,9 @@
+export const APP = {
+  name: 'TANGO',
+  subtitle: 'Flood Response System',
+  logo: '🕺',
+}
+
 export const EVENT = {
   name: 'Trishuli Flood',
   location: 'Trishuli corridor, Rasuwa, Nepal',

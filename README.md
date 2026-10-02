@@ -1,4 +1,4 @@
-# Trishuli Flood Response Dashboard
+# TANGO — Flood Response System
 
 Flood segmentation dashboard and situation-report copilot for rescue teams (Trishuli flood, Nepal, August 2026).
 
@@ -10,6 +10,10 @@ npm run dev      # http://localhost:5173
 npm run test
 npm run build
 ```
+
+## Splash screen
+
+The app opens on a TANGO splash screen once per browser session. Its progress bar and three status lights follow the real data requests (`DATA_PARTS` in `src/hooks/useDamageData.js`), not a timer, and **Start monitoring** appears when everything has loaded. The language chosen there is the copilot's language; the dashboard itself is in English.
 
 ## Demo data vs. backend
 

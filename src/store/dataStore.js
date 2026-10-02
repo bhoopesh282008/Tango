@@ -8,10 +8,13 @@ export const useDataStore = create((set) => ({
   settlements: [],
   infrastructure: [],
   loaded: false,
+  // Which datasets have arrived so far, for the splash screen's progress
+  loadedParts: {},
   loading: false,
   error: null,
 
   setData: (data) => set({ ...data, loaded: true, loading: false, error: null }),
+  markLoaded: (part) => set((state) => ({ loadedParts: { ...state.loadedParts, [part]: true } })),
   setLoading: (loading) => set({ loading }),
   setError: (error) => set({ error, loading: false }),
 }))

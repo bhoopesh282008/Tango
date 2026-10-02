@@ -10,21 +10,28 @@ import { getSettlements } from '../services/settlementsService'
 import { useDataStore } from '../store/dataStore'
 import { computeStats } from '../utils/calculations'
 
+export const DATA_PARTS = {
+  satelliteData: getSatellite,
+  floodZones: getFloodZones,
+  buildings: getBuildings,
+  roads: getRoads,
+  infrastructure: getInfrastructure,
+  settlements: getSettlements,
+}
+
 export async function loadDamageData() {
-  const { loading, setData, setError } = useDataStore.getState()
+  const { loading, setData, setError, markLoaded } = useDataStore.getState()
   if (loading) return
-  useDataStore.setState({ loading: true, error: null })
+  useDataStore.setState({ loading: true, error: null, loadedParts: {} })
   try {
-    const [satelliteData, floodZones, buildings, roads, infrastructure, settlements] =
-      await Promise.all([
-        getSatellite(),
-        getFloodZones(),
-        getBuildings(),
-        getRoads(),
-        getInfrastructure(),
-        getSettlements(),
-      ])
-    setData({ satelliteData, floodZones, buildings, roads, infrastructure, settlements })
+    const entries = await Promise.all(
+      Object.entries(DATA_PARTS).map(async ([part, load]) => {
+        const value = await load()
+        markLoaded(part)
+        return [part, value]
+      }),
+    )
+    setData(Object.fromEntries(entries))
   } catch (error) {
     setError(error.message || 'Could not load flood analysis data')
   }
