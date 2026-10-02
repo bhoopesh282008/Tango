@@ -15,7 +15,9 @@ npm run build
 
 The app opens on a TANGO splash screen once per browser session: the title, a three-line checklist and a launch button. Each checklist line is ticked when its data has actually arrived (`DATA_PARTS` in `src/hooks/useDamageData.js`), not on a timer, and **Launch monitoring** appears when everything has loaded. The language chosen there is the copilot's language; the dashboard itself is in English.
 
-Behind the text is a live globe (`src/components/Splash/SplashGlobe.jsx`): NASA Blue Marble imagery on MapLibre's globe projection, swinging in from the Arabian Sea and holding over India with a slow drift. It is not a video file, so there is nothing large to download: a handful of imagery tiles plus the map library the dashboard needs anyway. The globe is skipped, leaving a plain dark background, on slow or data-saving connections and on devices without WebGL2; with reduced motion it is shown still.
+Behind the text is a space scene (`src/components/Splash/SpaceScene.jsx`): a still star field, the Earth, and a drawn satellite pointing an observation beam at it. The Earth (`SplashGlobe.jsx`) is NASA Blue Marble imagery on MapLibre's globe projection; it turns until India faces the satellite and then drifts slowly. On wide screens the Earth sits lower right with the satellite upper left; on phones the Earth is at the bottom.
+
+It is not a video file, so there is nothing large to download: a handful of imagery tiles plus the map library the dashboard needs anyway. On slow or data-saving connections and on devices without WebGL2 the Earth is left out and only the stars and satellite show; with reduced motion nothing moves.
 
 ## Demo data vs. backend
 

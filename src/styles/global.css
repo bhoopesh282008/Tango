@@ -160,6 +160,20 @@ body {
 .splash-pulse {
   animation: splash-pulse 1.5s ease-in-out infinite;
 }
+@keyframes splash-float {
+  0%, 100% { transform: translateY(-5px); }
+  50% { transform: translateY(5px); }
+}
+@keyframes splash-scan {
+  0%, 100% { opacity: 0.55; }
+  50% { opacity: 1; }
+}
+.splash-float {
+  animation: splash-float 7s ease-in-out infinite;
+}
+.splash-scan {
+  animation: splash-scan 3.5s ease-in-out infinite;
+}
 /* App logo (TangoIcon) */
 .tango-icon {
   display: inline-block;
@@ -197,6 +211,8 @@ body {
 
 @media (prefers-reduced-motion: reduce) {
   .splash-pulse,
+  .splash-float,
+  .splash-scan,
   .tango-icon--animated * {
     animation: none;
   }

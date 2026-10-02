@@ -1,10 +1,10 @@
 import { Check } from 'lucide-react'
-import { lazy, Suspense, useState } from 'react'
 import { USE_MOCK } from '../../config/apiConfig'
 import { useDamageData } from '../../hooks/useDamageData'
 import { useCopilotStore } from '../../store/copilotStore'
 import { APP, EVENT } from '../../utils/constants'
 import { formatDate } from '../../utils/formatters'
+import SpaceScene from './SpaceScene'
 
 // The checklist is the loading indicator: each line is ticked when its datasets
 // have actually arrived (see DATA_PARTS in useDamageData).
@@ -49,45 +49,6 @@ const TEXT = {
   },
 }
 
-// The background is a live globe: Earth seen from orbit, settling over India.
-// It needs the map library and a few imagery tiles, so it loads after the text is up.
-const SplashGlobe = lazy(() => import('./SplashGlobe'))
-
-// On slow or metered connections the splash stays plain, so nothing delays the data.
-// The globe also needs WebGL2, which some older devices lack.
-function richBackgroundAllowed() {
-  if (typeof navigator === 'undefined') return false
-  const connection = navigator.connection
-  if (connection?.saveData) return false
-  if (['slow-2g', '2g', '3g'].includes(connection?.effectiveType)) return false
-  try {
-    return !!document.createElement('canvas').getContext('webgl2')
-  } catch {
-    return false
-  }
-}
-
-function SplashBackground() {
-  const [allowed] = useState(richBackgroundAllowed)
-  const [globeShown, setGlobeShown] = useState(false)
-
-  return (
-    <div className="absolute inset-0 -z-10 overflow-hidden bg-[#05050d]" aria-hidden>
-      {allowed && (
-        <div
-          className={`absolute inset-0 transition-opacity duration-1000 ${globeShown ? 'opacity-100' : 'opacity-0'}`}
-        >
-          <Suspense fallback={null}>
-            <SplashGlobe onShown={() => setGlobeShown(true)} />
-          </Suspense>
-        </div>
-      )}
-      {/* Darkens the imagery so the text keeps its contrast. */}
-      <div className="absolute inset-0 bg-[rgba(8,8,20,0.5)]" />
-    </div>
-  )
-}
-
 const LANGUAGES = [
   { id: 'en', label: 'EN' },
   { id: 'np', label: 'नेपाली' },
@@ -106,7 +67,7 @@ export default function SplashScreen({ onReady }) {
       lang={language === 'np' ? 'ne' : 'en'}
       className="relative isolate flex min-h-[100dvh] flex-col items-center justify-center bg-[#0f0f1e] px-5 py-16 text-center text-white"
     >
-      <SplashBackground />
+      <SpaceScene />
 
       <div
         role="group"
