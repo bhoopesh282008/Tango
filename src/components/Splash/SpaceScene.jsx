@@ -25,13 +25,23 @@ function sceneAllowed() {
 // Where the planet and the satellite sit, in pixels, for a given window size.
 function layout(width, height) {
   const narrow = width < 640
-  const planet = narrow
-    ? { x: width * 0.5, y: height * 0.82, diameter: Math.min(width * 1.05, height * 0.6) }
-    : { x: width * 0.74, y: height * 0.68, diameter: Math.min(width, height) * 0.8 }
-  // The satellite is much wider than it is tall, so its square box can sit partly above
-  // the screen: the wings end up across the top-left corner, clear of the title.
+  // Both are kept wholly inside the frame, with a margin.
+  let planet
+  if (narrow) {
+    const diameter = Math.min(width * 0.92, height * 0.5)
+    planet = { x: width * 0.5, y: height - diameter / 2 - 12, diameter }
+  } else {
+    const diameter = Math.min(width, height) * 0.72
+    // Right of centre, pulled in on narrower windows so the edge is not cut off.
+    planet = { x: Math.min(width * 0.74, width - diameter / 2 - 16), y: height * 0.57, diameter }
+  }
+
   const size = narrow ? 170 : Math.min(width, height) * 0.34
-  const satellite = { x: size / 2 + 12, y: size * 0.3 + 10, size }
+  // Upper left, but never so far right that a wing runs under the centred title.
+  const beforeTitle = width / 2 - 150 - size / 2
+  const satellite = narrow
+    ? { x: size / 2 + 16, y: height * 0.13, size }
+    : { x: Math.max(size / 2 + 24, Math.min(width * 0.2, beforeTitle)), y: height * 0.2, size }
   return { planet, satellite }
 }
 
