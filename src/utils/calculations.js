@@ -1,5 +1,5 @@
 import { area, length, lineString, polygon } from '@turf/turf'
-import { SIZE_LIMITS } from './constants'
+import { PRIORITY_BANDS, PRIORITY_WEIGHTS, SIZE_LIMITS } from './constants'
 
 const round = (n, d = 1) => Math.round(n * 10 ** d) / 10 ** d
 const sum = (items, pick) => items.reduce((total, item) => total + pick(item), 0)
@@ -47,15 +47,56 @@ export function structuresBySettlement(buildings, settlements) {
   return settlements.map((s) => ({ ...s, ...counts.get(s.id) }))
 }
 
-// Cut-off settlements ordered by population × share of structures damaged.
-export function rankPriority(settlementRows) {
+// The five 0-100 factor scores behind the rescue priority.
+export function priorityFactors(s) {
+  const population = s.population ?? 0
+  const total = s.total ?? 0
+  return {
+    // Saturates at 2,000 residents
+    population: Math.min(population / 2000, 1) * 100,
+    damage: total ? ((s.damaged ?? 0) / total) * 100 : 0,
+    // 1 = vehicle track (20) to 5 = helicopter only (100)
+    access: ((s.access_difficulty ?? 1) / 5) * 100,
+    critical:
+      (s.healthPostUnreachable ? 50 : 0) + (s.bridgeDestroyed ? 30 : 0) + (s.water_source_cut ? 20 : 0),
+    vulnerable: population
+      ? Math.min((((s.children ?? 0) + (s.elderly ?? 0)) / population) * 100, 100)
+      : 0,
+  }
+}
+
+// Weighted rescue priority, 0-100.
+export function calculateRescuePriority(settlement) {
+  const factors = priorityFactors(settlement)
+  return Math.round(
+    Object.entries(PRIORITY_WEIGHTS).reduce((score, [factor, weight]) => score + factors[factor] * weight, 0),
+  )
+}
+
+export function priorityBand(score) {
+  return PRIORITY_BANDS.find((band) => score > band.above)
+}
+
+// Cut-off settlements ranked by rescue priority, highest first.
+export function rankPriority(settlementRows, infrastructure = []) {
+  const damagedAt = (settlementId, type) =>
+    infrastructure.some(
+      (item) => item.settlement_id === settlementId && item.type === type && item.status !== 'operational',
+    )
   return settlementRows
     .filter((s) => !s.connected)
     .map((s) => {
-      const damageRatio = s.total ? s.damaged / s.total : 0
-      return { ...s, damageRatio, score: s.population * damageRatio }
+      const row = {
+        ...s,
+        damageRatio: s.total ? s.damaged / s.total : 0,
+        healthPostUnreachable: damagedAt(s.id, 'health_post'),
+        bridgeDestroyed: damagedAt(s.id, 'bridge'),
+      }
+      const priority = calculateRescuePriority(row)
+      return { ...row, priority, band: priorityBand(priority).id }
     })
-    .sort((a, b) => b.score - a.score)
+    .sort((a, b) => b.priority - a.priority || b.population - a.population)
+    .map((row, index) => ({ ...row, rank: index + 1 }))
 }
 
 export function computeStats({ floodZones, buildings, roads, settlements, infrastructure }) {
@@ -93,7 +134,7 @@ export function computeStats({ floodZones, buildings, roads, settlements, infras
     populationAffected: sum(cutOff, (s) => s.population),
     cutOff,
     connected: settlementRows.filter((s) => s.connected),
-    priority: rankPriority(settlementRows),
+    priority: rankPriority(settlementRows, infrastructure),
 
     bridgesDestroyed: damagedInfra('bridge'),
     healthPostsUnreachable: damagedInfra('health_post'),

@@ -4,6 +4,7 @@ import ErrorPage from '../../pages/ErrorPage'
 import Spinner from '../Common/Spinner'
 import DamageAnalysis from './DamageAnalysis'
 import SatelliteViewer from './SatelliteViewer'
+import SettlementPriorityRanking from './SettlementPriorityRanking'
 import StatisticsCards from './StatisticsCards'
 
 // The map library is the largest dependency, so it loads after the figures are on screen.
@@ -33,6 +34,7 @@ export default function Dashboard() {
         onComparisonChange={setComparisonBlend}
       />
       <StatisticsCards stats={stats} />
+      <SettlementPriorityRanking stats={stats} />
       <Suspense
         fallback={
           <div className="card flex h-[60vh] min-h-[360px] items-center justify-center lg:h-[560px]">
@@ -40,7 +42,7 @@ export default function Dashboard() {
           </div>
         }
       >
-        <FloodMap data={data} />
+        <FloodMap data={data} priority={stats.priority} />
       </Suspense>
       <DamageAnalysis stats={stats} />
     </div>

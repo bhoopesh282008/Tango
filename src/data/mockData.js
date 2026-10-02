@@ -167,13 +167,13 @@ function buildRoads() {
 export const roads = buildRoads()
 
 export const infrastructure = [
-  { id: 'i01', type: 'bridge', name: 'Miteri (Friendship) Bridge, Rasuwagadhi', name_np: 'मितेरी पुल, रसुवागढी', lat: 28.2775, lng: 85.3785, status: 'destroyed' },
-  { id: 'i02', type: 'bridge', name: 'Ghattekhola Bridge', name_np: 'घट्टेखोला पुल', lat: 28.196, lng: 85.353, status: 'destroyed' },
-  { id: 'i03', type: 'bridge', name: 'Syabrubesi Bridge', name_np: 'स्याफ्रुबेसी पुल', lat: 28.16, lng: 85.341, status: 'destroyed' },
-  { id: 'i04', type: 'bridge', name: 'Betrawati Bridge', name_np: 'बेत्रावती पुल', lat: 27.974, lng: 85.186, status: 'operational' },
-  { id: 'i05', type: 'health_post', name: 'Timure Health Post', name_np: 'टिमुरे स्वास्थ्य चौकी', lat: 28.254, lng: 85.371, status: 'unreachable' },
-  { id: 'i06', type: 'health_post', name: 'Syabrubesi Health Post', name_np: 'स्याफ्रुबेसी स्वास्थ्य चौकी', lat: 28.164, lng: 85.339, status: 'unreachable' },
-  { id: 'i07', type: 'health_post', name: 'Rasuwa District Hospital, Dhunche', name_np: 'रसुवा जिल्ला अस्पताल, धुन्चे', lat: 28.109, lng: 85.298, status: 'operational' },
+  { id: 'i01', settlement_id: 's01', type: 'bridge', name: 'Miteri (Friendship) Bridge, Rasuwagadhi', name_np: 'मितेरी पुल, रसुवागढी', lat: 28.2775, lng: 85.3785, status: 'destroyed' },
+  { id: 'i02', settlement_id: 's04', type: 'bridge', name: 'Ghattekhola Bridge', name_np: 'घट्टेखोला पुल', lat: 28.196, lng: 85.353, status: 'destroyed' },
+  { id: 'i03', settlement_id: 's05', type: 'bridge', name: 'Syabrubesi Bridge', name_np: 'स्याफ्रुबेसी पुल', lat: 28.16, lng: 85.341, status: 'destroyed' },
+  { id: 'i04', settlement_id: 's10', type: 'bridge', name: 'Betrawati Bridge', name_np: 'बेत्रावती पुल', lat: 27.974, lng: 85.186, status: 'operational' },
+  { id: 'i05', settlement_id: 's02', type: 'health_post', name: 'Timure Health Post', name_np: 'टिमुरे स्वास्थ्य चौकी', lat: 28.254, lng: 85.371, status: 'unreachable' },
+  { id: 'i06', settlement_id: 's05', type: 'health_post', name: 'Syabrubesi Health Post', name_np: 'स्याफ्रुबेसी स्वास्थ्य चौकी', lat: 28.164, lng: 85.339, status: 'unreachable' },
+  { id: 'i07', settlement_id: 's07', type: 'health_post', name: 'Rasuwa District Hospital, Dhunche', name_np: 'रसुवा जिल्ला अस्पताल, धुन्चे', lat: 28.109, lng: 85.298, status: 'operational' },
   { id: 'i08', type: 'power_line', name: '33 kV line, Timure–Lingling', name_np: '३३ के.भी. लाइन, टिमुरे–लिङलिङ', lat: 28.24, lng: 85.367, status: 'down', length_km: 2.6 },
   { id: 'i09', type: 'power_line', name: '11 kV feeder, Ghattekhola–Syabrubesi', name_np: '११ के.भी. फिडर, घट्टेखोला–स्याफ्रुबेसी', lat: 28.18, lng: 85.346, status: 'down', length_km: 1.5 },
 ]

@@ -23,11 +23,25 @@ To use a real backend, copy `.env.example` to `.env.local` and set `VITE_API_BAS
 | `GET /damage-analysis?bbox=` | Flood zones | `{ geojson }`, polygons with `id, name, type, confidence, area_km2` |
 | `GET /buildings?bbox=` | Building footprints | GeoJSON with `settlement_id, damaged` |
 | `GET /roads?bbox=` | Road sections | GeoJSON with `id, name, damaged, length_km` |
-| `GET /settlements` | Settlement markers and list | `[{ id, name, name_np, lat, lng, population, connected }]` |
-| `GET /infrastructure` | Bridges, health posts, power lines | `[{ id, type, name, lat, lng, status, length_km? }]` |
+| `GET /settlements` | Settlement markers, list and priority ranking | `[{ id, name, name_np, lat, lng, population, connected, access_difficulty, water_source_cut, children, elderly }]` |
+| `GET /infrastructure` | Bridges, health posts, power lines | `[{ id, settlement_id?, type, name, lat, lng, status, length_km? }]` |
 | `POST /copilot/ask` | Copilot answers | `{ answer, confidence, dataSource }` |
 
 `type` is `water`, `debris` or `uncertain`. Infrastructure `status` is `operational` or anything else (treated as damaged).
+
+## Rescue priority
+
+Cut-off settlements are ranked by a 0-100 score (`calculateRescuePriority` in `src/utils/calculations.js`):
+
+| Factor | Weight | Source |
+| --- | --- | --- |
+| Population (saturates at 2,000) | 35% | settlement data |
+| Share of structures damaged | 25% | building footprints |
+| Access difficulty, 1 (vehicle track) to 5 (helicopter only) | 20% | `access_difficulty`, field report |
+| Critical infrastructure: health post unreachable 50, bridge destroyed 30, water supply cut 20 | 15% | infrastructure layer via `settlement_id`; `water_source_cut`, field report |
+| Children and elderly as a share of residents | 5% | `children`, `elderly`, field report |
+
+Bands: above 80 critical, above 60 high, above 40 medium, otherwise low. The field-report inputs cannot be seen from satellite; missing values count as the lowest level. In the demo dataset they are illustrative.
 
 ## Map
 

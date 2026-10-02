@@ -10,18 +10,24 @@ export const STATUS_LABEL = {
   operational: 'Operational',
 }
 
-export function SettlementLayer({ settlements, visible, darkBase }) {
+export function SettlementLayer({ settlements, priority = [], visible, darkBase }) {
   const highlighted = useMapStore((s) => s.highlightedSettlement)
   const data = useMemo(
     () => ({
       type: 'FeatureCollection',
-      features: settlements.map(({ lat, lng, ...properties }) => ({
-        type: 'Feature',
-        geometry: { type: 'Point', coordinates: [lng, lat] },
-        properties,
-      })),
+      features: settlements.map(({ lat, lng, ...properties }) => {
+        // Cut-off settlements carry their rescue priority rank and score.
+        const ranked = priority.find((p) => p.id === properties.id)
+        return {
+          type: 'Feature',
+          geometry: { type: 'Point', coordinates: [lng, lat] },
+          properties: ranked
+            ? { ...properties, rank: ranked.rank, priority: ranked.priority }
+            : properties,
+        }
+      }),
     }),
-    [settlements],
+    [settlements, priority],
   )
   const isHighlighted = ['==', ['get', 'id'], highlighted ?? '']
   const layout = { visibility: visible ? 'visible' : 'none' }
@@ -38,6 +44,21 @@ export function SettlementLayer({ settlements, visible, darkBase }) {
           'circle-stroke-color': '#ffffff',
           'circle-stroke-width': ['case', isHighlighted, 3, 2],
         }}
+      />
+      <Layer
+        id="settlement-rank"
+        type="symbol"
+        filter={['has', 'rank']}
+        layout={{
+          ...layout,
+          'text-field': ['to-string', ['get', 'rank']],
+          'text-font': ['Noto Sans Bold'],
+          'text-size': 11,
+          // The number belongs to its circle, so it never yields to other labels.
+          'text-allow-overlap': true,
+          'text-ignore-placement': true,
+        }}
+        paint={{ 'text-color': '#ffffff' }}
       />
       <Layer
         id="settlement-labels"

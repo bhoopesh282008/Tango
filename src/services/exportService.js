@@ -17,15 +17,23 @@ const csvCell = (value) => {
 }
 
 // Leading BOM so Excel reads the Nepali names as UTF-8.
-const toCsv = (rows) => `﻿${rows.map((row) => row.map(csvCell).join(',')).join('\r\n')}`
+const toCsv = (rows) => `\uFEFF${rows.map((row) => row.map(csvCell).join(',')).join('\r\n')}`
 
 export function settlementsCsv(stats) {
+  const ranked = new Map(stats.priority.map((p) => [p.id, p]))
   return toCsv([
-    ['id', 'name', 'name_np', 'lat', 'lng', 'population', 'road_access', 'structures_total', 'structures_damaged'],
-    ...stats.settlementRows.map((s) => [
-      s.id, s.name, s.name_np, s.lat, s.lng, s.population,
-      s.connected ? 'connected' : 'cut off', s.total, s.damaged,
-    ]),
+    [
+      'id', 'name', 'name_np', 'lat', 'lng', 'population', 'road_access', 'structures_total',
+      'structures_damaged', 'priority_rank', 'priority_score', 'priority_band', 'access_difficulty',
+    ],
+    ...stats.settlementRows.map((s) => {
+      const p = ranked.get(s.id)
+      return [
+        s.id, s.name, s.name_np, s.lat, s.lng, s.population,
+        s.connected ? 'connected' : 'cut off', s.total, s.damaged,
+        p?.rank, p?.priority, p?.band, s.access_difficulty,
+      ]
+    }),
   ])
 }
 

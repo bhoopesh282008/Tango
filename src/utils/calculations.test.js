@@ -1,6 +1,7 @@
 import * as demo from '../data/mockData'
 import { buildAnswer } from '../services/copilotService'
 import {
+  calculateRescuePriority,
   computeStats,
   filterZones,
   measureAreaKm2,
@@ -31,6 +32,43 @@ describe('computeStats on the demo dataset', () => {
   test('area by type adds up to the total', () => {
     const { water, debris, uncertain } = stats.areaByType
     expect(water + debris + uncertain).toBeCloseTo(stats.floodedAreaKm2, 0)
+  })
+})
+
+describe('rescue priority', () => {
+  test('applies the factor weights', () => {
+    const settlement = {
+      population: 1000, // 50 -> 17.5
+      damaged: 50,
+      total: 100, // 50 -> 12.5
+      access_difficulty: 5, // 100 -> 20
+      healthPostUnreachable: true, // 50 -> 7.5
+      children: 100,
+      elderly: 100, // 20 -> 1
+    }
+    expect(calculateRescuePriority(settlement)).toBe(59)
+  })
+
+  test('caps population and tolerates missing fields', () => {
+    expect(calculateRescuePriority({ population: 50000, damaged: 0, total: 0 })).toBe(39)
+    expect(calculateRescuePriority({})).toBe(4)
+  })
+
+  test('ranks the cut-off demo settlements', () => {
+    expect(stats.priority.map((p) => [p.rank, p.name, p.priority, p.band])).toEqual([
+      [1, 'Syabrubesi', 81, 'critical'],
+      [2, 'Timure', 54, 'medium'],
+      [3, 'Rasuwagadhi', 43, 'medium'],
+      [4, 'Ghattekhola', 42, 'medium'],
+      [5, 'Lingling', 25, 'low'],
+    ])
+  })
+
+  test('takes bridge and health post status from the infrastructure layer', () => {
+    const byName = Object.fromEntries(stats.priority.map((p) => [p.name, p]))
+    expect(byName.Syabrubesi).toMatchObject({ bridgeDestroyed: true, healthPostUnreachable: true })
+    expect(byName.Timure).toMatchObject({ bridgeDestroyed: false, healthPostUnreachable: true })
+    expect(byName.Lingling).toMatchObject({ bridgeDestroyed: false, healthPostUnreachable: false })
   })
 })
 
@@ -123,6 +161,7 @@ describe('copilot answers', () => {
     expect(buildAnswer('infrastructure', language, stats).answer).toContain('1,247')
     expect(buildAnswer('cut-off', language, stats).answer).toContain('3,560')
     expect(buildAnswer('priority', language, stats).answer).toMatch(/^.*\n\n1\. /)
+    expect(buildAnswer('priority', language, stats).answer).toContain('81/100')
   })
 
   test('Nepali answers use Nepali place names', () => {

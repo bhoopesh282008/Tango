@@ -1,12 +1,12 @@
 [
-  { "id": "s01", "name": "Rasuwagadhi", "name_np": "रसुवागढी", "lat": 28.277, "lng": 85.378, "population": 420, "connected": false, "structures_total": 160, "structures_damaged": 118 },
-  { "id": "s02", "name": "Timure", "name_np": "टिमुरे", "lat": 28.255, "lng": 85.372, "population": 680, "connected": false, "structures_total": 240, "structures_damaged": 171 },
-  { "id": "s03", "name": "Lingling", "name_np": "लिङलिङ", "lat": 28.225, "lng": 85.362, "population": 310, "connected": false, "structures_total": 110, "structures_damaged": 64 },
-  { "id": "s04", "name": "Ghattekhola", "name_np": "घट्टेखोला", "lat": 28.195, "lng": 85.352, "population": 450, "connected": false, "structures_total": 150, "structures_damaged": 122 },
-  { "id": "s05", "name": "Syabrubesi", "name_np": "स्याफ्रुबेसी", "lat": 28.163, "lng": 85.34, "population": 1700, "connected": false, "structures_total": 520, "structures_damaged": 386 },
-  { "id": "s06", "name": "Thulo Bharkhu", "name_np": "ठूलो भार्खु", "lat": 28.135, "lng": 85.322, "population": 540, "connected": true, "structures_total": 180, "structures_damaged": 47 },
-  { "id": "s07", "name": "Dhunche", "name_np": "धुन्चे", "lat": 28.108, "lng": 85.297, "population": 2800, "connected": true, "structures_total": 700, "structures_damaged": 92 },
-  { "id": "s08", "name": "Ramche", "name_np": "राम्चे", "lat": 28.035, "lng": 85.255, "population": 900, "connected": true, "structures_total": 260, "structures_damaged": 58 },
-  { "id": "s09", "name": "Kalikasthan", "name_np": "कालिकास्थान", "lat": 28.0, "lng": 85.215, "population": 1500, "connected": true, "structures_total": 380, "structures_damaged": 74 },
-  { "id": "s10", "name": "Betrawati", "name_np": "बेत्रावती", "lat": 27.975, "lng": 85.185, "population": 2100, "connected": true, "structures_total": 450, "structures_damaged": 115 }
+  {"id": "s01", "name": "Rasuwagadhi", "name_np": "रसुवागढी", "lat": 28.277, "lng": 85.378, "population": 420, "connected": false, "structures_total": 160, "structures_damaged": 118, "access_difficulty": 2, "water_source_cut": true, "children": 84, "elderly": 42},
+  {"id": "s02", "name": "Timure", "name_np": "टिमुरे", "lat": 28.255, "lng": 85.372, "population": 680, "connected": false, "structures_total": 240, "structures_damaged": 171, "access_difficulty": 3, "water_source_cut": true, "children": 136, "elderly": 68},
+  {"id": "s03", "name": "Lingling", "name_np": "लिङलिङ", "lat": 28.225, "lng": 85.362, "population": 310, "connected": false, "structures_total": 110, "structures_damaged": 64, "access_difficulty": 1, "water_source_cut": false, "children": 62, "elderly": 31},
+  {"id": "s04", "name": "Ghattekhola", "name_np": "घट्टेखोला", "lat": 28.195, "lng": 85.352, "population": 450, "connected": false, "structures_total": 150, "structures_damaged": 122, "access_difficulty": 2, "water_source_cut": false, "children": 90, "elderly": 45},
+  {"id": "s05", "name": "Syabrubesi", "name_np": "स्याफ्रुबेसी", "lat": 28.163, "lng": 85.34, "population": 1700, "connected": false, "structures_total": 520, "structures_damaged": 386, "access_difficulty": 4, "water_source_cut": true, "children": 340, "elderly": 170},
+  {"id": "s06", "name": "Thulo Bharkhu", "name_np": "ठूलो भार्खु", "lat": 28.135, "lng": 85.322, "population": 540, "connected": true, "structures_total": 180, "structures_damaged": 47, "access_difficulty": 1, "water_source_cut": false, "children": 108, "elderly": 54},
+  {"id": "s07", "name": "Dhunche", "name_np": "धुन्चे", "lat": 28.108, "lng": 85.297, "population": 2800, "connected": true, "structures_total": 700, "structures_damaged": 92, "access_difficulty": 1, "water_source_cut": false, "children": 560, "elderly": 280},
+  {"id": "s08", "name": "Ramche", "name_np": "राम्चे", "lat": 28.035, "lng": 85.255, "population": 900, "connected": true, "structures_total": 260, "structures_damaged": 58, "access_difficulty": 1, "water_source_cut": false, "children": 180, "elderly": 90},
+  {"id": "s09", "name": "Kalikasthan", "name_np": "कालिकास्थान", "lat": 28.0, "lng": 85.215, "population": 1500, "connected": true, "structures_total": 380, "structures_damaged": 74, "access_difficulty": 1, "water_source_cut": false, "children": 300, "elderly": 150},
+  {"id": "s10", "name": "Betrawati", "name_np": "बेत्रावती", "lat": 27.975, "lng": 85.185, "population": 2100, "connected": true, "structures_total": 450, "structures_damaged": 115, "access_difficulty": 1, "water_source_cut": false, "children": 420, "elderly": 210}
 ]

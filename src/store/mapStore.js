@@ -16,6 +16,7 @@ export const useMapStore = create((set) => ({
   },
   filters: DEFAULT_FILTERS,
   highlightedSettlement: null,
+  focus: null, // settlement the map should fly to
   measureMode: null, // 'distance' | 'area' | null
   measurePoints: [], // [lng, lat]
 
@@ -30,6 +31,8 @@ export const useMapStore = create((set) => ({
     })),
   setFilters: (filters) => set({ filters }),
   setHighlightedSettlement: (id) => set({ highlightedSettlement: id }),
+  // A new object each time, so asking for the same settlement twice still moves the map.
+  focusSettlement: (settlement) => set({ focus: { settlement } }),
   setMeasureMode: (measureMode) => set({ measureMode, measurePoints: [] }),
   addMeasurePoint: (p) => set((state) => ({ measurePoints: [...state.measurePoints, p] })),
   clearMeasure: () => set({ measurePoints: [] }),

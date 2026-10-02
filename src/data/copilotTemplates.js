@@ -1,6 +1,6 @@
 // Copilot answers are assembled from the computed statistics, so every figure
 // in an answer is the same figure the dashboard shows.
-import { DAMAGE_TYPES, EVENT } from '../utils/constants'
+import { ACCESS_LEVELS, DAMAGE_TYPES, EVENT, PRIORITY_BANDS, PRIORITY_WEIGHTS } from '../utils/constants'
 import { formatNumber } from '../utils/formatters'
 
 const n = formatNumber
@@ -8,6 +8,13 @@ const pct = (fraction) => Math.round(fraction * 100)
 const bullets = (items) => items.map((item) => `• ${item}`).join('\n')
 const numbered = (items) => items.map((item, i) => `${i + 1}. ${item}`).join('\n')
 const day = (iso) => Number(iso.slice(8))
+
+const band = (id) => PRIORITY_BANDS.find((b) => b.id === id)
+const access = (level) => ACCESS_LEVELS[(level ?? 1) - 1] ?? ACCESS_LEVELS[0]
+// 'On foot' -> 'on foot', but '4WD only' stays as it is
+const lowerFirst = (text) => text.replace(/^[A-Z](?=[a-z])/, (c) => c.toLowerCase())
+const weight = (factor) => pct(PRIORITY_WEIGHTS[factor])
+const urgent = (s) => s.priority.filter((p) => p.band === 'critical' || p.band === 'high')
 
 const en = {
   title: {
@@ -54,19 +61,34 @@ const en = {
       `Still connected by road: ${s.connected.map((c) => c.name).join(', ')}.`,
     ].join('\n\n'),
 
-  priority: (s) =>
-    [
-      'Cut-off settlements ranked by population × share of structures damaged:',
+  priority: (s) => {
+    const issues = (p) =>
+      [
+        p.healthPostUnreachable && 'health post unreachable',
+        p.bridgeDestroyed && 'bridge destroyed',
+        p.water_source_cut && 'water supply cut',
+      ].filter(Boolean)
+    return [
+      'Cut-off settlements ranked by rescue priority score (0–100):',
       numbered(
-        s.priority.map((p) => `${p.name}: ${n(p.population)} people, ${pct(p.damageRatio)}% of structures damaged`),
+        s.priority.map((p) => {
+          const problems = issues(p)
+          return (
+            `${p.name}: ${p.priority}/100, ${band(p.band).label.toLowerCase()}. ` +
+            `${n(p.population)} people, ${pct(p.damageRatio)}% of structures damaged, ` +
+            `access: ${lowerFirst(access(p.access_difficulty).label)}` +
+            (problems.length ? `; ${problems.join(', ')}.` : '.')
+          )
+        }),
       ),
-      s.healthPostsUnreachable.length
-        ? `No road access to: ${s.healthPostsUnreachable.map((h) => h.name).join(', ')}.`
-        : null,
-      'This ranking is calculated from the satellite analysis only. It does not reflect what the satellite cannot see: injuries, supplies, weather or reports from the ground.',
+      `${n(urgent(s).reduce((sum, p) => sum + p.population, 0))} people are in critical or high priority settlements.`,
+      `Main obstacles: ${s.priority.filter((p) => p.bridgeDestroyed).length} settlements with a destroyed bridge, ${s.priority.filter((p) => p.water_source_cut).length} with water supply cut.`,
+      s.priority.length ? `Recommended first: ${s.priority[0].name}.` : null,
+      `The score weighs population (${weight('population')}%), structure damage (${weight('damage')}%), access difficulty (${weight('access')}%), critical infrastructure (${weight('critical')}%) and vulnerable residents (${weight('vulnerable')}%). Access, water supply and age figures come from field reports, not from the satellite analysis.`,
     ]
       .filter(Boolean)
-      .join('\n\n'),
+      .join('\n\n')
+  },
 }
 
 const np = {
@@ -114,19 +136,34 @@ const np = {
       `सडक सम्पर्कमा रहेका: ${s.connected.map((c) => c.name_np ?? c.name).join(', ')}।`,
     ].join('\n\n'),
 
-  priority: (s) =>
-    [
-      'सम्पर्कविहीन बस्तीहरूको प्राथमिकता क्रम (जनसंख्या × क्षतिग्रस्त संरचनाको अनुपात):',
+  priority: (s) => {
+    const issues = (p) =>
+      [
+        p.healthPostUnreachable && 'स्वास्थ्य चौकी पहुँच बाहिर',
+        p.bridgeDestroyed && 'पुल भत्किएको',
+        p.water_source_cut && 'खानेपानी अवरुद्ध',
+      ].filter(Boolean)
+    return [
+      'उद्धार प्राथमिकता अङ्क (0–100) अनुसार सम्पर्कविहीन बस्तीहरू:',
       numbered(
-        s.priority.map((p) => `${p.name_np ?? p.name}: ${n(p.population)} जना, ${pct(p.damageRatio)}% संरचना क्षतिग्रस्त`),
+        s.priority.map((p) => {
+          const problems = issues(p)
+          return (
+            `${p.name_np ?? p.name}: ${p.priority}/100, ${band(p.band).label_np}। ` +
+            `${n(p.population)} जना, ${pct(p.damageRatio)}% संरचना क्षतिग्रस्त, ` +
+            `पहुँच: ${access(p.access_difficulty).label_np}।` +
+            (problems.length ? ` ${problems.join(', ')}।` : '')
+          )
+        }),
       ),
-      s.healthPostsUnreachable.length
-        ? `सडक पहुँच नभएका: ${s.healthPostsUnreachable.map((h) => h.name_np ?? h.name).join(', ')}।`
-        : null,
-      'यो क्रम भू-उपग्रह विश्लेषणबाट मात्र गणना गरिएको हो। भू-उपग्रहले देख्न नसक्ने कुराहरू (घाइते, आपूर्ति, मौसम वा स्थलगत जानकारी) यसमा समावेश छैनन्।',
+      `अति गम्भीर वा उच्च प्राथमिकताका बस्तीमा ${n(urgent(s).reduce((sum, p) => sum + p.population, 0))} जना छन्।`,
+      `मुख्य अवरोध: ${s.priority.filter((p) => p.bridgeDestroyed).length} बस्तीमा पुल भत्किएको, ${s.priority.filter((p) => p.water_source_cut).length} बस्तीमा खानेपानी अवरुद्ध।`,
+      s.priority.length ? `पहिलो उद्धारका लागि सिफारिस: ${s.priority[0].name_np ?? s.priority[0].name}।` : null,
+      `अङ्कमा जनसंख्या (${weight('population')}%), संरचना क्षति (${weight('damage')}%), पहुँचको कठिनाइ (${weight('access')}%), महत्त्वपूर्ण पूर्वाधार (${weight('critical')}%) र जोखिममा रहेका बासिन्दा (${weight('vulnerable')}%) समावेश छन्। पहुँच, खानेपानी र उमेरसम्बन्धी तथ्याङ्क स्थलगत प्रतिवेदनबाट आएका हुन्, भू-उपग्रह विश्लेषणबाट होइन।`,
     ]
       .filter(Boolean)
-      .join('\n\n'),
+      .join('\n\n')
+  },
 }
 
 export const templates = { en, np }

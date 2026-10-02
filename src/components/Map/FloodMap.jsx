@@ -42,6 +42,7 @@ function describeFeature({ layer, properties: p }) {
         lines: [
           `${formatNumber(p.population)} people`,
           p.connected ? 'Road access intact' : 'Cut off: no road access',
+          ...(p.rank ? [`Rescue priority #${p.rank} · ${p.priority}/100`] : []),
         ],
       }
     case 'roads-intact':
@@ -74,9 +75,11 @@ function describeInfrastructure(item) {
   }
 }
 
-export default function FloodMap({ data }) {
-  const { zoom, center, baseMap, visibleLayers, filters, measureMode, setMeasureMode, setView, addMeasurePoint } =
-    useMapStore()
+export default function FloodMap({ data, priority }) {
+  const {
+    zoom, center, baseMap, visibleLayers, filters, measureMode, focus,
+    setMeasureMode, setView, addMeasurePoint,
+  } = useMapStore()
   const darkMode = useUIStore((s) => s.darkMode)
   const addToast = useUIStore((s) => s.addToast)
   const [panel, setPanel] = useState(null) // 'layers' | 'filters' | null
@@ -86,6 +89,7 @@ export default function FloodMap({ data }) {
   const [hovering, setHovering] = useState(false)
   const [mapStyle, setMapStyle] = useState(null)
   const mapRef = useRef(null)
+  const sectionRef = useRef(null)
 
   // The previous style stays on screen until the next one has been fetched.
   useEffect(() => {
@@ -95,6 +99,20 @@ export default function FloodMap({ data }) {
       current = false
     }
   }, [baseMap, darkMode])
+
+  // "Show on map" from the priority ranking: bring the map into view and fly to the settlement.
+  useEffect(() => {
+    if (!focus) return
+    const s = focus.settlement
+    sectionRef.current?.scrollIntoView({ behavior: 'smooth', block: 'center' })
+    mapRef.current?.flyTo({ center: [s.lng, s.lat], zoom: 13 })
+    setCoordinate(null)
+    setPopup({
+      lng: s.lng,
+      lat: s.lat,
+      ...describeFeature({ layer: { id: 'settlements' }, properties: s }),
+    })
+  }, [focus])
 
   // Entering or leaving full screen changes the container size.
   useEffect(() => {
@@ -157,6 +175,7 @@ export default function FloodMap({ data }) {
 
   return (
     <section
+      ref={sectionRef}
       className={
         expanded
           ? 'fixed inset-0 z-[1200] flex flex-col bg-surface'
@@ -270,6 +289,7 @@ export default function FloodMap({ data }) {
 
           <SettlementLayer
             settlements={data.settlements}
+            priority={priority}
             visible={visibleLayers.settlements}
             darkBase={darkBase}
           />
@@ -338,6 +358,7 @@ export default function FloodMap({ data }) {
         <li className="flex items-center gap-1.5"><span className="h-3 w-3 rounded-full bg-critical" /> Cut off or damaged</li>
         <li className="flex items-center gap-1.5"><span className="h-3 w-3 rounded-full bg-[#1f9d55]" /> Connected or intact</li>
         <li>B bridge · H health post · P power line</li>
+        <li>Numbers on cut-off settlements: rescue priority rank</li>
       </ul>
     </section>
   )
