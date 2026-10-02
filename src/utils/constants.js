@@ -32,7 +32,7 @@ export const MAP_LAYERS = [
   { id: 'roads', label: 'Roads' },
   { id: 'settlements', label: 'Settlements' },
   { id: 'infrastructure', label: 'Bridges, health posts, power' },
-  { id: 'elevation', label: 'Elevation contours' },
+  { id: 'elevation', label: 'Terrain shading' },
 ]
 
 export const INFRA_TYPES = {

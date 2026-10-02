@@ -1,11 +1,13 @@
-import { useState } from 'react'
+import { lazy, Suspense, useState } from 'react'
 import { useDamageData } from '../../hooks/useDamageData'
 import ErrorPage from '../../pages/ErrorPage'
 import Spinner from '../Common/Spinner'
-import FloodMap from '../Map/FloodMap'
 import DamageAnalysis from './DamageAnalysis'
 import SatelliteViewer from './SatelliteViewer'
 import StatisticsCards from './StatisticsCards'
+
+// The map library is the largest dependency, so it loads after the figures are on screen.
+const FloodMap = lazy(() => import('../Map/FloodMap'))
 
 export default function Dashboard() {
   const { data, stats, loading, error, reload } = useDamageData()
@@ -31,7 +33,15 @@ export default function Dashboard() {
         onComparisonChange={setComparisonBlend}
       />
       <StatisticsCards stats={stats} />
-      <FloodMap data={data} />
+      <Suspense
+        fallback={
+          <div className="card flex h-[60vh] min-h-[360px] items-center justify-center lg:h-[560px]">
+            <Spinner label="Loading map" />
+          </div>
+        }
+      >
+        <FloodMap data={data} />
+      </Suspense>
       <DamageAnalysis stats={stats} />
     </div>
   )

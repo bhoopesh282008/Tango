@@ -1,86 +1,129 @@
+import 'maplibre-gl/dist/maplibre-gl.css'
+import { setWorkerUrl } from 'maplibre-gl'
+import workerUrl from 'maplibre-gl/dist/maplibre-gl-worker.mjs?worker&url'
 import { Copy, Layers, Maximize2, Minimize2, Ruler, SlidersHorizontal, X } from 'lucide-react'
-import { useEffect, useMemo, useState } from 'react'
-import { GeoJSON, MapContainer, TileLayer, useMap, useMapEvents } from 'react-leaflet'
-import { BASE_MAPS, ELEVATION_LAYER, MAP_DEFAULTS } from '../../config/mapConfig'
+import { useEffect, useMemo, useRef, useState } from 'react'
+import Map, { Layer, NavigationControl, Popup, ScaleControl, Source } from 'react-map-gl/maplibre'
+import { getMapStyle, MAP_DEFAULTS, TERRAIN_SOURCE } from '../../config/mapConfig'
 import { useMapStore } from '../../store/mapStore'
 import { useUIStore } from '../../store/uiStore'
 import { filterZones } from '../../utils/calculations'
 import { copyText } from '../../utils/clipboard'
-import { formatLatLng, formatNumber } from '../../utils/formatters'
+import { DAMAGE_TYPES, INFRA_TYPES } from '../../utils/constants'
+import { formatLatLng, formatNumber, formatPercent } from '../../utils/formatters'
 import FilterControls from '../Tools/FilterControls'
 import MeasurementTool, { MeasurementLayer } from '../Tools/MeasurementTool'
 import DamageOverlay from './DamageOverlay'
 import LayerControl from './LayerControl'
-import { InfrastructureMarkers, SettlementMarkers } from './MapMarkers'
-import { escapeHtml } from './popup'
+import { InfrastructureMarkers, SettlementLayer, STATUS_LABEL } from './MapMarkers'
 
-// Keeps the store in step with the map and fixes the size after layout changes.
-function ViewSync({ expanded }) {
-  const map = useMap()
-  const setView = useMapStore((s) => s.setView)
+// MapLibre 6 loads its worker from a separate file; let Vite bundle it and hand over the URL.
+setWorkerUrl(workerUrl)
 
-  useMapEvents({
-    moveend: () => {
-      const { lat, lng } = map.getCenter()
-      setView({ lat, lng }, map.getZoom())
-    },
-  })
+// Layers that answer clicks; the click event lists the topmost feature first.
+const CLICKABLE_LAYERS = ['zones-fill', 'buildings', 'roads-intact', 'roads-damaged', 'settlements']
 
-  useEffect(() => {
-    const timer = setTimeout(() => map.invalidateSize(), 50)
-    return () => clearTimeout(timer)
-  }, [expanded, map])
+const DAMAGED = ['==', ['get', 'damaged'], true]
+const visibility = (visible) => ({ visibility: visible ? 'visible' : 'none' })
 
-  return null
+// Popup text for a clicked map feature.
+function describeFeature({ layer, properties: p }) {
+  switch (layer.id) {
+    case 'settlements':
+      return {
+        title: p.name_np ? `${p.name} (${p.name_np})` : p.name,
+        lines: [
+          `${formatNumber(p.population)} people`,
+          p.connected ? 'Road access intact' : 'Cut off: no road access',
+        ],
+      }
+    case 'roads-intact':
+    case 'roads-damaged':
+      return {
+        title: p.name,
+        lines: [`${p.damaged ? 'Destroyed' : 'Passable'} · ${formatNumber(p.length_km, 1)} km`],
+      }
+    case 'buildings':
+      return { title: 'Building', lines: [p.damaged ? 'Flagged as damaged' : 'No damage detected'] }
+    default:
+      return {
+        title: p.name,
+        lines: [
+          `${DAMAGE_TYPES[p.type].label} · ${formatNumber(p.area_km2, 1)} km²`,
+          `Confidence ${formatPercent(p.confidence)}`,
+        ],
+      }
+  }
 }
 
-function ClickHandler({ onCoordinate }) {
-  const measureMode = useMapStore((s) => s.measureMode)
-  const addMeasurePoint = useMapStore((s) => s.addMeasurePoint)
-
-  useMapEvents({
-    click: ({ latlng }) => {
-      if (measureMode) addMeasurePoint([latlng.lng, latlng.lat])
-      else onCoordinate(latlng)
-    },
-  })
-  return null
+function describeInfrastructure(item) {
+  const type = INFRA_TYPES[item.type]
+  const length = item.length_km ? ` · ${formatNumber(item.length_km, 1)} km` : ''
+  return {
+    lng: item.lng,
+    lat: item.lat,
+    title: item.name,
+    lines: [`${type?.label ?? item.type} · ${STATUS_LABEL[item.status] ?? item.status}${length}`],
+  }
 }
-
-const buildingStyle = (feature) =>
-  feature.properties.damaged
-    ? { color: '#e03131', weight: 1, fillColor: '#e03131', fillOpacity: 0.7 }
-    : { color: '#6b7280', weight: 1, fillColor: '#9ca3af', fillOpacity: 0.4 }
-
-const roadStyle = (feature) =>
-  feature.properties.damaged
-    ? { color: '#e03131', weight: 5, dashArray: '2 8' }
-    : { color: '#1a1a1a', weight: 3 }
 
 export default function FloodMap({ data }) {
-  const { zoom, center, baseMap, visibleLayers, filters, measureMode, setMeasureMode } = useMapStore()
+  const { zoom, center, baseMap, visibleLayers, filters, measureMode, setMeasureMode, setView, addMeasurePoint } =
+    useMapStore()
+  const darkMode = useUIStore((s) => s.darkMode)
   const addToast = useUIStore((s) => s.addToast)
   const [panel, setPanel] = useState(null) // 'layers' | 'filters' | null
   const [expanded, setExpanded] = useState(false)
   const [coordinate, setCoordinate] = useState(null)
+  const [popup, setPopup] = useState(null)
+  const [hovering, setHovering] = useState(false)
+  const mapRef = useRef(null)
 
-  // While measuring, features must not swallow clicks or open popups.
-  const interactive = !measureMode
-  const base = BASE_MAPS[baseMap]
+  // Entering or leaving full screen changes the container size.
+  useEffect(() => {
+    mapRef.current?.resize()
+  }, [expanded])
+
   const shownZones = useMemo(
     () => filterZones(data.floodZones.features, filters).length,
     [data.floodZones, filters],
   )
+  // Lines drawn over the basemap need to contrast with it.
+  const darkBase = baseMap !== 'street' || darkMode
 
   const togglePanel = (name) => setPanel((current) => (current === name ? null : name))
   const toggleMeasure = () => {
     setPanel(null)
     setCoordinate(null)
+    setPopup(null)
     setMeasureMode(measureMode ? null : 'distance')
   }
   const copyCoordinate = async () => {
     const ok = await copyText(formatLatLng(coordinate))
     addToast(ok ? 'Coordinates copied' : 'Could not copy', ok ? 'success' : 'error')
+  }
+
+  const handleClick = (event) => {
+    const { lng, lat } = event.lngLat
+    if (measureMode) {
+      addMeasurePoint([lng, lat])
+      return
+    }
+    const feature = event.features?.[0]
+    if (feature) {
+      setCoordinate(null)
+      setPopup({ lng, lat, ...describeFeature(feature) })
+    } else {
+      setPopup(null)
+      setCoordinate({ lat, lng })
+    }
+  }
+
+  const handleLoad = ({ target: map }) => {
+    if (!import.meta.env.DEV) return
+    // Handles for the benchmark script in docs/map-library-research.md.
+    window.__floodMap = map
+    map.once('idle', () => (window.__floodMapReady = performance.now()))
   }
 
   const tools = [
@@ -134,71 +177,102 @@ export default function FloodMap({ data }) {
         </div>
       </div>
 
-      {/* isolate keeps Leaflet's internal z-indexes from covering the page header */}
+      {/* isolate keeps the map's internal z-indexes from covering the page header */}
       <div className={`relative isolate ${expanded ? 'flex-1' : 'h-[60vh] min-h-[360px] lg:h-[560px]'}`}>
-        <MapContainer
-          center={[center.lat, center.lng]}
-          zoom={zoom}
+        <Map
+          ref={mapRef}
+          initialViewState={{ longitude: center.lng, latitude: center.lat, zoom }}
           minZoom={MAP_DEFAULTS.minZoom}
           maxZoom={MAP_DEFAULTS.maxZoom}
-          preferCanvas
-          className={`h-full w-full ${measureMode ? '!cursor-crosshair' : ''}`}
+          mapStyle={getMapStyle(baseMap, darkMode)}
+          style={{ width: '100%', height: '100%' }}
+          // While measuring, features must not swallow clicks.
+          interactiveLayerIds={measureMode ? [] : CLICKABLE_LAYERS}
+          cursor={measureMode ? 'crosshair' : hovering ? 'pointer' : 'grab'}
+          onClick={handleClick}
+          onMouseEnter={() => setHovering(true)}
+          onMouseLeave={() => setHovering(false)}
+          onMoveEnd={({ viewState }) =>
+            setView({ lat: viewState.latitude, lng: viewState.longitude }, viewState.zoom)
+          }
+          onLoad={handleLoad}
         >
-          <TileLayer key={baseMap} url={base.url} attribution={base.attribution} maxZoom={base.maxZoom} />
-          {visibleLayers.elevation && (
-            <TileLayer
-              url={ELEVATION_LAYER.url}
-              attribution={ELEVATION_LAYER.attribution}
-              maxNativeZoom={ELEVATION_LAYER.maxZoom}
-              opacity={ELEVATION_LAYER.opacity}
+          <NavigationControl position="top-left" showCompass={false} />
+          <ScaleControl position="bottom-right" />
+
+          <Source id="terrain" {...TERRAIN_SOURCE}>
+            <Layer
+              id="hillshade"
+              type="hillshade"
+              layout={visibility(visibleLayers.elevation)}
+              paint={{ 'hillshade-exaggeration': 0.6 }}
             />
-          )}
+          </Source>
 
-          {visibleLayers.damage && <DamageOverlay zones={data.floodZones} interactive={interactive} />}
+          <DamageOverlay zones={data.floodZones} visible={visibleLayers.damage} />
 
-          {visibleLayers.buildings && (
-            <GeoJSON
-              key={`buildings-${interactive}`}
-              data={data.buildings}
-              style={buildingStyle}
-              interactive={interactive}
-              onEachFeature={(feature, layer) =>
-                layer.bindPopup(
-                  feature.properties.damaged
-                    ? '<strong>Building</strong><br>Flagged as damaged'
-                    : '<strong>Building</strong><br>No damage detected',
-                )
-              }
+          <Source id="buildings" type="geojson" data={data.buildings}>
+            <Layer
+              id="buildings"
+              type="fill"
+              layout={visibility(visibleLayers.buildings)}
+              paint={{
+                'fill-color': ['case', DAMAGED, '#e03131', '#9ca3af'],
+                'fill-outline-color': ['case', DAMAGED, '#e03131', '#6b7280'],
+                'fill-opacity': ['case', DAMAGED, 0.75, 0.5],
+              }}
             />
-          )}
+          </Source>
 
-          {visibleLayers.roads && (
-            <GeoJSON
-              key={`roads-${interactive}`}
-              data={data.roads}
-              style={roadStyle}
-              interactive={interactive}
-              onEachFeature={(feature, layer) => {
-                const p = feature.properties
-                layer.bindPopup(
-                  `<strong>${escapeHtml(p.name)}</strong><br>${
-                    p.damaged ? 'Destroyed' : 'Passable'
-                  } · ${formatNumber(p.length_km, 1)} km`,
-                )
+          <Source id="roads" type="geojson" data={data.roads}>
+            <Layer
+              id="roads-intact"
+              type="line"
+              filter={['!', DAMAGED]}
+              layout={{ ...visibility(visibleLayers.roads), 'line-cap': 'round' }}
+              paint={{ 'line-color': darkBase ? '#f5f5f5' : '#1a1a1a', 'line-width': 3 }}
+            />
+            <Layer
+              id="roads-damaged"
+              type="line"
+              filter={DAMAGED}
+              layout={visibility(visibleLayers.roads)}
+              paint={{ 'line-color': '#e03131', 'line-width': 5, 'line-dasharray': [0.6, 1.2] }}
+            />
+          </Source>
+
+          <SettlementLayer settlements={data.settlements} visible={visibleLayers.settlements} />
+          <MeasurementLayer />
+
+          {visibleLayers.infrastructure && (
+            <InfrastructureMarkers
+              infrastructure={data.infrastructure}
+              onSelect={(item) => {
+                if (measureMode) return
+                setCoordinate(null)
+                setPopup(describeInfrastructure(item))
               }}
             />
           )}
 
-          {visibleLayers.infrastructure && <InfrastructureMarkers infrastructure={data.infrastructure} />}
-          {visibleLayers.settlements && <SettlementMarkers settlements={data.settlements} />}
-
-          <MeasurementLayer />
-          <ViewSync expanded={expanded} />
-          <ClickHandler onCoordinate={setCoordinate} />
-        </MapContainer>
+          {popup && (
+            <Popup
+              longitude={popup.lng}
+              latitude={popup.lat}
+              onClose={() => setPopup(null)}
+              closeOnClick={false}
+              maxWidth="260px"
+            >
+              <strong>{popup.title}</strong>
+              {popup.lines.map((line) => (
+                <div key={line}>{line}</div>
+              ))}
+            </Popup>
+          )}
+        </Map>
 
         {panel && (
-          <div className="no-print card absolute inset-x-0 bottom-0 z-[1000] max-h-[70%] overflow-y-auto rounded-b-none p-3 shadow-lg sm:inset-x-auto sm:bottom-auto sm:right-3 sm:top-3 sm:max-h-[calc(100%-1.5rem)] sm:w-72 sm:rounded-b-xl">
+          <div className="no-print card absolute inset-x-0 bottom-0 z-10 max-h-[70%] overflow-y-auto rounded-b-none p-3 shadow-lg sm:inset-x-auto sm:bottom-auto sm:right-3 sm:top-3 sm:max-h-[calc(100%-1.5rem)] sm:w-72 sm:rounded-b-xl">
             <div className="mb-1 flex items-center justify-between">
               <h3 className="text-sm font-semibold">{panel === 'layers' ? 'Map layers' : 'Filter damage zones'}</h3>
               <button type="button" className="p-2 text-ink-soft" onClick={() => setPanel(null)} aria-label="Close panel">
@@ -209,7 +283,7 @@ export default function FloodMap({ data }) {
           </div>
         )}
 
-        <div className="no-print absolute bottom-6 left-3 z-[999] flex flex-col items-start gap-2">
+        <div className="no-print absolute bottom-3 left-3 z-[9] flex flex-col items-start gap-2">
           <MeasurementTool />
           {coordinate && !measureMode && (
             <div className="card flex items-center gap-1 py-1 pl-3 pr-1 text-sm shadow-md">

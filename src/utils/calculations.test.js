@@ -6,7 +6,9 @@ import {
   measureAreaKm2,
   measureDistanceKm,
   sizeClass,
+  zoneFilterExpression,
 } from './calculations'
+import { getMapStyle } from '../config/mapConfig'
 import { DEFAULT_FILTERS } from './constants'
 
 const stats = computeStats(demo)
@@ -46,6 +48,32 @@ describe('filterZones', () => {
     const shown = filterZones(zones, filters)
     expect(shown.length).toBeGreaterThan(0)
     expect(shown.every((z) => z.properties.type === 'debris' && sizeClass(z.properties.area_km2) === 'small')).toBe(true)
+  })
+})
+
+describe('zoneFilterExpression', () => {
+  test('encodes threshold, enabled types and size limits', () => {
+    const filters = { confidence: 70, types: { water: true, debris: false, uncertain: true }, size: 'medium' }
+    expect(zoneFilterExpression(filters)).toEqual([
+      'all',
+      ['>=', ['get', 'confidence'], 0.7],
+      ['in', ['get', 'type'], ['literal', ['water', 'uncertain']]],
+      ['>=', ['get', 'area_km2'], 2],
+      ['<', ['get', 'area_km2'], 4.5],
+    ])
+  })
+
+  test('adds no size clause for all sizes', () => {
+    expect(zoneFilterExpression(DEFAULT_FILTERS)).toHaveLength(3)
+  })
+})
+
+describe('getMapStyle', () => {
+  test('street map follows the theme, imagery does not', () => {
+    expect(getMapStyle('street', false)).toMatch(/liberty$/)
+    expect(getMapStyle('street', true)).toMatch(/dark$/)
+    expect(getMapStyle('sentinel', true)).toBe(getMapStyle('sentinel', false))
+    expect(getMapStyle('unknown', false)).toMatch(/liberty$/)
   })
 })
 

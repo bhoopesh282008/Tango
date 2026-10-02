@@ -5,7 +5,7 @@ import { DEFAULT_FILTERS } from '../utils/constants'
 export const useMapStore = create((set) => ({
   zoom: MAP_DEFAULTS.zoom,
   center: MAP_DEFAULTS.center,
-  baseMap: 'osm',
+  baseMap: 'street',
   visibleLayers: {
     damage: true,
     buildings: true,

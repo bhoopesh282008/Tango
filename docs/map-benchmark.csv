@@ -1,0 +1,17 @@
+metric,unit,leaflet_1.9.4,maplibre_6.11.2,notes
+Total JavaScript (all chunks),KB gzip,256.2,655.2,vite build; MapLibre figure includes its worker (147.5)
+Map library and map code,KB gzip,~50,448.2,Leaflet estimated from the change in the dashboard chunk
+Map CSS,KB gzip,~6,10.5,
+Full redraw CPU time (median of 50),ms,2.9,1.2,default view; 14 zones + 3150 buildings; excludes GPU time for MapLibre
+Full redraw CPU time (max of 50),ms,8.4,7.1,
+Full redraw including gl.finish (median of 50),ms,n/a,0.9,
+Map ready run 1,ms,989,1484,navigation start to tiles loaded and overlays drawn; warm cache
+Map ready run 2,ms,880,1268,
+Map ready run 3,ms,854,1352,
+Map ready median,ms,880,1352,
+Basemap tiles for default view,count,18,6,OSM raster z11 vs OpenFreeMap vector z10
+Basemap tile payload for default view,KB,362.5,310.3,vector figure excludes fonts and sprites
+Sentinel-2 mosaic payload for default view,KB,n/a,295.0,EOX s2cloudless 2020; 18 tiles
+High-resolution imagery payload for default view,KB,328.0,328.0,Esri World Imagery; 18 tiles; same source in both
+Frame rate while panning,fps,not measured,not measured,browser pane does not run animation frames when hidden
+Phone performance,fps,not measured,not measured,needs a real device

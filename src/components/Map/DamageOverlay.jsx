@@ -1,38 +1,39 @@
 import { useMemo } from 'react'
-import { GeoJSON } from 'react-leaflet'
+import { Layer, Source } from 'react-map-gl/maplibre'
 import { useMapStore } from '../../store/mapStore'
-import { filterZones } from '../../utils/calculations'
+import { zoneFilterExpression } from '../../utils/calculations'
 import { DAMAGE_TYPES } from '../../utils/constants'
-import { formatNumber, formatPercent } from '../../utils/formatters'
-import { escapeHtml } from './popup'
 
-export default function DamageOverlay({ zones, interactive }) {
+const TYPE_COLOR = [
+  'match',
+  ['get', 'type'],
+  'water', DAMAGE_TYPES.water.color,
+  'debris', DAMAGE_TYPES.debris.color,
+  DAMAGE_TYPES.uncertain.color,
+]
+
+export default function DamageOverlay({ zones, visible }) {
   const filters = useMapStore((s) => s.filters)
-  const data = useMemo(
-    () => ({ type: 'FeatureCollection', features: filterZones(zones.features, filters) }),
-    [zones, filters],
-  )
+  const filter = useMemo(() => zoneFilterExpression(filters), [filters])
+  // Layers stay mounted and are hidden via layout, so draw order never changes.
+  const layout = { visibility: visible ? 'visible' : 'none' }
 
   return (
-    <GeoJSON
-      // react-leaflet does not re-read `data` after mount, so remount on change.
-      key={`${JSON.stringify(filters)}-${interactive}`}
-      data={data}
-      interactive={interactive}
-      style={(feature) => ({
-        color: DAMAGE_TYPES[feature.properties.type].color,
-        weight: 1.5,
-        fillOpacity: 0.45,
-      })}
-      onEachFeature={(feature, layer) => {
-        const p = feature.properties
-        layer.bindPopup(
-          `<strong>${escapeHtml(p.name)}</strong><br>${DAMAGE_TYPES[p.type].label} · ${formatNumber(
-            p.area_km2,
-            1,
-          )} km²<br>Confidence ${formatPercent(p.confidence)}`,
-        )
-      }}
-    />
+    <Source id="zones" type="geojson" data={zones}>
+      <Layer
+        id="zones-fill"
+        type="fill"
+        filter={filter}
+        layout={layout}
+        paint={{ 'fill-color': TYPE_COLOR, 'fill-opacity': 0.45 }}
+      />
+      <Layer
+        id="zones-outline"
+        type="line"
+        filter={filter}
+        layout={layout}
+        paint={{ 'line-color': TYPE_COLOR, 'line-width': 1.5 }}
+      />
+    </Source>
   )
 }

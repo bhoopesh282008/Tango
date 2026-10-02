@@ -12,10 +12,27 @@ export function sizeClass(areaKm2) {
 
 export function filterZones(features, filters) {
   return features.filter(({ properties: p }) => {
-    if (p.confidence * 100 < filters.confidence) return false
+    if (p.confidence < filters.confidence / 100) return false
     if (!filters.types[p.type]) return false
     return filters.size === 'all' || sizeClass(p.area_km2) === filters.size
   })
+}
+
+// The same rules as filterZones, as a MapLibre layer filter evaluated on the GPU side.
+export function zoneFilterExpression(filters) {
+  const types = Object.keys(filters.types).filter((type) => filters.types[type])
+  const area = ['get', 'area_km2']
+  const expression = [
+    'all',
+    ['>=', ['get', 'confidence'], filters.confidence / 100],
+    ['in', ['get', 'type'], ['literal', types]],
+  ]
+  if (filters.size === 'large') expression.push(['>=', area, SIZE_LIMITS.large])
+  if (filters.size === 'small') expression.push(['<', area, SIZE_LIMITS.small])
+  if (filters.size === 'medium') {
+    expression.push(['>=', area, SIZE_LIMITS.small], ['<', area, SIZE_LIMITS.large])
+  }
+  return expression
 }
 
 // Per-settlement structure counts, taken from the building footprints.

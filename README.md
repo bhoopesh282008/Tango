@@ -29,6 +29,21 @@ To use a real backend, copy `.env.example` to `.env.local` and set `VITE_API_BAS
 
 `type` is `water`, `debris` or `uncertain`. Infrastructure `status` is `operational` or anything else (treated as damaged).
 
+## Map
+
+The map uses MapLibre GL JS through `react-map-gl/maplibre` and needs WebGL. All tile sources are free and need no API key:
+
+| Layer | Source |
+| --- | --- |
+| Street map (light and dark) | OpenFreeMap vector tiles, OpenStreetMap data |
+| Sentinel-2 mosaic | EOX Sentinel-2 cloudless 2020 (CC BY-NC-SA 4.0) |
+| High-resolution imagery | Esri World Imagery |
+| Terrain shading | Mapzen Terrarium elevation tiles on AWS |
+
+These are public services with no guarantee of availability. Before field use, host or cache the tiles you rely on. Sources and default view are set in `src/config/mapConfig.js`.
+
+Background on the library choice is in [docs/map-library-research.md](docs/map-library-research.md), with figures in [docs/map-benchmark.csv](docs/map-benchmark.csv) and a guide to the code changes in [docs/map-migration.md](docs/map-migration.md).
+
 ## How the numbers stay consistent
 
 `src/utils/calculations.js` derives every statistic from the loaded layers (`computeStats`). The stat cards, analysis cards, exports and copilot answers all read from that one result. In demo mode the copilot fills the templates in `src/data/copilotTemplates.js` with those figures; it does not generate free text.

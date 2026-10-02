@@ -1,37 +1,67 @@
 import { Copy, Trash2, X } from 'lucide-react'
-import { CircleMarker, Polygon, Polyline } from 'react-leaflet'
+import { useMemo } from 'react'
+import { Layer, Source } from 'react-map-gl/maplibre'
 import { useMapStore } from '../../store/mapStore'
 import { useUIStore } from '../../store/uiStore'
 import { measureAreaKm2, measureDistanceKm } from '../../utils/calculations'
 import { copyText } from '../../utils/clipboard'
 import { formatArea, formatDistance } from '../../utils/formatters'
 
-const STYLE = { color: '#7c3aed', weight: 3, fillOpacity: 0.15 }
+const COLOR = '#7c3aed'
 
-// Rendered inside the Leaflet map: the line or polygon being measured.
+// Rendered inside the map: the line or polygon being measured.
 export function MeasurementLayer() {
   const mode = useMapStore((s) => s.measureMode)
   const points = useMapStore((s) => s.measurePoints)
-  if (!mode || points.length === 0) return null
 
-  const positions = points.map(([lng, lat]) => [lat, lng])
+  const data = useMemo(() => {
+    const features = points.map((coordinates) => ({
+      type: 'Feature',
+      geometry: { type: 'Point', coordinates },
+      properties: {},
+    }))
+    if (mode === 'area' && points.length >= 3) {
+      features.push({
+        type: 'Feature',
+        geometry: { type: 'Polygon', coordinates: [[...points, points[0]]] },
+        properties: {},
+      })
+    } else if (points.length >= 2) {
+      features.push({
+        type: 'Feature',
+        geometry: { type: 'LineString', coordinates: points },
+        properties: {},
+      })
+    }
+    return { type: 'FeatureCollection', features }
+  }, [mode, points])
+
   return (
-    <>
-      {mode === 'area' && positions.length >= 3 ? (
-        <Polygon positions={positions} pathOptions={STYLE} interactive={false} />
-      ) : (
-        <Polyline positions={positions} pathOptions={STYLE} interactive={false} />
-      )}
-      {positions.map((position, i) => (
-        <CircleMarker
-          key={i}
-          center={position}
-          radius={4}
-          pathOptions={{ ...STYLE, fillColor: '#ffffff', fillOpacity: 1, weight: 2 }}
-          interactive={false}
-        />
-      ))}
-    </>
+    <Source id="measure" type="geojson" data={data}>
+      <Layer
+        id="measure-fill"
+        type="fill"
+        filter={['==', ['geometry-type'], 'Polygon']}
+        paint={{ 'fill-color': COLOR, 'fill-opacity': 0.15 }}
+      />
+      <Layer
+        id="measure-line"
+        type="line"
+        filter={['!=', ['geometry-type'], 'Point']}
+        paint={{ 'line-color': COLOR, 'line-width': 3 }}
+      />
+      <Layer
+        id="measure-points"
+        type="circle"
+        filter={['==', ['geometry-type'], 'Point']}
+        paint={{
+          'circle-radius': 4,
+          'circle-color': '#ffffff',
+          'circle-stroke-color': COLOR,
+          'circle-stroke-width': 2,
+        }}
+      />
+    </Source>
   )
 }
 
