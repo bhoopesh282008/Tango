@@ -13,7 +13,17 @@ npm run build
 
 ## Splash screen
 
-The app opens on a TANGO splash screen once per browser session. It is deliberately plain: the title, a three-line checklist and a launch button on a solid dark background. Each checklist line is ticked when its data has actually arrived (`DATA_PARTS` in `src/hooks/useDamageData.js`), not on a timer, and **Launch monitoring** appears when everything has loaded. The language chosen there is the copilot's language; the dashboard itself is in English.
+The app opens on a TANGO splash screen once per browser session: the title, a three-line checklist and a launch button. Each checklist line is ticked when its data has actually arrived (`DATA_PARTS` in `src/hooks/useDamageData.js`), not on a timer, and **Launch monitoring** appears when everything has loaded. The language chosen there is the copilot's language; the dashboard itself is in English.
+
+Background footage is optional. Put these in `public/videos/` and the splash plays the clip behind the text, darkened for contrast:
+
+| File | Notes |
+| --- | --- |
+| `tango-splash.webm` | VP9, 1920×1080 or smaller, 5–8 s loop, no audio, 2–5 MB |
+| `tango-splash.mp4` | H.264 copy of the same clip |
+| `splash-poster.jpg` | One frame of the clip, shown while it loads |
+
+Without the files the splash keeps a plain dark background. The clip is not played on slow or data-saving connections or when reduced motion is requested; the poster is shown instead.
 
 ## Demo data vs. backend
 
