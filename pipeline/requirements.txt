@@ -1,0 +1,10 @@
+rasterio
+numpy
+scipy
+shapely
+pyproj
+geopandas
+networkx
+requests
+pystac-client
+pytest
