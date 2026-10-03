@@ -2,7 +2,7 @@ import { CircleAlert, CircleCheck, MapPin, Siren, TriangleAlert } from 'lucide-r
 import { useState } from 'react'
 import { USE_MOCK } from '../../config/apiConfig'
 import { useMapStore } from '../../store/mapStore'
-import { summarisePriority } from '../../utils/calculations'
+import { FACTOR_WEIGHTS, summarisePriority } from '../../utils/calculations'
 import { ACCESS_LEVELS, PRIORITY_BANDS, PRIORITY_WEIGHTS } from '../../utils/constants'
 
 const FACTOR_LABELS = {
@@ -11,13 +11,23 @@ const FACTOR_LABELS = {
   access: 'access difficulty',
   critical: 'critical infrastructure',
   vulnerable: 'vulnerable residents',
+  buildings: 'settlement size in mapped buildings',
 }
+
+// Cards shown before "Show all"; a real run can have dozens of cut-off settlements.
+const CARD_LIMIT = 6
 import { formatNumber, formatPercent } from '../../utils/formatters'
 import { WORDING } from '../../utils/wording'
 
 const SORTS = [
   { id: 'priority', label: 'Priority', compare: (a, b) => a.rank - b.rank },
-  { id: 'population', label: 'Population', compare: (a, b) => (b.population ?? -1) - (a.population ?? -1) },
+  {
+    id: 'population',
+    label: 'Population',
+    // Listed as "Buildings" and ordered by them when populations are not recorded
+    buildingsLabel: 'Buildings',
+    compare: (a, b) => (b.population ?? -1) - (a.population ?? -1) || b.total - a.total,
+  },
   { id: 'damage', label: 'Damage', compare: (a, b) => b.damageRatio - a.damageRatio },
   {
     id: 'access',
@@ -59,7 +69,7 @@ const BAND_STYLE = {
   },
 }
 
-function RiskSummary({ priority }) {
+function RiskSummary({ priority, buildings }) {
   return (
     <ul className="mt-3 grid grid-cols-2 gap-3 lg:grid-cols-4">
       {summarisePriority(priority).map((band) => {
@@ -75,10 +85,7 @@ function RiskSummary({ priority }) {
                 {band.count} {band.label}
               </span>
               <span className="block text-xs text-ink-soft">
-                {band.peopleUnknown === band.count
-                  ? 'population not recorded'
-                  : `${formatNumber(band.people)} people` +
-                    (band.peopleUnknown ? `, ${band.peopleUnknown} not recorded` : '')}
+                {buildings ? `${formatNumber(band.buildings)} buildings` : `${formatNumber(band.people)} people`}
               </span>
             </span>
           </li>
@@ -98,7 +105,7 @@ function Metric({ label, children }) {
   )
 }
 
-function PriorityCard({ settlement: s }) {
+function PriorityCard({ settlement: s, buildings, hidden }) {
   const focusSettlement = useMapStore((state) => state.focusSettlement)
   const band = PRIORITY_BANDS.find((b) => b.id === s.band)
   const style = BAND_STYLE[s.band]
@@ -111,7 +118,9 @@ function PriorityCard({ settlement: s }) {
 
   return (
     <li
-      className={`flex flex-col gap-3 rounded-xl border border-l-[6px] border-line p-4 shadow-sm ${style.border} ${style.tint}`}
+      className={`flex-col gap-3 rounded-xl border border-l-[6px] border-line p-4 shadow-sm ${style.border} ${style.tint} ${
+        hidden ? 'hidden print:flex' : 'flex'
+      }`}
     >
       <div className="flex items-center gap-3">
         <span
@@ -144,7 +153,11 @@ function PriorityCard({ settlement: s }) {
       </div>
 
       <dl className="grid grid-cols-3 divide-x divide-line border-y border-line py-2">
-        <Metric label="People">{s.population != null ? formatNumber(s.population) : 'No data'}</Metric>
+        {buildings ? (
+          <Metric label="Buildings">{formatNumber(s.total)}</Metric>
+        ) : (
+          <Metric label="People">{s.population != null ? formatNumber(s.population) : 'No data'}</Metric>
+        )}
         <Metric label="Damaged">{formatPercent(s.damageRatio)}</Metric>
         <Metric label="Access">{access?.label ?? 'No data'}</Metric>
       </dl>
@@ -168,13 +181,17 @@ function PriorityCard({ settlement: s }) {
 
 export default function SettlementPriorityRanking({ stats }) {
   const [sortId, setSortId] = useState('priority')
+  const [showAll, setShowAll] = useState(false)
+  const buildings = stats.sizeBasis === 'buildings'
+  // Sorting by access is offered only when the data has access levels.
+  const sorts = SORTS.filter((o) => o.id !== 'access' || stats.priority.some((p) => p.access_difficulty != null))
   const sort = SORTS.find((s) => s.id === sortId)
   const settlements = [...stats.priority].sort(sort.compare)
 
   if (settlements.length === 0) return null
 
   const used = settlements[0].factorsUsed
-  const missing = Object.keys(FACTOR_LABELS).filter((f) => !used.includes(f))
+  const missing = Object.keys(PRIORITY_WEIGHTS).filter((f) => !used.includes(f))
 
   return (
     <section aria-labelledby="priority-heading">
@@ -186,29 +203,39 @@ export default function SettlementPriorityRanking({ stats }) {
           </span>
         </h2>
         <div className="no-print flex" role="group" aria-label="Sort settlements by">
-          {SORTS.map((option, i) => (
+          {sorts.map((option, i) => (
             <button
               key={option.id}
               type="button"
               onClick={() => setSortId(option.id)}
               aria-pressed={sortId === option.id}
               className={`btn ${i > 0 ? '-ml-px' : ''} ${
-                i === 0 ? 'rounded-r-none' : i === SORTS.length - 1 ? 'rounded-l-none' : 'rounded-none'
+                i === 0 ? 'rounded-r-none' : i === sorts.length - 1 ? 'rounded-l-none' : 'rounded-none'
               } ${sortId === option.id ? 'btn-active' : ''}`}
             >
-              {option.label}
+              {(buildings && option.buildingsLabel) || option.label}
             </button>
           ))}
         </div>
       </div>
 
-      <RiskSummary priority={stats.priority} />
+      <RiskSummary priority={stats.priority} buildings={buildings} />
 
       <ul className="mt-3 grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
-        {settlements.map((settlement) => (
-          <PriorityCard key={settlement.id} settlement={settlement} />
+        {settlements.map((settlement, i) => (
+          <PriorityCard
+            key={settlement.id}
+            settlement={settlement}
+            buildings={buildings}
+            hidden={!showAll && i >= CARD_LIMIT}
+          />
         ))}
       </ul>
+      {settlements.length > CARD_LIMIT && (
+        <button type="button" className="btn no-print mt-3" onClick={() => setShowAll(!showAll)} aria-expanded={showAll}>
+          {showAll ? `Show first ${CARD_LIMIT}` : `Show all ${settlements.length}`}
+        </button>
+      )}
 
       {missing.length === 0 ? (
         <p className="mt-2 text-xs text-ink-soft">
@@ -220,7 +247,7 @@ export default function SettlementPriorityRanking({ stats }) {
       ) : (
         <p className="mt-2 text-xs text-ink-soft">
           Score out of 100, from the factors recorded for every settlement:{' '}
-          {used.map((f) => `${FACTOR_LABELS[f]} ${Math.round(PRIORITY_WEIGHTS[f] * 100)}%`).join(', ')},
+          {used.map((f) => `${FACTOR_LABELS[f]} ${Math.round(FACTOR_WEIGHTS[f] * 100)}%`).join(', ')},
           rescaled to add up to 100%. Not scored, because the data is missing for some or all
           settlements: {missing.map((f) => FACTOR_LABELS[f]).join(', ')}.
           A score built from fewer factors is a weaker guide; treat the order as provisional.

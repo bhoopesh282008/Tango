@@ -128,6 +128,15 @@ def names(row):
             text(row.get('name:ne')) or (local if devanagari else None))
 
 
+def describe_roads(roads):
+    """Add length_km and a display name (English where OSM has one) to the road segments."""
+    roads = roads.copy()
+    metric = roads.to_crs(roads.estimate_utm_crs())
+    roads['length_km'] = (metric.length / 1000).round(2).to_numpy()
+    roads['name'] = [names(row)[0] or 'Unnamed road' for _, row in roads.iterrows()]
+    return roads
+
+
 def hospitals_or_any(health):
     """Hospitals as destinations; any health facility where none is mapped."""
     health = health.copy()
@@ -184,9 +193,7 @@ def main():
 
     status = cutoff.connectivity(settlements, hospitals_or_any(osm['health']), roads)
 
-    metric = roads.to_crs(roads.estimate_utm_crs())
-    roads['length_km'] = (metric.length / 1000).round(2).to_numpy()
-    roads['name'] = roads['name'].fillna('Unnamed road') if 'name' in roads.columns else 'Unnamed road'
+    roads = describe_roads(roads)
 
     settlement_rows = settlement_records(settlements, status)
     infra = infrastructure.build(osm['bridges'], osm['health'], roads, zones, settlements)

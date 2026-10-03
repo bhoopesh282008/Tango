@@ -48,13 +48,22 @@ export function structuresBySettlement(buildings, settlements) {
   return settlements.map((s) => ({ ...s, ...counts.get(s.id) }))
 }
 
+// Settlement size can be scored from residents or, where the population is not
+// recorded, from mapped buildings. Either carries the population weight.
+export const FACTOR_WEIGHTS = { ...PRIORITY_WEIGHTS, buildings: PRIORITY_WEIGHTS.population }
+const SIZE_FACTORS = ['population', 'buildings']
+
 // The 0-100 factor scores behind the rescue priority. A factor is returned only
 // when the data carries its input; nothing is assumed for a missing one.
 export function priorityFactors(s) {
   const factors = {}
   // Saturates at 2,000 residents
   if (s.population != null) factors.population = Math.min(s.population / 2000, 1) * 100
-  if (s.total) factors.damage = ((s.damaged ?? 0) / s.total) * 100
+  if (s.total != null) {
+    // Saturates at 400 mapped buildings
+    factors.buildings = Math.min(s.total / 400, 1) * 100
+    factors.damage = s.total ? ((s.damaged ?? 0) / s.total) * 100 : 0
+  }
   // 1 = vehicle track (20) to 5 = helicopter only (100)
   if (s.access_difficulty != null) factors.access = (s.access_difficulty / 5) * 100
   const critical = [
@@ -73,11 +82,22 @@ export function priorityFactors(s) {
 // of the remaining ones are rescaled to add up to 1. `only` restricts the score
 // to a given set of factors, so that settlements are compared on the same ones.
 export function calculateRescuePriority(settlement, only) {
-  const factors = Object.entries(priorityFactors(settlement)).filter(([f]) => !only || only.includes(f))
-  const score = sum(factors, ([factor, value]) => value * PRIORITY_WEIGHTS[factor])
+  const available = priorityFactors(settlement)
+  // On its own, a settlement is sized by residents when known, else by buildings.
+  const use = only ?? Object.keys(available).filter((f) => f !== ('population' in available ? 'buildings' : 'population'))
+  const factors = Object.entries(available).filter(([f]) => use.includes(f))
+  const score = sum(factors, ([factor, value]) => value * FACTOR_WEIGHTS[factor])
   if (factors.length === Object.keys(PRIORITY_WEIGHTS).length) return Math.round(score)
-  const weight = sum(factors, ([factor]) => PRIORITY_WEIGHTS[factor])
+  const weight = sum(factors, ([factor]) => FACTOR_WEIGHTS[factor])
   return weight ? Math.round(score / weight) : 0
+}
+
+// The factors every one of the rows has data for, with one measure of size:
+// residents if all rows have them, otherwise mapped buildings for all rows.
+export function commonFactors(rows) {
+  const common = Object.keys(FACTOR_WEIGHTS).filter((f) => rows.every((row) => f in priorityFactors(row)))
+  const size = SIZE_FACTORS.find((f) => common.includes(f))
+  return common.filter((f) => !SIZE_FACTORS.includes(f) || f === size)
 }
 
 export function priorityBand(score) {
@@ -101,7 +121,7 @@ export function rankPriority(settlementRows, infrastructure = []) {
     }))
   // Only factors every settlement has data for are scored: a settlement missing
   // its population must not outrank others by being scored on damage alone.
-  const factorsUsed = Object.keys(PRIORITY_WEIGHTS).filter((f) => rows.every((row) => f in priorityFactors(row)))
+  const factorsUsed = commonFactors(rows)
   return rows
     .map((row) => {
       const priority = calculateRescuePriority(row, factorsUsed)
@@ -124,6 +144,7 @@ export function summarisePriority(priority) {
       ...band,
       count: members.length,
       people: sum(members, (p) => p.population ?? 0),
+      buildings: sum(members, (p) => p.total ?? 0),
       peopleUnknown: members.filter((p) => p.population == null).length,
     }
   }).filter((band) => band.count > 0)
@@ -182,10 +203,25 @@ export function computeStats({ floodZones, buildings, roads, settlements, infras
     settlementRows,
 
     damagedRoadKm: round(sum(damagedRoads, (r) => r.length_km)),
+    // Damaged sections merged by road name, longest first: real data has hundreds of segments
+    damagedRoadGroups: Object.values(
+      damagedRoads.reduce((groups, r) => {
+        const group = (groups[r.name] ??= { id: r.name, name: r.name, name_np: r.name_np, length_km: 0, sections: 0 })
+        group.length_km = round(group.length_km + r.length_km, 2)
+        group.sections += 1
+        return groups
+      }, {}),
+    ).sort((a, b) => b.length_km - a.length_km),
     totalRoadKm: round(sum(roadSections, (r) => r.length_km)),
     damagedRoads,
 
     populationAffected: sum(cutOff, (s) => s.population ?? 0),
+    // 'population' only when it is recorded for every cut-off settlement (or, with
+    // none cut off, for every settlement); otherwise sizes are given in mapped buildings.
+    sizeBasis: (cutOff.length ? cutOff : settlementRows).every((s) => s.population != null)
+      ? 'population'
+      : 'buildings',
+    buildingsInCutOff: sum(cutOff, (s) => s.total),
     // Cut-off settlements whose population the source does not record
     populationUnknown: cutOff.filter((s) => s.population == null).length,
     cutOff,

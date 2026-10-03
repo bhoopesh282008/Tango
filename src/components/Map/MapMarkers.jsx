@@ -88,8 +88,15 @@ export function SettlementLayer({ settlements, priority = [], visible, darkBase 
   )
 }
 
+// With more items than this, intact ones are left off the map so the affected ones can be seen.
+export const MARKER_LIMIT = 40
+export const showsAllMarkers = (infrastructure) => infrastructure.length <= MARKER_LIMIT
+
 export function InfrastructureMarkers({ infrastructure, onSelect }) {
-  return infrastructure.map((item) => {
+  const shown = showsAllMarkers(infrastructure)
+    ? infrastructure
+    : infrastructure.filter((item) => item.status !== 'operational')
+  return shown.map((item) => {
     const type = INFRA_TYPES[item.type]
     const damaged = item.status !== 'operational'
     return (

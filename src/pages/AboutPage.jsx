@@ -40,7 +40,7 @@ const LIMITS = [
   ],
   [
     'OpenStreetMap is incomplete',
-    'Footpaths, new roads and small settlements may be missing. A settlement with no mapped road before the event is shown as “Access unknown”, not as cut off. Population is shown only where OpenStreetMap records it.',
+    'Footpaths, new roads and small settlements may be missing. A settlement with no mapped road before the event is shown as “Access unknown”, not as cut off. OpenStreetMap records a population for very few settlements here, so the size of a settlement is given as its number of mapped buildings and no head count is shown. Each building is assigned to the nearest named place, and not every building is a home.',
   ],
   [
     'Road cuts are coarse',
@@ -48,7 +48,7 @@ const LIMITS = [
   ],
   [
     'Priority score',
-    'The rescue priority uses only the factors the data provides and rescales their weights. With few factors it mostly reflects population and should be treated as a starting point for people who know the area.',
+    'The rescue priority uses only the factors recorded for every cut-off settlement and rescales their weights. On real data that is usually the number of mapped buildings and the share of them in the flood zone, so it should be treated as a starting point for people who know the area.',
   ],
   [
     'Nepali text',

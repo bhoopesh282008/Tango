@@ -1,3 +1,4 @@
+import { useState } from 'react'
 import { useMapStore } from '../../store/mapStore'
 import { DAMAGE_TYPES } from '../../utils/constants'
 import { formatNumber, formatPeople, formatPercent } from '../../utils/formatters'
@@ -8,6 +9,37 @@ const ACCESS = {
   unknown: { order: 1, label: 'Access unknown', className: 'bg-surface-alt text-ink-soft' },
   connected: { order: 2, label: 'Connected', className: 'bg-success-soft text-ink' },
 }
+// Rows shown before "Show all": real runs list dozens of bridges, roads and settlements.
+const LIST_LIMIT = 8
+
+function useShowAll(count) {
+  const [all, setAll] = useState(false)
+  const toggle = count > LIST_LIMIT && (
+    <button type="button" className="no-print mt-1 text-xs font-medium underline" onClick={() => setAll(!all)} aria-expanded={all}>
+      {all ? `Show first ${LIST_LIMIT}` : `Show all ${count}`}
+    </button>
+  )
+  // Rows past the limit stay in the page, hidden on screen, so that print shows everything.
+  return { hiddenAt: (i) => !all && i >= LIST_LIMIT, toggle }
+}
+
+function ItemList({ items }) {
+  const { hiddenAt, toggle } = useShowAll(items.length)
+  return (
+    <>
+      <ul className="mt-0.5 list-disc pl-5 text-xs text-ink-soft">
+        {items.map((item, i) => (
+          <li key={item.id ?? i} className={hiddenAt(i) ? 'hidden print:list-item' : undefined}>
+            {item.name}
+            {item.sections > 1 && ` (${formatNumber(item.length_km, 1)} km in ${item.sections} sections)`}
+          </li>
+        ))}
+      </ul>
+      {toggle}
+    </>
+  )
+}
+
 const accessOf = (s) =>
   s.connected === true ? ACCESS.connected : s.connected === false ? ACCESS.cutOff : ACCESS.unknown
 
@@ -71,7 +103,7 @@ function InfrastructureCard({ stats }) {
             : []),
         ]
       : []),
-    { label: WORDING.road, items: stats.damagedRoads, total: `${formatNumber(stats.damagedRoadKm, 1)} km` },
+    { label: WORDING.road, items: stats.damagedRoadGroups, total: `${formatNumber(stats.damagedRoadKm, 1)} km` },
   ]
   return (
     <div className="card p-4">
@@ -83,14 +115,7 @@ function InfrastructureCard({ stats }) {
               <span className="font-medium">{g.label}</span>
               <span className="font-semibold text-critical">{g.total}</span>
             </span>
-            {g.items.length > 0 && (
-              <ul className="mt-0.5 list-disc pl-5 text-xs text-ink-soft">
-                {g.items.map((item, i) => (
-                  // Roads from a pipeline run carry no id
-                  <li key={item.id ?? i}>{item.name}</li>
-                ))}
-              </ul>
-            )}
+            {g.items.length > 0 && <ItemList items={g.items} />}
           </li>
         ))}
       </ul>
@@ -130,8 +155,9 @@ function SettlementsCard({ stats }) {
             <span className="min-w-0">
               <span className="block truncate font-medium">{s.name}</span>
               <span className="block text-xs text-ink-soft">
-                {formatPeople(s.population)} · {formatNumber(s.damaged)} of {formatNumber(s.total)}{' '}
-                structures damaged
+                {stats.sizeBasis === 'buildings'
+                  ? `${formatNumber(s.total)} buildings · ${formatNumber(s.damaged)} damaged`
+                  : `${formatPeople(s.population)} · ${formatNumber(s.damaged)} of ${formatNumber(s.total)} structures damaged`}
               </span>
             </span>
             <span

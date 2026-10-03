@@ -23,6 +23,8 @@ const TONES = {
   orange: { border: 'border-l-danger', tint: 'bg-danger-soft', value: 'text-danger' },
 }
 
+const CHART_ROWS = 10
+
 // The three headline figures; each opens a breakdown.
 function primaryCards(stats) {
   return [
@@ -35,17 +37,26 @@ function primaryCards(stats) {
       icon: Droplets,
       tone: 'blue',
     },
-    {
-      id: 'population',
-      label: 'Population affected',
-      value: formatNumber(stats.populationAffected),
-      unit: 'people',
-      detail:
-        `cut off in ${stats.cutOff.length} settlements` +
-        (stats.populationUnknown ? `; not recorded for ${stats.populationUnknown}` : ''),
-      icon: Users,
-      tone: 'red',
-    },
+    stats.sizeBasis === 'buildings'
+      ? {
+          // OpenStreetMap has no population for these settlements, so no head count is shown.
+          id: 'population',
+          label: 'Buildings in cut-off settlements',
+          value: formatNumber(stats.buildingsInCutOff),
+          unit: 'buildings',
+          detail: `in ${stats.cutOff.length} settlements; population not recorded`,
+          icon: Building2,
+          tone: 'red',
+        }
+      : {
+          id: 'population',
+          label: 'Population affected',
+          value: formatNumber(stats.populationAffected),
+          unit: 'people',
+          detail: `cut off in ${stats.cutOff.length} settlements`,
+          icon: Users,
+          tone: 'red',
+        },
     {
       id: 'structures',
       label: 'Damaged structures',
@@ -153,30 +164,37 @@ function Breakdown({ id, stats }) {
     )
   }
 
+  // A chart stays readable up to about ten bars; the rest are counted in the note.
+  const top = (rows, value) => [...rows].sort((a, b) => value(b) - value(a)).slice(0, CHART_ROWS)
+  const rest = (rows) => (rows.length > CHART_ROWS ? ` Largest ${CHART_ROWS} of ${rows.length} shown.` : '')
+
   if (id === 'structures') {
-    const rows = [...stats.settlementRows].sort((a, b) => b.damaged - a.damaged)
+    const rows = top(stats.settlementRows, (r) => r.damaged)
     return (
-      <div className="h-72">
-        {barChart(rows.map((r) => r.name), rows.map((r) => r.damaged), barColor, textColor, gridColor)}
+      <div>
+        <div className="h-72">
+          {barChart(rows.map((r) => r.name), rows.map((r) => r.damaged), barColor, textColor, gridColor)}
+        </div>
+        <p className="mt-2 text-xs text-ink-soft">
+          Damaged structures per settlement.{rest(stats.settlementRows)}
+        </p>
       </div>
     )
   }
 
+  const buildings = stats.sizeBasis === 'buildings'
+  const size = (s) => (buildings ? s.total : s.population)
+  const rows = top(stats.cutOff, size)
   return (
     <div>
       <div className="h-52">
-        {barChart(
-          stats.cutOff.map((s) => s.name),
-          stats.cutOff.map((s) => s.population ?? 0),
-          barColor,
-          textColor,
-          gridColor,
-        )}
+        {barChart(rows.map((s) => s.name), rows.map(size), barColor, textColor, gridColor)}
       </div>
       <p className="mt-2 text-xs text-ink-soft">
-        Residents of the {stats.cutOff.length} settlements with no road access.
-        {stats.populationUnknown > 0 &&
-          ` Population is not recorded for ${stats.populationUnknown} of them; they show as 0.`}
+        {buildings
+          ? `Mapped buildings in the ${stats.cutOff.length} settlements with no road access. OpenStreetMap does not record their population, and not every building is a home.`
+          : `Residents of the ${stats.cutOff.length} settlements with no road access.`}
+        {rest(stats.cutOff)}
       </p>
     </div>
   )

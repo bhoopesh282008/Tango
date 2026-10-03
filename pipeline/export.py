@@ -7,12 +7,25 @@ import config as C
 
 def _write(path, data):
     # allow_nan=False: a NaN would be written as a bare NaN, which browsers reject.
-    Path(path).write_text(json.dumps(data, ensure_ascii=False, allow_nan=False), encoding='utf-8')
+    Path(path).write_text(json.dumps(data, ensure_ascii=False, allow_nan=False, separators=(',', ':')),
+                          encoding='utf-8')
+
+
+def _rounded(coords):
+    """Coordinates to 6 decimals (about 0.1 m), which trims the building file by about a sixth."""
+    if isinstance(coords, (int, float)):
+        return round(coords, 6)
+    return [_rounded(c) for c in coords]
 
 
 def _fc(gdf, columns):
     gdf = gdf.to_crs('EPSG:4326')
-    return json.loads(gdf[columns + ['geometry']].to_json())
+    collection = json.loads(gdf[columns + ['geometry']].to_json())
+    collection.pop('crs', None)
+    for feature in collection['features']:
+        feature.pop('id', None)
+        feature['geometry']['coordinates'] = _rounded(feature['geometry']['coordinates'])
+    return collection
 
 
 def export_all(out, zones, buildings, roads, settlements, infrastructure, satellite):

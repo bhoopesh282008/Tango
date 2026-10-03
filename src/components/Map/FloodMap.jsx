@@ -22,7 +22,7 @@ import MeasurementTool, { MeasurementLayer } from '../Tools/MeasurementTool'
 import DamageOverlay from './DamageOverlay'
 import Spinner from '../Common/Spinner'
 import LayerControl from './LayerControl'
-import { InfrastructureMarkers, SettlementLayer, STATUS_LABEL } from './MapMarkers'
+import { InfrastructureMarkers, SettlementLayer, showsAllMarkers, STATUS_LABEL } from './MapMarkers'
 
 // Layers that answer clicks; the click event lists the topmost feature first.
 const CLICKABLE_LAYERS = ['zones-fill', 'buildings', 'roads-intact', 'roads-damaged', 'settlements']
@@ -358,7 +358,13 @@ export default function FloodMap({ data, priority, confidence }) {
         <li className="flex items-center gap-1.5"><span className="h-3 w-3 rounded-sm bg-uncertain" /> Uncertain</li>
         <li className="flex items-center gap-1.5"><span className="h-3 w-3 rounded-full bg-critical" /> Cut off or damaged</li>
         <li className="flex items-center gap-1.5"><span className="h-3 w-3 rounded-full bg-[#1f9d55]" /> Connected or intact</li>
-        <li>B bridge · H health post · P power line</li>
+        {data.settlements.some((s) => s.connected == null) && (
+          <li className="flex items-center gap-1.5"><span className="h-3 w-3 rounded-full bg-[#868e96]" /> Road access unknown</li>
+        )}
+        <li>
+          B bridge · H health post · P power line
+          {!showsAllMarkers(data.infrastructure) && ' (only affected ones shown)'}
+        </li>
         <li>Numbers on cut-off settlements: rescue priority rank</li>
       </ul>
     </section>

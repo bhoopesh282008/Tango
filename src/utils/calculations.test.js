@@ -2,6 +2,7 @@ import * as demo from '../data/mockData'
 import { buildAnswer, matchQuestion } from '../services/copilotService'
 import {
   calculateRescuePriority,
+  commonFactors,
   computeStats,
   priorityFactors,
   rankPriority,
@@ -54,11 +55,26 @@ describe('rescue priority', () => {
 
   test('caps population and scores only the factors that have data', () => {
     // Population alone: its weight is rescaled to the whole score.
-    expect(calculateRescuePriority({ population: 50000, damaged: 0, total: 0 })).toBe(100)
+    expect(calculateRescuePriority({ population: 50000 })).toBe(100)
     // Population 50 and damage 20, weights 35 and 25 rescaled over 60.
     expect(calculateRescuePriority({ population: 1000, damaged: 20, total: 100 })).toBe(38)
     expect(calculateRescuePriority({})).toBe(0)
-    expect(priorityFactors({ population: null, total: 0 })).toEqual({})
+    expect(priorityFactors({ population: null })).toEqual({})
+    // No mapped buildings: size 0 and no damage, not "unknown".
+    expect(priorityFactors({ population: null, total: 0 })).toEqual({ buildings: 0, damage: 0 })
+  })
+
+  test('sizes a settlement by mapped buildings when its population is not recorded', () => {
+    // 200 of a saturating 400 buildings -> 50; damage 20; weights 35 and 25 over 60.
+    expect(calculateRescuePriority({ population: null, damaged: 40, total: 200 })).toBe(38)
+    // Residents win over buildings when both are known.
+    expect(calculateRescuePriority({ population: 2000, damaged: 0, total: 4 })).toBe(58)
+    const rows = [
+      { population: 900, total: 40, damaged: 10 },
+      { population: null, total: 300, damaged: 30 },
+    ]
+    expect(commonFactors(rows)).toEqual(['damage', 'buildings'])
+    expect(commonFactors([rows[0]])).toEqual(['population', 'damage'])
   })
 
   test('ranks the cut-off demo settlements', () => {
@@ -105,6 +121,8 @@ describe('pipeline-shaped data', () => {
   test('a missing population is reported, not counted as zero people', () => {
     expect(run.populationAffected).toBe(400)
     expect(run.populationUnknown).toBe(1)
+    expect(run.sizeBasis).toBe('buildings')
+    expect(stats.sizeBasis).toBe('population')
   })
 
   test('settlements are scored on the same factors, so a data gap cannot lift a rank', () => {
@@ -113,10 +131,11 @@ describe('pipeline-shaped data', () => {
       { id: 'b', name: 'Unknown', population: null, connected: false, total: 1, damaged: 1 },
     ]
     const ranked = rankPriority(rows)
-    // Population is missing for one, so both are scored on structure damage only.
-    expect(ranked.every((p) => p.factorsUsed.join() === 'damage')).toBe(true)
-    expect(ranked.map((p) => [p.name, p.priority])).toEqual([['Unknown', 100], ['Big', 50]])
-    expect(summarisePriority(ranked)[0]).toMatchObject({ people: 0, peopleUnknown: 1 })
+    // Population is missing for one, so both are sized by mapped buildings instead.
+    expect(ranked.every((p) => p.factorsUsed.join() === 'damage,buildings')).toBe(true)
+    // (25 * damage + 35 * size) / 60, with size = buildings / 400
+    expect(ranked.map((p) => [p.name, p.priority])).toEqual([['Unknown', 42], ['Big', 21]])
+    expect(summarisePriority(ranked).map((b) => [b.buildings, b.peopleUnknown])).toEqual([[1, 1], [2, 0]])
     // With population known for both, it counts again.
     const known = rankPriority([rows[0], { ...rows[1], population: 100 }])
     expect(known[0].factorsUsed).toEqual(['population', 'damage'])
@@ -138,7 +157,10 @@ describe('pipeline-shaped data', () => {
     expect(buildAnswer('flood-extent', 'np', run).answer).toContain('5 सेप्टेम्बर 2026')
     const cutOff = buildAnswer('cut-off', 'en', run).answer
     expect(cutOff).toContain('Access unknown')
-    expect(cutOff).toContain('Beta: population not recorded')
+    // Population is missing for a cut-off settlement, so sizes are given in mapped buildings.
+    expect(cutOff).toContain('Beta: 0 mapped buildings')
+    expect(cutOff).toContain('no head count is given')
+    expect(cutOff).not.toMatch(/residents|people/)
     expect(buildAnswer('priority', 'en', run).answer).toContain('Not scored, because the data is missing')
   })
 })

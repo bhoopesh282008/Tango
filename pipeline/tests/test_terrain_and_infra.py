@@ -148,3 +148,31 @@ def test_settlement_records_are_valid_json():
     json.dumps(rows, allow_nan=False)
     assert rows[0]['population'] == 2744 and rows[1]['population'] is None
     assert rows[1]['name_np'] is None and rows[1]['connected'] is None
+
+
+def test_export_rounds_coordinates_and_keeps_flags(tmp_path):
+    import json
+    import export
+    zones = gpd.GeoDataFrame({'id': ['z001'], 'type': ['water'], 'confidence': [0.7], 'area_km2': [1.0]},
+                             geometry=[box(85.3, 28.1, 85.31, 28.11)], crs='EPSG:4326')
+    buildings = gpd.GeoDataFrame({'settlement_id': ['s001', 's001'], 'damaged': [True, False], 'name': ['x', np.nan]},
+                                 geometry=[box(85.30000012345, 28.1, 85.3001, 28.1001), box(85.4, 28.2, 85.4001, 28.2001)],
+                                 crs='EPSG:4326')
+    roads = gpd.GeoDataFrame({'name': ['A'], 'damaged': [True], 'length_km': [1.2]},
+                             geometry=[LineString([(85.3, 28.1), (85.31, 28.11)])], crs='EPSG:4326')
+    export.export_all(tmp_path, zones, buildings, roads, [], [], {})
+    out = json.loads((tmp_path / 'buildings.geojson').read_text(encoding='utf-8'))
+    assert [f['properties'] for f in out['features']] == [
+        {'settlement_id': 's001', 'damaged': True}, {'settlement_id': 's001', 'damaged': False}]
+    xs = [c[0] for f in out['features'] for c in f['geometry']['coordinates'][0]]
+    assert all(round(x, 6) == x for x in xs) and 85.3 in xs
+    assert json.loads((tmp_path / 'roads.geojson').read_text(encoding='utf-8'))['features'][0]['properties']['id'] == 'r0001'
+
+
+def test_synthetic_fixture_zone_is_labelled_and_follows_the_path():
+    import dev_fixture
+    path = LineString([(500000, 3100000), (500000, 3099000)])
+    zones = dev_fixture.synthetic_zones(path, CRS, width_m=150)
+    assert len(zones) == 1 and zones.geometry[0].contains(Point(500100, 3099500))
+    assert not zones.geometry[0].contains(Point(500200, 3099500))
+    assert 'SYNTHETIC' in dev_fixture.METHOD and 'not a result' in dev_fixture.METHOD
