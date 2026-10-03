@@ -33,6 +33,19 @@ def _have_s3_keys():
     return bool(os.environ.get('AWS_ACCESS_KEY_ID') and os.environ.get('AWS_SECRET_ACCESS_KEY'))
 
 
+def s3_env():
+    """GDAL settings for reading Copernicus Data Space objects; needs the S3 keys."""
+    if not _have_s3_keys():
+        raise RuntimeError('This step needs the Copernicus Data Space S3 keys '
+                           '(AWS_ACCESS_KEY_ID and AWS_SECRET_ACCESS_KEY).')
+    return {'AWS_S3_ENDPOINT': S3_ENDPOINT, 'AWS_VIRTUAL_HOSTING': 'FALSE', 'AWS_HTTPS': 'YES'}
+
+
+def vsis3(href):
+    """s3://bucket/key -> the path GDAL opens."""
+    return '/vsis3/' + href.removeprefix('s3://')
+
+
 def _s3_text(client, href, cache):
     if not cache.exists():
         bucket, key = href.removeprefix('s3://').split('/', 1)
@@ -52,9 +65,9 @@ def _scene_s3(item, pol):
     }
     return Scene(
         id=item.id,
-        raster='/vsis3/' + item.assets[pol].href.removeprefix('s3://'),
+        raster=vsis3(item.assets[pol].href),
         product_xml=text['product'], calibration_xml=text['calibration'], noise_xml=text['noise'],
-        env={'AWS_S3_ENDPOINT': S3_ENDPOINT, 'AWS_VIRTUAL_HOSTING': 'FALSE', 'AWS_HTTPS': 'YES'},
+        env=s3_env(),
     )
 
 

@@ -26,6 +26,7 @@ import fetch_s1
 import floodpath
 import infrastructure
 import preprocess_s1 as P
+import quicklook
 import segment
 
 
@@ -184,6 +185,8 @@ def main():
     ap.add_argument('--event', required=True)
     ap.add_argument('--slope', help='optional slope raster (degrees) on the same grid')
     ap.add_argument('--model', help='trained U-Net checkpoint; without it the threshold baseline is used')
+    ap.add_argument('--optical', action='store_true',
+                    help='add Sentinel-2: confirm radar detections and fill radar blind spots where the sky was clear')
     ap.add_argument('--out', default=str(C.OUT))
     args = ap.parse_args()
 
@@ -211,6 +214,31 @@ def main():
     else:
         classes, conf = segment.classify(pre, post, slope)
         method = 'Sentinel-1 change detection (baseline thresholds)'
+
+    # Pictures for the dashboard's before/after viewer.
+    out = Path(args.out)
+    out.mkdir(parents=True, exist_ok=True)
+    images = {'pre': {'url': 'before.png'}, 'post': {'url': 'after.png'}}
+    quicklook.radar_png(pre, out / 'before.png')
+    quicklook.radar_png(post, out / 'after.png')
+
+    optical = None
+    if args.optical:
+        import fetch_s2   # imported here so a radar-only run does not need it
+        before, after, optical = fetch_s2.looks_around(args.bbox, args.event, crs, transform, pre.shape)
+        if before is None:
+            optical['used'] = False
+            optical['note'] = 'No Sentinel-2 pass on both sides of the event; radar only.'
+        else:
+            seen = np.isfinite(pre) & np.isfinite(post)
+            if slope is not None:
+                seen &= slope < C.MAX_SLOPE_DEG
+            classes, conf, counts = fetch_s2.fuse(classes, conf, seen, *fetch_s2.classify(before, after))
+            optical.update(used=True, pixels=counts)
+            quicklook.optical_png(before, out / 'before_optical.png')
+            quicklook.optical_png(after, out / 'after_optical.png')
+            images['pre']['optical_url'], images['post']['optical_url'] = 'before_optical.png', 'after_optical.png'
+            method += ' + Sentinel-2 (confirms detections, fills radar blind spots)'
     zones = segment.vectorise(classes, conf, transform, crs)
 
     osm = fetch_osm.fetch_all(args.bbox)
@@ -227,7 +255,10 @@ def main():
     infra = infrastructure.build(osm['bridges'], osm['health'], roads, zones, settlements)
     export.export_all(args.out, zones, buildings, roads, settlement_rows, infra, {
         'event': args.event, 'method': method,
-        'osm_snapshot': C.OSM_SNAPSHOT, 'osm_source': sorted(set(fetch_osm.SOURCES.values())), 'before': scenes.get('pre'), 'after': scenes.get('post'),
+        'osm_snapshot': C.OSM_SNAPSHOT, 'osm_source': sorted(set(fetch_osm.SOURCES.values())),
+        'before': {**(scenes.get('pre') or {}), **images['pre']},
+        'after': {**(scenes.get('post') or {}), **images['post']},
+        'optical': optical,
     })
     # The DEM the dashboard's flood-path tool traces on
     floodpath.export_dem(args.out, [float(v) for v in args.bbox.split(',')])

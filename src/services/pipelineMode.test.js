@@ -32,6 +32,18 @@ test('loads the six datasets from the data folder', async () => {
   expect(loaded.infrastructure).toEqual([])
 })
 
+test('picture names in satellite.json are resolved against the data folder', async () => {
+  const satellite = {
+    before: { date: '2026-08-16', url: 'before.png', optical_url: 'before_optical.png' },
+    after: { date: '2026-08-28', url: 'https://example.org/after.png' },
+  }
+  vi.stubGlobal('fetch', vi.fn(async () => ({ ok: true, status: 200, json: async () => satellite })))
+  const { before, after } = await DATA_PARTS.satelliteData()
+  expect(before).toMatchObject({ url: '/data/before.png', optical_url: '/data/before_optical.png', date: '2026-08-16' })
+  expect(after.url).toBe('https://example.org/after.png')
+  expect(after.optical_url).toBeUndefined()
+})
+
 test('a missing file is an error, not a silent fall back to demo data', async () => {
   vi.stubGlobal('fetch', vi.fn(async () => ({ ok: false, status: 404 })))
   await expect(DATA_PARTS.floodZones()).rejects.toThrow('404')

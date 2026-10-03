@@ -8,6 +8,10 @@ const METHOD = [
     'Two Sentinel-1 radar scenes from the same orbit track, one before and one after the event, are calibrated, corrected for terrain with the Copernicus DEM and compared pixel by pixel. A strong drop in backscatter over a dark surface is mapped as water, a strong rise as debris, and a weaker change as uncertain.',
   ],
   [
+    'Optical images, where the sky is clear',
+    'Sentinel-2 can be added. It confirms what radar found and fills in slopes radar cannot see, using the nearest cloud-free look either side of the event. It never removes a radar detection. In monsoon most passes are cloudy, so this evidence is patchy and may be days later than the radar image.',
+  ],
+  [
     'What was damaged',
     'Buildings and roads from OpenStreetMap, as mapped before the event, are flagged as damaged where they intersect the water and debris zones.',
   ],

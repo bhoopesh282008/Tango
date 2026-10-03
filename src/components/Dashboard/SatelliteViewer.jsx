@@ -71,15 +71,16 @@ function SarScene({ flooded, uid, svgRef }) {
   )
 }
 
-function Scene({ image, flooded, zoom, svgRef }) {
+function Scene({ image, url, flooded, zoom, svgRef }) {
   return (
     <div className="h-full w-full" style={{ transform: `scale(${zoom})` }}>
-      {image?.url ? (
+      {url ? (
         <img
-          src={image.url}
+          src={url}
           alt={flooded ? 'Satellite image after the flood' : 'Satellite image before the flood'}
           loading="lazy"
-          className="h-full w-full object-cover"
+          // The whole area is shown uncropped; no-data pixels are transparent over black.
+          className="h-full w-full object-contain"
         />
       ) : (
         <SarScene flooded={flooded} uid={flooded ? 'after' : 'before'} svgRef={svgRef} />
@@ -126,13 +127,16 @@ export default function SatelliteViewer({ before, after, comparisonValue, onComp
   const [zoom, setZoom] = useState(1)
   const afterSvg = useRef(null)
   const addToast = useUIStore((s) => s.addToast)
+  const [sensor, setSensor] = useState('s1')
   const placeholder = !before?.url || !after?.url
+  const hasOptical = !!(before?.optical_url && after?.optical_url)
+  const urlOf = (scene) => (sensor === 's2' && hasOptical ? scene?.optical_url : scene?.url)
 
   if (placeholder && !USE_MOCK) return <ScenesWithoutImagery before={before} after={after} />
 
   const download = () => {
     if (after?.url) {
-      window.open(after.url, '_blank', 'noopener')
+      window.open(urlOf(after), '_blank', 'noopener')
       return
     }
     const svg = new XMLSerializer().serializeToString(afterSvg.current)
@@ -148,10 +152,10 @@ export default function SatelliteViewer({ before, after, comparisonValue, onComp
           <label className="sr-only" htmlFor="sensor">
             Imagery layer
           </label>
-          <select id="sensor" className="btn pr-2" defaultValue="s1">
+          <select id="sensor" className="btn pr-2" value={sensor} onChange={(e) => setSensor(e.target.value)}>
             <option value="s1">Sentinel-1 radar</option>
-            <option value="s2" disabled>
-              Sentinel-2 optical (not available)
+            <option value="s2" disabled={!hasOptical}>
+              {hasOptical ? 'Sentinel-2 optical (false colour)' : 'Sentinel-2 optical (not available)'}
             </option>
             <option value="thermal" disabled>
               Thermal (not available)
@@ -194,10 +198,10 @@ export default function SatelliteViewer({ before, after, comparisonValue, onComp
 
       <div className="relative h-[220px] select-none overflow-hidden bg-black sm:h-[320px] lg:h-[360px]">
         <div className="absolute inset-0">
-          <Scene image={after} flooded zoom={zoom} svgRef={afterSvg} />
+          <Scene image={after} url={urlOf(after)} flooded zoom={zoom} svgRef={afterSvg} />
         </div>
         <div className="absolute inset-0" style={{ clipPath: `inset(0 ${100 - comparisonValue}% 0 0)` }}>
-          <Scene image={before} flooded={false} zoom={zoom} />
+          <Scene image={before} url={urlOf(before)} flooded={false} zoom={zoom} />
         </div>
 
         <span className="absolute left-2 top-2 rounded bg-black/70 px-2 py-1 text-xs font-medium text-white">
@@ -228,7 +232,12 @@ export default function SatelliteViewer({ before, after, comparisonValue, onComp
       </div>
 
       <p className="px-3 py-2 text-xs text-ink-soft sm:px-4">
-        {after.sensor}, {after.resolution} resolution. Drag to compare.
+        {sensor === 's2' && hasOptical
+          ? 'Sentinel-2, near infrared / red / green: vegetation shows red, water dark. Each pixel is the nearest clear look to the event; cloud is left blank.'
+          : after.sensor
+            ? `${after.sensor}${after.resolution ? `, ${after.resolution} resolution` : ''}.`
+            : 'Radar backscatter: water dark, rough ground bright.'}{' '}
+        Drag to compare.
         {placeholder && ' Placeholder rendering: no satellite scene is loaded in demo mode.'}
       </p>
     </section>

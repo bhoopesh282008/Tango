@@ -1,4 +1,4 @@
-import { DATA_MODE, ENDPOINTS, PIPELINE_FILES, USE_MOCK } from '../config/apiConfig'
+import { DATA_MODE, DATA_URL, ENDPOINTS, PIPELINE_FILES, USE_MOCK } from '../config/apiConfig'
 import { EVENT_BBOX } from '../config/mapConfig'
 import { EVENT } from '../utils/constants'
 import { get, getFile, mock } from './api'
@@ -8,12 +8,19 @@ const PIPELINE = DATA_MODE === 'pipeline'
 const bbox = { bbox: EVENT_BBOX.join(',') }
 const demo = () => import('../data/mockData')
 
+// A run names its pictures relative to its own folder.
+const inDataFolder = (url) => (url && !/^(https?:)?\//.test(url) ? `${DATA_URL}/${url}` : url)
+function sceneWithUrls(scene) {
+  if (!scene) return null
+  return { ...scene, url: inDataFolder(scene.url), optical_url: inDataFolder(scene.optical_url) }
+}
+
 export async function getSatellite() {
   if (USE_MOCK) return mock((await demo()).satellite)
   if (PIPELINE) {
     // A run from existing rasters records no scenes, so either side may be missing.
     const { before, after } = await getFile(PIPELINE_FILES.satellite)
-    return { before: before ?? null, after: after ?? null }
+    return { before: sceneWithUrls(before), after: sceneWithUrls(after) }
   }
   const [before, after] = await Promise.all([
     get(ENDPOINTS.satelliteBefore, { date: EVENT.beforeDate }),

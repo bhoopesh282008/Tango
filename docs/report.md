@@ -36,6 +36,8 @@ No published damage map and no post-event OpenStreetMap edit is used as an input
 
 **Flood map.** Two methods. The baseline compares backscatter: a pixel that is dark after the event (below -18 dB) and dropped by more than 3 dB is water; a rise of more than 3 dB is debris; weaker change is "uncertain". Slopes above 20 degrees are excluded. The alternative uses the trained model for water (section 4) and the same rule for debris.
 
+**Optical evidence.** With `--optical` the pipeline adds Sentinel-2. In monsoon most passes are cloudy, so it builds per-pixel composites: the latest clear look before the event and the earliest clear look after it, rejecting cloud, shadow and snow with the scene classification layer. New water is a water index (MNDWI) that turns positive; debris is vegetation (NDVI) that disappears. Optical never removes a radar detection. Where both agree the confidence is raised; where radar cannot see (layover, shadow, slopes above 20 degrees) an optical detection is taken at lower confidence; where radar saw nothing and optical finds change, the pixel is marked "uncertain".
+
 **Damage.** Buildings, roads and bridges that intersect a water or debris zone are flagged. This is an overlap, not an inspection, so the dashboard labels them "in flood zone" and not "destroyed". Most rural roads have no name in OpenStreetMap, so an unnamed road is listed by its kind and nearest settlement.
 
 **Cut-off settlements.** Roads become a graph. Flagged road segments are removed. A settlement is cut off when it had a road route to a hospital before the event and has none afterwards. A settlement with no mapped road before the event is reported as "access unknown", so that gaps in the map are not counted as flood damage.
@@ -62,7 +64,7 @@ A small U-Net (7.8 million weights) labels each pixel as no water, permanent wat
 
 ## 5. Results for the Trishuli area
 
-**Flood and damage map: PENDING.** The Sentinel-1 stage has been unit-tested on synthetic data (orbit geometry, calibration, layover and shadow on synthetic slopes) but has not been run on a real scene. There is no real flood map, no damage count and no comparison with EMSR927 in this draft.
+**Flood and damage map: PENDING.** The Sentinel-1 and Sentinel-2 stages have been unit-tested on synthetic data (orbit geometry, calibration, layover and shadow on synthetic slopes, optical indices and fusion) but have not been run on a real scene. There is no real flood map, no damage count and no comparison with EMSR927 in this draft.
 
 What has been run on real data:
 
@@ -90,6 +92,7 @@ By default the dashboard opens on a bundled demo dataset, labelled "Demo data", 
 ## 7. Limitations
 
 - **No early warning.** Sentinel-1 returns to the same track every 12 days. The system maps a flood after the next pass; it cannot warn of a glacier collapse or a flood in progress. For Trishuli the earliest usable post-event scene is two days after the event.
+- **Cloud.** Of the six Sentinel-2 passes covering the area in the three weeks after the event, the catalogue lists the main tile as 55% to 88% cloudy on every one. Optical evidence will be patchy, and where it comes from a later pass the water may already have receded.
 - **Steep terrain.** Radar cannot see slopes in layover or shadow, and the classifier excludes slopes above 20 degrees. In this valley that leaves a small share of the area, mostly the valley floor.
 - **The flood map is unvalidated.** See section 5.
 - **The model is untested in mountains** and has no debris class. Debris always comes from fixed thresholds, which can also fire on wet soil, crops, snow and unrelated landslides.
