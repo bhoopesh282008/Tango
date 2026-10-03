@@ -11,12 +11,14 @@ terrain shadow and snow.
 Reading scenes needs the Copernicus Data Space S3 keys (see download.py).
 """
 from datetime import date, timedelta
+from pathlib import Path
 
 import numpy as np
 import rasterio
 from pystac_client import Client
 from rasterio.enums import Resampling
 from rasterio.vrt import WarpedVRT
+from scipy import ndimage
 
 import config as C
 import download
@@ -133,7 +135,8 @@ def classify(before, after):
     return classes, valid
 
 
-def fuse(radar_classes, radar_conf, radar_seen, optical_classes, optical_valid):
+def fuse(radar_classes, radar_conf, radar_seen, optical_classes, optical_valid, floor=None,
+         min_pixels=C.SLOPE_MIN_PIXELS):
     """Combine the radar map with optical evidence. Optical never removes a radar detection.
 
     - Both agree on water or debris: confidence raised to at least 0.9.
@@ -142,6 +145,11 @@ def fuse(radar_classes, radar_conf, radar_seen, optical_classes, optical_valid):
     - Radar saw the pixel, found nothing, and optical finds change: "uncertain".
       The optical look may be days later than the radar one, so this is a
       prompt to check, not a detection.
+
+    `floor` is the valley-floor mask the radar rule uses, and optical follows
+    the same rule: a flood class only on the floor. Away from it a flood cannot
+    be the cause (cloud edges, haze, harvest and landslides all change the
+    indices), so only patches of at least `min_pixels` are kept, as "uncertain".
     """
     classes, conf = radar_classes.copy(), radar_conf.copy()
     optical_class = np.where(optical_classes == OPTICAL_WATER, C.CLASS_WATER,
@@ -151,17 +159,49 @@ def fuse(radar_classes, radar_conf, radar_seen, optical_classes, optical_valid):
     agree = found & (classes == optical_class)
     conf[agree] = np.maximum(conf[agree], 0.9)
 
-    blind = found & ~radar_seen
+    on_floor = np.ones(classes.shape, bool) if floor is None else floor
+    blind = found & ~radar_seen & on_floor
     classes[blind], conf[blind] = optical_class[blind], 0.6
 
-    extra = found & radar_seen & (classes == C.CLASS_NONE)
+    extra = found & radar_seen & on_floor & (classes == C.CLASS_NONE)
     classes[extra], conf[extra] = C.CLASS_UNCERTAIN, 0.4
+
+    slope = found & ~on_floor & (classes == C.CLASS_NONE)
+    labels, _ = ndimage.label(slope)
+    large = slope & (np.bincount(labels.ravel())[labels] >= min_pixels)
+    classes[large], conf[large] = C.CLASS_UNCERTAIN, 0.4
     return classes, conf, {'confirmed': int(agree.sum()), 'filled_blind_spots': int(blind.sum()),
-                           'optical_only': int(extra.sum())}
+                           'optical_only': int(extra.sum()), 'off_floor_kept': int(large.sum()),
+                           'off_floor_dropped': int((slope & ~large).sum())}
 
 
-def looks_around(bbox, event_day, crs, transform, shape, days_before=45, days_after=30, max_looks=4):
-    """(before, after, info): clear composites either side of the event, or (None, None, info)."""
+def _load(path, dates, shape):
+    """A saved composite, if it was built from the same passes on the same grid."""
+    if path is None or not path.exists():
+        return None
+    with np.load(path) as saved:
+        if list(saved['dates']) != dates or saved['clear'].shape != tuple(shape):
+            return None
+        return {name: saved[name] for name in (*BANDS, 'clear', 'source')}
+
+
+def _composite(passes, crs, transform, shape, path):
+    dates = [p[0][:10] for p in passes]
+    look = _load(path, dates, shape)
+    if look is None:
+        look = composite([read_acquisition(tiles, crs, transform, shape) for _, tiles in passes])
+        if path is not None:
+            path.parent.mkdir(parents=True, exist_ok=True)
+            np.savez_compressed(path, dates=np.array(dates), **look)
+    return look
+
+
+def looks_around(bbox, event_day, crs, transform, shape, days_before=45, days_after=30, max_looks=4, cache=None):
+    """(before, after, info): clear composites either side of the event, or (None, None, info).
+
+    With `cache` (a folder) the composites are saved there and reused by a later
+    run that finds the same passes, since reading them takes many minutes.
+    """
     event = date.fromisoformat(event_day) if isinstance(event_day, str) else event_day
     items = search(bbox, (event - timedelta(days=days_before)).isoformat(),
                    (event + timedelta(days=days_after)).isoformat())
@@ -172,8 +212,9 @@ def looks_around(bbox, event_day, crs, transform, shape, days_before=45, days_af
     info = {'before': [p[0][:10] for p in earlier], 'after': [p[0][:10] for p in later]}
     if not earlier or not later:
         return None, None, info
-    before = composite([read_acquisition(tiles, crs, transform, shape) for _, tiles in earlier])
-    after = composite([read_acquisition(tiles, crs, transform, shape) for _, tiles in later])
+    cache = Path(cache) if cache else None
+    before = _composite(earlier, crs, transform, shape, cache and cache / 'optical_before.npz')
+    after = _composite(later, crs, transform, shape, cache and cache / 'optical_after.npz')
     info['clear_before'] = round(float(before['clear'].mean()), 3)
     info['clear_after'] = round(float(after['clear'].mean()), 3)
     info['clear_both'] = round(float((before['clear'] & after['clear']).mean()), 3)

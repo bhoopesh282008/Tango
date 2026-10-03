@@ -90,6 +90,28 @@ def test_compare_roads():
     assert result['false_alarm_rate'] == 0.5
 
 
+def test_summary_takes_one_product_per_area_and_is_attached(tmp_path):
+    def result(product, recall, precision, in_zones, affected):
+        return {'product': product, 'extent': {'recall': recall, 'precision': precision},
+                'buildings': {'reference_in_our_zones': in_zones, 'reference_affected': affected}}
+    results = [
+        result('EMSR927_AOI01_GRA_PRODUCT_v1', 0.04, 0.9, 10, 100),
+        result('EMSR927_AOI03_GRA_MONIT01_v1', 0.5, 0.5, 90, 100),      # superseded by the product below
+        result('EMSR927_AOI03_GRA_PRODUCT_v1', 0.2, 0.95, 30, 100),
+        {'product': 'EMSR927_AOI05_GRA_PRODUCT_v3'},                     # outside the run: not compared
+    ]
+    summary = validate.summarise(results)
+    assert summary == {'reference': 'Copernicus EMS EMSR927', 'areas': 2, 'recall': [0.04, 0.2],
+                       'precision': [0.9, 0.95], 'building_recall': 0.2}
+    assert validate.summarise(results[3:]) is None
+
+    (tmp_path / 'satellite.json').write_text('{"event": "2026-08-26"}', encoding='utf-8')
+    validate.attach(tmp_path, summary)
+    import json
+    assert json.loads((tmp_path / 'satellite.json').read_text(encoding='utf-8')) == {
+        'event': '2026-08-26', 'validation': summary}
+
+
 def test_compare_bridges():
     study = box(X, Y, X + 1000, Y + 100)
     ours = gpd.GeoDataFrame(

@@ -18,6 +18,20 @@ def flag_damaged(features, zones):
     return features
 
 
+def flooded_length_km(roads, zones):
+    """Length of each road segment that lies inside a water or debris zone, in km.
+
+    `damaged` marks a whole segment that touches a zone; this is the part of it
+    actually inside one, so a 5 km segment crossed once is not counted as 5 km.
+    """
+    union = flood_union(zones)
+    if union is None or not len(roads):
+        return [0.0] * len(roads)
+    crs = roads.estimate_utm_crs()
+    union = gpd.GeoSeries([union], crs=zones.crs).to_crs(crs).iloc[0]
+    return (roads.geometry.to_crs(crs).intersection(union).length / 1000).round(3).tolist()
+
+
 def assign_settlement(buildings, settlements):
     """Tag each building with the nearest settlement id."""
     crs = buildings.estimate_utm_crs()

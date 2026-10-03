@@ -103,6 +103,21 @@ def test_flag_damaged_and_assign_settlement():
     assert assigned['settlement_id'].tolist() == ['s1', 's2', 's2']
 
 
+def test_flooded_length_counts_only_the_part_inside_a_zone():
+    # A 1 km road crosses a 100 m wide water zone; another crosses only an uncertain zone.
+    crs = 'EPSG:32645'
+    x, y = 331000, 3110000
+    zones = gpd.GeoDataFrame({'type': ['water', 'uncertain']},
+                             geometry=[box(x + 400, y - 50, x + 500, y + 50), box(x, y + 900, x + 1000, y + 1100)],
+                             crs=crs)
+    roads = gpd.GeoDataFrame(geometry=[LineString([(x, y), (x + 1000, y)]),
+                                       LineString([(x, y + 1000), (x + 1000, y + 1000)])], crs=crs)
+    assert damage.flooded_length_km(roads, zones) == [0.1, 0.0]
+    # Roads in degrees, as OSM delivers them, give the same answer.
+    assert damage.flooded_length_km(roads.to_crs('EPSG:4326'), zones) == [0.1, 0.0]
+    assert damage.flooded_length_km(roads, zones[zones['type'] == 'uncertain']) == [0.0, 0.0]
+
+
 def test_flag_damaged_compares_layers_in_different_coordinate_systems():
     # Zones on a UTM grid, features in degrees, as in a real run.
     zones = gpd.GeoDataFrame({'type': ['water']}, geometry=[box(331000, 3110000, 332000, 3111000)], crs='EPSG:32645')

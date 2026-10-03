@@ -9,7 +9,7 @@ const METHOD = [
   ],
   [
     'Optical images, where the sky is clear',
-    'Sentinel-2 can be added. It confirms what radar found and fills in slopes radar cannot see, using the nearest cloud-free look either side of the event. It never removes a radar detection. In monsoon most passes are cloudy, so this evidence is patchy and may be days later than the radar image.',
+    'Sentinel-2 can be added. It confirms what radar found and fills in valley-floor ground radar cannot see, using the nearest cloud-free look either side of the event. It never removes a radar detection. In monsoon most passes are cloudy: on the Trishuli scenes a third to a half of the area had a clear view on both sides of the event. Change that only the optical images show is marked “uncertain”; away from valley floors most of it is thin cloud or haze.',
   ],
   [
     'What was damaged',
@@ -36,7 +36,7 @@ const LIMITS = [
   ],
   [
     'Most of the damage is missed',
-    'The Trishuli flood map was compared with the Copernicus Emergency Management Service reference for the event (EMSR927), in the three reference areas it covers. Where the map shows flood it is almost always right (88% to 99% of the mapped area lies inside the reference), but it finds only 4% to 23% of the reference area and about one in five of the affected buildings. Fresh debris often looks no different to the radar than the river bed it covers. Every count is a lower bound: an area with nothing marked is not known to be safe.',
+    'The Trishuli flood map was compared with the Copernicus Emergency Management Service reference for the event (EMSR927), in the three reference areas it covers. Where the map shows flood it is almost always right (88% to 99% of the mapped area lies inside the reference), but it finds only 4% to 23% of the reference area and about one in five of the affected buildings. A second run further down the valley found 30% to 35%. Fresh debris often looks no different to the radar than the river bed it covers. Every count is a lower bound: an area with nothing marked is not known to be safe.',
   ],
   [
     'Damage is an overlap, not an inspection',
@@ -48,7 +48,7 @@ const LIMITS = [
   ],
   [
     'Road cuts are coarse',
-    'A road segment touching a flood zone is removed whole, and bridges are not assessed separately, so some settlements may be reported cut off when a passable route exists, and the reverse.',
+    'A road segment touching a flood zone is removed whole from the road network (the road length shown is only the part inside a zone), and bridges are not assessed separately, so some settlements may be reported cut off when a passable route exists, and the reverse.',
   ],
   [
     'Priority score',

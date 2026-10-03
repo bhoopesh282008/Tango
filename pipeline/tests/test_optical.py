@@ -83,8 +83,50 @@ def test_fuse_confirms_fills_blind_spots_and_never_removes():
     assert (classes[1] == C.CLASS_UNCERTAIN).all()                   # optical-only: a prompt to check
     assert (classes[2] == C.CLASS_WATER).all() and np.allclose(out_conf[2], 0.6)
     assert (classes[3] == C.CLASS_NONE).all()
-    assert counts == {'confirmed': 2, 'filled_blind_spots': 4, 'optical_only': 4}
+    assert counts == {'confirmed': 2, 'filled_blind_spots': 4, 'optical_only': 4,
+                      'off_floor_kept': 0, 'off_floor_dropped': 0}
     assert (radar[1] == 0).all()                                     # inputs untouched
+
+
+def test_fuse_gives_flood_classes_only_on_the_valley_floor():
+    # Found on real scenes: without the floor rule, optical change on hillsides
+    # (cloud edges, haze, harvest) became tens of km2 of debris and "uncertain".
+    shape = (6, 6)
+    radar, conf = np.zeros(shape, 'uint8'), np.zeros(shape, 'float32')
+    seen = np.ones(shape, bool)
+    seen[:, 0] = False                             # column 0: radar blind
+    floor = np.zeros(shape, bool)
+    floor[0] = True                                # row 0: valley floor
+    optical = np.zeros(shape, 'uint8')
+    optical[0] = fetch_s2.OPTICAL_DEBRIS           # on the floor
+    optical[2:4, :3] = fetch_s2.OPTICAL_DEBRIS     # a 6-pixel patch on the slope, part of it radar-blind
+    optical[5, 5] = fetch_s2.OPTICAL_WATER         # a lone pixel on the slope
+    valid = np.ones(shape, bool)
+
+    classes, out_conf, counts = fetch_s2.fuse(radar, conf, seen, optical, valid, floor=floor, min_pixels=6)
+    assert classes[0, 0] == C.CLASS_DEBRIS                           # blind spot on the floor: filled
+    assert (classes[0, 1:] == C.CLASS_UNCERTAIN).all()
+    assert (classes[2:4, :3] == C.CLASS_UNCERTAIN).all()             # big slope patch: a prompt, never a flood class
+    assert classes[5, 5] == C.CLASS_NONE                             # small slope patch: dropped
+    assert counts == {'confirmed': 0, 'filled_blind_spots': 1, 'optical_only': 5,
+                      'off_floor_kept': 6, 'off_floor_dropped': 1}
+
+
+def test_composites_are_cached_and_reused(tmp_path, monkeypatch):
+    calls = []
+
+    def read(tiles, crs, transform, shape):
+        calls.append(tiles)
+        return look(BARE)
+
+    monkeypatch.setattr(fetch_s2, 'read_acquisition', read)
+    passes = [('2026-08-24T05:00:00Z', ['tile'])]
+    first = fetch_s2._composite(passes, None, None, SHAPE, tmp_path / 'c.npz')
+    again = fetch_s2._composite(passes, None, None, SHAPE, tmp_path / 'c.npz')
+    assert len(calls) == 1
+    assert np.array_equal(first['nir'], again['nir']) and again['clear'].all()
+    fetch_s2._composite([('2026-08-22T05:00:00Z', ['tile'])], None, None, SHAPE, tmp_path / 'c.npz')
+    assert len(calls) == 2                                           # other passes: read again
 
 
 def test_acquisitions_group_tiles_and_drop_partial_passes():

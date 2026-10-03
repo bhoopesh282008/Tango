@@ -219,13 +219,59 @@ def compare_run(out_dir, reference_dir):
     return results
 
 
+def summarise(results, reference='Copernicus EMS EMSR927'):
+    """One short record of the comparison for the dashboard, or None if nothing was compared.
+
+    One product per reference area: the first delineation where an area also
+    has a monitoring product.
+    """
+    by_area = {}
+    for r in results:
+        if 'extent' not in r or r['extent']['recall'] is None:
+            continue
+        area = r['product'].split('_')[1]
+        if area not in by_area or '_PRODUCT_' in r['product']:
+            by_area[area] = r
+    chosen = list(by_area.values())
+    if not chosen:
+        return None
+    recall = [r['extent']['recall'] for r in chosen]
+    precision = [r['extent']['precision'] for r in chosen if r['extent']['precision'] is not None]
+    buildings = [r['buildings'] for r in chosen if 'buildings' in r]
+    affected = sum(b['reference_affected'] for b in buildings)
+    return {
+        'reference': reference,
+        'areas': len(chosen),
+        'recall': [min(recall), max(recall)],
+        'precision': [min(precision), max(precision)] if precision else None,
+        'building_recall': _share(sum(b['reference_in_our_zones'] for b in buildings), affected),
+    }
+
+
+def attach(out_dir, summary):
+    """Record the comparison in the run's satellite.json, where the dashboard reads it.
+
+    Written after the run and read by nothing in the pipeline.
+    """
+    path = os.path.join(out_dir, 'satellite.json')
+    with open(path, encoding='utf-8') as f:
+        satellite = json.load(f)
+    satellite['validation'] = summary
+    with open(path, 'w', encoding='utf-8') as f:
+        json.dump(satellite, f, ensure_ascii=False, separators=(',', ':'))
+
+
 def main():
     parser = argparse.ArgumentParser(description=__doc__.split('\n')[0])
     parser.add_argument('out_dir')
     parser.add_argument('reference_dir')
     parser.add_argument('--json', help='also write the result to this file')
+    parser.add_argument('--attach', action='store_true',
+                        help="record a summary in the run's satellite.json so the dashboard can show it")
     args = parser.parse_args()
     results = compare_run(args.out_dir, args.reference_dir)
+    if args.attach:
+        attach(args.out_dir, summarise(results))
     for r in results:
         print(f"\n{r['product']}: {r['share_of_aoi_in_run']:.0%} of the AOI is inside the run; "
               f"reference maps {', '.join(r['reference_event'])} from {'; '.join(r['post_event_images']) or 'unknown images'}")

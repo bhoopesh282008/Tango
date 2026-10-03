@@ -3,7 +3,7 @@
 Space Track challenge report. Case study: Trishuli flood, Rasuwa, Nepal, 26 August 2026.
 Repository: https://github.com/bhoopesh282008/Tango
 
-> **Draft, 3 October 2026.** The pipeline has run end to end on real Sentinel-1 scenes for the Trishuli area and its output has been compared with the EMSR927 reference (section 5). In short: **what it maps is almost always right, but it finds only a small part of the damage**, between 4% and 23% of the reference area. The flood figures below are therefore lower bounds.
+> **Draft, 3 October 2026.** The pipeline has run end to end on real Sentinel-1 scenes for the Trishuli area and its output has been compared with the EMSR927 reference (section 5). In short: **what it maps is almost always right, but it finds only a small part of the damage**, between 4% and 35% of the reference area depending on the reach. The flood figures below are therefore lower bounds.
 
 ## 1. What the system does
 
@@ -36,7 +36,7 @@ No published damage map and no post-event OpenStreetMap edit is used as an input
 
 **Flood map.** A flood fills valley floors, so change counts as flood only on ground within 30 m above and 600 m of a river (from pre-event OpenStreetMap, or from DEM-derived channels where no river is mapped). There, a drop of more than 3 dB is water or wet sediment and a rise of more than 3 dB is debris. Elsewhere only strong change (4.5 dB) over at least a hectare is kept, as "uncertain". The first version required water to be darker than -18 dB; on the real scenes only 5% of darkened river pixels are that dark, because a river tens of metres wide in a gorge never looks like open water at 10 m. The 30 m and 600 m limits are our assumptions; they were not tuned against any reference map. The alternative method uses the trained model for water (section 4) and the same rule for debris.
 
-**Optical evidence.** With `--optical` the pipeline adds Sentinel-2. In monsoon most passes are cloudy, so it builds per-pixel composites: the latest clear look before the event and the earliest clear look after it, rejecting cloud, shadow and snow with the scene classification layer. New water is a water index (MNDWI) that turns positive; debris is vegetation (NDVI) that disappears. Optical never removes a radar detection. Where both agree the confidence is raised; where radar cannot see (layover, shadow, slopes above 20 degrees) an optical detection is taken at lower confidence; where radar saw nothing and optical finds change, the pixel is marked "uncertain".
+**Optical evidence.** With `--optical` the pipeline adds Sentinel-2. In monsoon most passes are cloudy, so it builds per-pixel composites: the latest clear look before the event and the earliest clear look after it, rejecting cloud, shadow and snow with the scene classification layer. New water is a water index (MNDWI) that turns positive; debris is vegetation (NDVI) that disappears. Optical never removes a radar detection, and follows the same valley-floor rule. Where both agree the confidence is raised; on a valley floor where radar cannot see (layover, shadow) an optical detection is taken at lower confidence; where radar saw nothing and optical finds change, the pixel is marked "uncertain" (off the valley floor only for patches of a hectare or more).
 
 **Damage.** Buildings, roads and bridges that intersect a water or debris zone are flagged. This is an overlap, not an inspection, so the dashboard labels them "in flood zone" and not "destroyed". Most rural roads have no name in OpenStreetMap, so an unnamed road is listed by its kind and nearest settlement.
 
@@ -71,29 +71,33 @@ A small U-Net (7.8 million weights) labels each pixel as no water, permanent wat
 | Water or wet sediment | 1.62 km² | 0.53 km² |
 | Debris (same rule in both) | 0.89 km² | 0.89 km² |
 | Buildings in a flood zone | 672 of 85,186 | 154 |
-| Road segments in a flood zone | 121 of 2,059 | 56 |
+| Road segments in a flood zone | 121 of 2,059 (10.8 km inside a zone) | 56 |
 | Bridges in a flood zone | 14 of 192 | 7 |
 | Settlements cut off | 23 of 149 | 14 |
 
 The valley floor is 2.8% of the area and 7% of the scene is lost to layover and shadow. Within 100 m of rivers the share of pixels that changed by more than 3 dB is about twice the share elsewhere, so the corridor signal is real, but part of it may be ordinary change in a monsoon river between two dates.
 
-**Comparison with EMSR927.** The reference was used only after the run, with nothing tuned on it. `python validate.py out/trishuli cache/reference_emsr927` reproduces every figure here. Three of the six EMSR927 areas fall in our run: Syapru Besi and Timure entirely, Bidur for 63% (the rest, and Phosretar, lie south-west of the area we processed). The reference records the event as a mass movement and outlines the whole debris corridor by photo-interpretation of 0.3 m to 1 m optical images taken on 27 August, a day before our radar image. Parts the analysts marked "not analysed" are excluded.
+**Comparison with EMSR927.** The reference was used only after the runs, with nothing tuned on it. `python validate.py <run> cache/reference_emsr927` reproduces every figure here. The four reference areas with products are covered by two runs: the main run above, and a second run to the south-west (84.9 to 85.25 E, 27.75 to 28.02 N) made with the same code and settings as a test on another area. For that area the pair rule chose track 19 descending, 24 August and 5 September, because track 85 covers 99% of it and the rule prefers full coverage; its post-event image is ten days after the flood. The second run maps 6.0 km² (954 of 124,059 buildings, 230 road segments, 41 of 176 bridges, 13 of 116 settlements cut off). The reference records the event as a mass movement and outlines the whole debris corridor by photo-interpretation of 0.3 m to 1 m optical images of 27 to 31 August. Parts the analysts marked "not analysed" are excluded.
 
-| Area | Reference | Ours (water + debris) | IoU | Precision | Recall | Model map: IoU / recall |
+| Area (run) | Reference | Ours (water + debris) | IoU | Precision | Recall | Model map: IoU / recall |
 |---|---|---|---|---|---|---|
-| 01 Syapru Besi | 1.11 km² | 0.04 km² | 0.04 | 0.88 | 0.04 | 0.02 / 0.02 |
-| 02 Timure | 1.29 km² | 0.06 km² | 0.05 | 0.99 | 0.05 | 0.02 / 0.02 |
-| 03 Bidur (part in our run) | 4.09 km² | 1.01 km² | 0.22 | 0.93 | 0.23 | 0.14 / 0.14 |
+| 01 Syapru Besi (main) | 1.11 km² | 0.04 km² | 0.04 | 0.88 | 0.04 | 0.02 / 0.02 |
+| 02 Timure (main) | 1.29 km² | 0.06 km² | 0.05 | 0.99 | 0.05 | 0.02 / 0.02 |
+| 03 Bidur, northern 63% (main) | 4.09 km² | 1.01 km² | 0.22 | 0.93 | 0.23 | 0.14 / 0.14 |
+| 03 Bidur, whole (second) | 5.89 km² | 1.84 km² | 0.29 | 0.95 | 0.30 | not run |
+| 05 Phosretar (second) | 4.79 km² | 1.80 km² | 0.35 | 0.94 | 0.35 | not run |
 
-| Damage, three areas together (threshold map) | Result |
-|---|---|
-| Reference buildings graded destroyed, damaged or possibly damaged | 2,538; 559 (22%) lie in our flood zones |
-| Buildings we flagged | 339; 319 (94%) are next to a reference building |
-| Reference road segments destroyed or damaged | 170; our zones touch 78 (46%) |
-| Reference road segments with no visible damage | 197; our zones touch 6 (3%) |
-| Reference bridges destroyed or damaged | 20; 12 exist in our OpenStreetMap snapshot; we flagged 7 |
+| Damage (threshold map) | Main run: areas 01, 02, 03 north | Second run: areas 03, 05 |
+|---|---|---|
+| Reference buildings destroyed, damaged or possibly damaged; those in our zones | 2,538; 559 (22%) | 2,952; 1,177 (40%) |
+| Buildings we flagged; those next to a reference building | 339; 319 (94%) | 693; 649 (94%) |
+| Reference road segments destroyed or damaged; those our zones touch | 170; 78 (46%) | 333; 192 (58%) |
+| Reference road segments with no visible damage; those our zones touch | 197; 6 (3%) | 522; 36 (7%) |
+| Reference bridges destroyed or damaged; in our OpenStreetMap; flagged | 20; 12; 7 | 18; 10; 10 (Bidur only) |
 
-**Reading.** The map can be trusted where it says "flood" and cannot be trusted where it says nothing. Recall is poor because of what the radar pair shows, not mainly because of hidden slopes: inside the reference corridor only 1% to 7% of pixels are in layover or shadow, but 70% to 80% changed by less than 3 dB between the two dates. Only 15% of the corridor in the two gorge areas, and 29% at Bidur, crosses the 3 dB threshold in either direction, which caps what any rule of this kind can find. Fresh debris over a gravel river bed or bare ground looks much the same to C-band radar at 10 m, while it is obvious in a 0.3 m optical image. Roads do better than buildings because a long segment needs only one detected crossing.
+**Reading.** The map can be trusted where it says "flood" and cannot be trusted where it says nothing. Recall is poor because of what the radar pair shows, not mainly because of hidden slopes: inside the reference corridor only 1% to 7% of pixels are in layover or shadow, but 70% to 80% changed by less than 3 dB between the two dates. Only 15% of the corridor in the two gorge areas, 29% to 35% at Bidur and 41% at Phosretar crosses the 3 dB threshold in either direction, which caps what any rule of this kind can find; recall rises down the valley as the floor widens. Fresh debris over a gravel river bed or bare ground looks much the same to C-band radar at 10 m, while it is obvious in a 0.3 m optical image. Roads do better than buildings because a long segment needs only one detected crossing.
+
+**Optical evidence on real scenes.** Both areas were run again with `--optical`. Four Sentinel-2 passes either side of the event gave a clear view before and after for 31% of the main area and 55% of the second. As designed, optical adds almost nothing to the flood classes: it confirms 0.07 km² of radar detections and fills about 0.01 km² of radar blind spots in each run, so the figures above do not change. Its other output is "uncertain" patches where radar saw no change. On valley floors these carry real signal: counting them, recall against the reference would be 0.33, 0.34 and 0.65 in the main run and 0.65 and 0.51 in the second, at precision 0.70 to 0.96. Away from valley floors they are noise, 58 to 82 km² per run, mostly thin cloud and haze the scene classification missed. We have not promoted the valley-floor patches to a flood class, because that rule would have been chosen after looking at the reference. The first real run also exposed a fault, now fixed and tested: optical detections were not limited to valley floors as radar detections are, which added 7 km² of false debris on hillsides.
 
 Other results on real data:
 
@@ -120,15 +124,16 @@ By default the dashboard opens on a bundled demo dataset, labelled "Demo data", 
 ## 7. Limitations
 
 - **No early warning.** Sentinel-1 returns to the same track every 12 days. The system maps a flood after the next pass; it cannot warn of a glacier collapse or a flood in progress. For Trishuli the earliest usable post-event scene is two days after the event.
-- **Optical is untested.** The Sentinel-2 step has not been run on real scenes. Of the six Sentinel-2 passes covering the area in the three weeks after the event, the catalogue lists the main tile as 55% to 88% cloudy on every one. Optical evidence will be patchy, and where it comes from a later pass the water may already have receded.
-- **Most of the damage is missed.** Against EMSR927 the map finds 4% to 23% of the affected area and 22% of the affected buildings (section 5). Every count in this report and in the dashboard is a lower bound; a settlement not shown as cut off may still be cut off. Rescue planning must not treat an unmarked area as safe.
-- **The comparison is partial.** It covers three of six reference areas, one event and one scene pair. The 30 m, 600 m and 3 dB limits were not tuned on the reference, and we have not tried to raise recall, because fitting them to EMSR927 would make this comparison meaningless.
+- **Optical helps little as built.** Cloud left 31% and 55% of the two areas with a clear view on both sides of the event. Optical patches off the valley floor are mostly false, and those on it are only marked "uncertain" (section 5).
+- **Most of the damage is missed.** Against EMSR927 the map finds 4% to 35% of the affected area and 22% to 40% of the affected buildings (section 5). Every count in this report and in the dashboard is a lower bound; a settlement not shown as cut off may still be cut off. Rescue planning must not treat an unmarked area as safe.
+- **The comparison is partial.** It covers one event and the four reference areas that have products, on two different scene pairs, so the two runs are not like for like. The 30 m, 600 m and 3 dB limits were not tuned on the reference, and we have not tried to raise recall, because fitting them to EMSR927 would make this comparison meaningless.
+- **Pair choice can cost days.** For the second area the rule took an image ten days after the flood over one two days after that covers 99% of the area.
 - **Steep terrain.** Radar cannot see slopes in layover or shadow (7% of the scene). In the upper gorge near Rasuwagadhi, where this flood began, almost nothing is detected.
 - **Valley floors only.** Flood classes are limited to ground near a mapped river, using limits we chose. A debris flow down an unmapped gully is at best marked "uncertain".
 - **The model does worse than the thresholds here** and has no debris class. Debris always comes from fixed thresholds, which can also fire on wet soil, crops, snow and unrelated landslides.
 - **Damage is an overlap.** A building in a flood zone is counted whether or not it was damaged; one destroyed outside the mapped zone is not. At 10 m, single houses are not resolved.
 - **OpenStreetMap is incomplete.** Footpaths and small settlements may be missing; 65 of 149 settlements have no mapped road. Building counts stand in for population, each building is assigned to the nearest named place, and not every building is a home. Multipolygon buildings are skipped.
-- **Road cuts are coarse.** A road segment touching a flood zone is removed whole, and its whole length is counted, so some settlements may be reported cut off when a way through exists, and the reverse. Most of the 14 mapped "hospitals" are unnamed and are probably health posts, which makes the cut-off test easier to pass than it should be.
+- **Road cuts are coarse.** A road segment touching a flood zone is removed whole from the road network (its length in the totals is only the part inside the zone), so some settlements may be reported cut off when a way through exists, and the reverse. Most of the 14 mapped "hospitals" are unnamed and are probably health posts, which makes the cut-off test easier to pass than it should be.
 - **The flood path is a drainage line.** It gives direction, not depth, width, timing or reach.
 - **The preprocessing is simplified.** Orbit data comes from the product, not precise orbit files; there is no radiometric terrain flattening; only the range part of the noise tables is applied.
 - **Nepali text** was written without review by a native speaker.

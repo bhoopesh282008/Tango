@@ -11,10 +11,10 @@ This is an educational prototype, not an operational tool.
 | Dashboard and copilot | Working. Runs on bundled demo data by default, or on the output of a pipeline run. |
 | Pre-event OpenStreetMap, DEM, damage overlay, cut-off analysis, flood-path trace | Run on real data for the Trishuli area. |
 | Flood model | Trained on a sample of Kuro Siwo; results in [pipeline/MODEL.md](pipeline/MODEL.md). |
-| Sentinel-1 download, calibration, terrain correction and flood mapping | **Run end to end on real scenes** for Trishuli (16 and 28 Aug 2026): 2.6 km² of flood zones, 23 of 149 settlements cut off. **Checked against Copernicus EMS (EMSR927):** precision 0.88 to 0.99, but only 4% to 23% of the reference area is found, so every figure is a lower bound. See [docs/report.md](docs/report.md), section 5. |
+| Sentinel-1 download, calibration, terrain correction and flood mapping | **Run end to end on real scenes** for Trishuli (16 and 28 Aug 2026): 2.6 km² of flood zones, 23 of 149 settlements cut off. **Checked against Copernicus EMS (EMSR927):** precision 0.88 to 0.99, but only 4% to 35% of the reference area is found, so every figure is a lower bound. See [docs/report.md](docs/report.md), section 5. |
 | Before/after pictures | Produced from the real scenes and shown in the dashboard. |
-| Sentinel-2 optical evidence | Written and unit-tested on synthetic data. Not yet run on a real scene. |
-| Other areas and dates | Not tried. The pipeline has only run on Trishuli. |
+| Sentinel-2 optical evidence | Run on real scenes for both areas (31% and 55% clear on both sides of the event). As built it changes the flood classes very little; its valley-floor "uncertain" patches do match the reference, its hillside ones are mostly cloud and haze. See the report, section 5. |
+| Other areas and dates | A second area south-west of the first (Bidur, Phosretar) ran with the same code and settings on a different orbit track: 6.0 km² of flood zones, precision 0.94 to 0.95 and recall 0.30 to 0.35 against EMSR927. No other event or date has been tried. |
 
 What the system cannot do is listed in the app at `/about` (Method and limitations). The draft challenge report is [docs/report.md](docs/report.md), rendered to [docs/report.pdf](docs/report.pdf) by `docs/build_report.py`.
 
@@ -23,7 +23,7 @@ What the system cannot do is listed in the app at `/about` (Method and limitatio
 ```bash
 npm install
 npm run dev      # http://localhost:5173
-npm run test     # 53 tests
+npm run test     # 59 tests
 npm run build
 ```
 
@@ -34,7 +34,7 @@ Python 3.11 to 3.13 (the geospatial packages have no wheels for 3.14 yet). From 
 ```bash
 py -3.13 -m venv pipeline/.venv
 pipeline/.venv/Scripts/python -m pip install -r pipeline/requirements.txt
-pipeline/.venv/Scripts/python -m pytest pipeline/tests     # 57 tests
+pipeline/.venv/Scripts/python -m pytest pipeline/tests     # 61 tests
 ```
 
 For GPU training install PyTorch from its own index first: `pip install torch --index-url https://download.pytorch.org/whl/cu124`.
@@ -56,7 +56,7 @@ It needs a free [Copernicus Data Space](https://dataspace.copernicus.eu) account
 | Preprocessing | `preprocess_s1.py` | Calibration to sigma0, thermal-noise removal, Lee speckle filter, Range-Doppler terrain correction, layover and shadow masks |
 | Valley floor | `terrain.py` | Ground within 30 m above and 600 m of a river (pre-event OSM, or DEM-derived channels): where a flood can be |
 | Flood map | `segment.py`, `predict.py` | Change detection on valley floors (water, debris; strong change elsewhere is "uncertain"), or the U-Net for water with the same rule for debris |
-| Optical | `fetch_s2.py` | Sentinel-2 clear-sky composites either side of the event; confirms radar detections and fills radar blind spots (layover, shadow, steep slopes). It never removes a radar detection |
+| Optical | `fetch_s2.py` | Sentinel-2 clear-sky composites either side of the event; confirms radar detections and fills radar blind spots on valley floors. It never removes a radar detection. Composites are cached in the run's `rasters/` folder |
 | Pictures | `quicklook.py` | Before/after PNGs for the dashboard's satellite viewer |
 | OpenStreetMap | `fetch_osm.py` | Buildings, roads, bridges, health facilities and places as of 27 July 2026 |
 | Damage | `damage.py`, `infrastructure.py` | Features inside water or debris zones; health facilities cut from the road network |
@@ -198,8 +198,8 @@ docs/           map library research
 
 ## Not built yet
 
-- Anything that raises recall. The EMSR927 comparison shows the map misses most of the debris corridor, because most of it changes by less than 3 dB in the radar pair. No threshold has been tuned on the reference.
-- The EMSR927 comparison for Phosretar and the southern part of Bidur, which lie outside the area processed.
+- Anything that raises recall. The EMSR927 comparison shows the map misses most of the debris corridor, because most of it changes by less than 3 dB in the radar pair. Optical change on valley floors would roughly double recall where the sky is clear, but it is still only marked "uncertain": no rule or threshold has been chosen or tuned on the reference.
+- A scene-pair rule that accepts an almost complete image. For the second area it chose an image ten days after the flood over one two days after that covers 99% of the area.
 - A run on any area or date other than the Trishuli case study.
 - A language model behind the copilot: answers are templates filled from the computed figures.
 - Drawing/annotation tool, timeline animation, Shapefile export, live polling, offline tiles / PWA, deployment. PDF export uses the browser print dialog.

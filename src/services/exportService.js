@@ -53,6 +53,13 @@ export function statisticsCsv(stats) {
     [WORDING.bridges, stats.bridgesDestroyed.length, 'count'],
     ['Health posts unreachable', stats.healthPostsUnreachable.length, 'count'],
     ...(stats.powerLinesAssessed ? [['Power lines down', stats.powerLineKmDown, 'km']] : []),
+    // Share of the reference map's affected area that this map found, when that check was made
+    ...(stats.validation
+      ? [
+          [`Affected area found: lowest (${stats.validation.reference})`, stats.validation.recall[0], 'fraction'],
+          [`Affected area found: highest (${stats.validation.reference})`, stats.validation.recall[1], 'fraction'],
+        ]
+      : []),
   ])
 }
 

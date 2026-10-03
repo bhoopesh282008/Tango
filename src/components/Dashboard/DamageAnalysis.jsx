@@ -31,7 +31,7 @@ function ItemList({ items }) {
         {items.map((item, i) => (
           <li key={item.id ?? i} className={hiddenAt(i) ? 'hidden print:list-item' : undefined}>
             {item.name}
-            {item.sections > 1 && ` (${formatNumber(item.length_km, 1)} km in ${item.sections} sections)`}
+            {item.sections > 1 && ` (${formatNumber(item.length_km, item.length_km < 1 ? 2 : 1)} km in ${item.sections} sections)`}
           </li>
         ))}
       </ul>

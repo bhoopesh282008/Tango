@@ -1,11 +1,14 @@
 // Copilot answers are assembled from the computed statistics, so every figure
 // in an answer is the same figure the dashboard shows.
+import { USE_MOCK } from '../config/apiConfig'
 import { FACTOR_WEIGHTS } from '../utils/calculations'
 import { ACCESS_LEVELS, DAMAGE_TYPES, PRIORITY_BANDS, PRIORITY_WEIGHTS } from '../utils/constants'
 import { formatDate, formatNumber } from '../utils/formatters'
 import { WORDING } from '../utils/wording'
 
 const n = formatNumber
+// Flooded road lengths are often tens of metres; one decimal would print them as 0.0.
+const km = (value) => n(value, value < 1 ? 2 : 1)
 const pct = (fraction) => Math.round(fraction * 100)
 const bullets = (items) => items.map((item) => `• ${item}`).join('\n')
 const numbered = (items) => items.map((item, i) => `${i + 1}. ${item}`).join('\n')
@@ -54,6 +57,24 @@ const lowerFirst = (text) => text.replace(/^[A-Z](?=[a-z])/, (c) => c.toLowerCas
 const weight = (factor) => pct(FACTOR_WEIGHTS[factor])
 const urgent = (s) => s.priority.filter((p) => p.band === 'critical' || p.band === 'high')
 
+// The counts are what the map found, not everything that happened. With a reference check the
+// note carries its figures; a run that was never checked says so; the demo data says nothing.
+const range = ([low, high]) => (pct(low) === pct(high) ? `${pct(low)}%` : `${pct(low)}% to ${pct(high)}%`)
+export const coverageNote = {
+  en: ({ validation: v }) =>
+    v
+      ? `Lower bound: checked against ${v.reference} in ${v.areas} ${v.areas === 1 ? 'area' : 'areas'}, this map found ${range(v.recall)} of the affected area. An area with nothing marked is not known to be safe.`
+      : USE_MOCK
+        ? null
+        : 'This map has not been checked against a reference. An area with nothing marked is not known to be safe.',
+  np: ({ validation: v }) =>
+    v
+      ? `न्यूनतम अनुमान: ${v.reference} सँग ${v.areas} क्षेत्रमा तुलना गर्दा यस नक्साले प्रभावित क्षेत्रको ${range(v.recall).replace(' to ', ' देखि ')} मात्र पत्ता लगाएको छ। नक्सामा चिन्ह नलागेको क्षेत्र सुरक्षित छ भन्ने निश्चित छैन।`
+      : USE_MOCK
+        ? null
+        : 'यो नक्सा कुनै सन्दर्भ नक्सासँग तुलना गरिएको छैन। नक्सामा चिन्ह नलागेको क्षेत्र सुरक्षित छ भन्ने निश्चित छैन।',
+}
+
 const en = {
   title: {
     'flood-extent': 'Where did the flood hit?',
@@ -93,7 +114,7 @@ const en = {
               : 'Power lines were not assessed in this run.',
           ]
         : ['Bridges, health posts and power lines were not assessed in this run.']),
-      `${WORDING.en.roadSections}:\n${bullets(capped(s.damagedRoadGroups.map((r) => `${r.name}: ${n(r.length_km, 1)} km`), moreEn))}`,
+      `${WORDING.en.roadSections}:\n${bullets(capped(s.damagedRoadGroups.map((r) => `${r.name}: ${km(r.length_km)} km`), moreEn))}`,
     ].join('\n\n'),
 
   'cut-off': (s) =>
@@ -199,7 +220,7 @@ const np = {
               : 'यस विश्लेषणमा विद्युत् लाइनको मूल्याङ्कन गरिएको छैन।',
           ]
         : ['यस विश्लेषणमा पुल, स्वास्थ्य चौकी र विद्युत् लाइनको मूल्याङ्कन गरिएको छैन।']),
-      `${WORDING.np.roadSections}:\n${bullets(capped(s.damagedRoadGroups.map((r) => `${r.name_np ?? r.name}: ${n(r.length_km, 1)} कि.मी.`), moreNp))}`,
+      `${WORDING.np.roadSections}:\n${bullets(capped(s.damagedRoadGroups.map((r) => `${r.name_np ?? r.name}: ${km(r.length_km)} कि.मी.`), moreNp))}`,
     ].join('\n\n'),
 
   'cut-off': (s) =>

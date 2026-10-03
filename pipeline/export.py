@@ -30,7 +30,7 @@ def _fc(gdf, columns):
 
 def export_all(out, zones, buildings, roads, settlements, infrastructure, satellite):
     """zones: id,type,confidence,area_km2. buildings: settlement_id,damaged.
-    roads: name,damaged,length_km. settlements: id,name,lat,lng,population,connected.
+    roads: name,damaged,length_km[,flooded_km]. settlements: id,name,lat,lng,population,connected.
     infrastructure: list of dicts. satellite: before/after metadata dict."""
     out = Path(out)
     out.mkdir(parents=True, exist_ok=True)
@@ -41,7 +41,9 @@ def export_all(out, zones, buildings, roads, settlements, infrastructure, satell
     _write(out / 'buildings.geojson', _fc(buildings, ['settlement_id', 'damaged']))
     roads = roads.copy()
     roads['id'] = [f'r{i + 1:04d}' for i in range(len(roads))]
-    _write(out / 'roads.geojson', _fc(roads, ['id', 'name', 'damaged', 'length_km']))
+    # flooded_km is absent from older callers; the dashboard then falls back to length_km.
+    columns = ['id', 'name', 'damaged', 'length_km'] + (['flooded_km'] if 'flooded_km' in roads.columns else [])
+    _write(out / 'roads.geojson', _fc(roads, columns))
     _write(out / 'settlements.json', settlements)
     _write(out / 'infrastructure.json', infrastructure)
     _write(out / 'satellite.json', satellite)

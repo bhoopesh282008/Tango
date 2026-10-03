@@ -118,6 +118,23 @@ describe('pipeline-shaped data', () => {
     expect(run.priority.map((p) => p.name)).not.toContain('Gamma')
   })
 
+  test('road length counts the part inside a flood zone, not the whole segment', () => {
+    const road = (name, damaged, length_km, flooded_km) => ({ properties: { name, damaged, length_km, flooded_km } })
+    const withLengths = computeStats({
+      floodZones: demo.floodZones,
+      buildings: { type: 'FeatureCollection', features: [] },
+      infrastructure: [],
+      settlements: [],
+      roads: { features: [road('A', true, 5, 0.12), road('A', true, 3, 0.2), road('B', true, 2, 0.05), road('C', false, 9, 0)] },
+    })
+    expect(withLengths.damagedRoadKm).toBe(0.4)
+    expect(withLengths.totalRoadKm).toBe(19)
+    expect(withLengths.damagedRoadGroups.map((g) => [g.name, g.length_km, g.sections])).toEqual([
+      ['A', 0.32, 2],
+      ['B', 0.05, 1],
+    ])
+  })
+
   test('a missing population is reported, not counted as zero people', () => {
     expect(run.populationAffected).toBe(400)
     expect(run.populationUnknown).toBe(1)

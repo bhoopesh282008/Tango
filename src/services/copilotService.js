@@ -1,5 +1,5 @@
 import { DATA_MODE, ENDPOINTS, USE_MOCK } from '../config/apiConfig'
-import { templates } from '../data/copilotTemplates'
+import { coverageNote, templates } from '../data/copilotTemplates'
 import { EVENT, QUESTIONS } from '../utils/constants'
 import { formatDate } from '../utils/formatters'
 import { mock, post } from './api'
@@ -13,13 +13,18 @@ function dataSource(stats) {
   return USE_MOCK ? `${dated} (demo data)` : dated
 }
 
-export function buildAnswer(questionId, language, stats) {
+// Answers that count what the flood hit; each ends with the lower-bound note when there is one.
+const COUNTING_TOPICS = ['flood-extent', 'infrastructure', 'cut-off']
+const noteFor = (language, stats) => (coverageNote[language] ?? coverageNote.en)(stats)
+
+export function buildAnswer(questionId, language, stats, { withNote = true } = {}) {
   const t = templates[language] ?? templates.en
+  const note = withNote && COUNTING_TOPICS.includes(questionId) ? noteFor(language, stats) : null
   return {
     kind: questionId,
     language,
     title: t.title[questionId],
-    answer: t[questionId](stats),
+    answer: [t[questionId](stats), note].filter(Boolean).join('\n\n'),
     confidence: stats.meanConfidence,
     dataSource: dataSource(stats),
   }
@@ -78,7 +83,11 @@ export async function askFreeText(text, language, stats) {
 
 // All four answers combined into one document.
 export async function generateReport(language, stats) {
-  const sections = await Promise.all(QUESTIONS.map((q) => askQuestion(q.id, language, stats)))
+  // The note is given once, under the header, not after every section.
+  const sections = LOCAL
+    ? QUESTIONS.map((q) => buildAnswer(q.id, language, stats, { withNote: false }))
+    : await Promise.all(QUESTIONS.map((q) => askQuestion(q.id, language, stats)))
+  const note = LOCAL ? noteFor(language, stats) : null
   const t = templates[language] ?? templates.en
   const { before, after } = stats.imagery
   const header = `${EVENT.name}: ${EVENT.location}` + (before && after ? `\n${formatDate(before)} → ${formatDate(after)}` : '')
@@ -89,7 +98,7 @@ export async function generateReport(language, stats) {
     kind: 'report',
     language,
     title: t.title.report,
-    answer: `${header}\n\n\n${body}`,
+    answer: [header, note, body].filter(Boolean).join('\n\n\n'),
     confidence: sections[0].confidence,
     dataSource: sections[0].dataSource,
   }

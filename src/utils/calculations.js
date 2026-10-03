@@ -4,6 +4,9 @@ import { EVENT, PRIORITY_BANDS, PRIORITY_WEIGHTS, SIZE_LIMITS } from './constant
 
 const round = (n, d = 1) => Math.round(n * 10 ** d) / 10 ** d
 const sum = (items, pick) => items.reduce((total, item) => total + pick(item), 0)
+// A pipeline run records how much of a flagged segment lies inside a flood zone.
+// Where that is absent (the demo data) the whole section counts.
+const floodedKm = (road) => road.flooded_km ?? road.length_km
 
 export function sizeClass(areaKm2) {
   if (areaKm2 >= SIZE_LIMITS.large) return 'large'
@@ -202,12 +205,12 @@ export function computeStats({ floodZones, buildings, roads, settlements, infras
     totalStructures: sum(settlementRows, (s) => s.total),
     settlementRows,
 
-    damagedRoadKm: round(sum(damagedRoads, (r) => r.length_km)),
+    damagedRoadKm: round(sum(damagedRoads, floodedKm)),
     // Damaged sections merged by road name, longest first: real data has hundreds of segments
     damagedRoadGroups: Object.values(
       damagedRoads.reduce((groups, r) => {
         const group = (groups[r.name] ??= { id: r.name, name: r.name, name_np: r.name_np, length_km: 0, sections: 0 })
-        group.length_km = round(group.length_km + r.length_km, 2)
+        group.length_km = round(group.length_km + floodedKm(r), 2)
         group.sections += 1
         return groups
       }, {}),
@@ -231,6 +234,8 @@ export function computeStats({ floodZones, buildings, roads, settlements, infras
     priority: rankPriority(settlementRows, infrastructure),
 
     imagery: imageryDates(satelliteData),
+    // How the run compared with a reference map, when that check was made; null otherwise
+    validation: satelliteData?.validation ?? null,
 
     // False when the run produced no infrastructure layer: counts below are then not findings
     infrastructureAssessed: infrastructure.length > 0,

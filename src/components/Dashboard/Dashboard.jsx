@@ -2,6 +2,7 @@ import { lazy, Suspense, useState } from 'react'
 import { useDamageData } from '../../hooks/useDamageData'
 import ErrorPage from '../../pages/ErrorPage'
 import Spinner from '../Common/Spinner'
+import CoverageNotice from './CoverageNotice'
 import DamageAnalysis from './DamageAnalysis'
 import SatelliteViewer from './SatelliteViewer'
 import SettlementPriorityRanking from './SettlementPriorityRanking'
@@ -33,6 +34,7 @@ export default function Dashboard() {
         comparisonValue={comparisonBlend}
         onComparisonChange={setComparisonBlend}
       />
+      <CoverageNotice validation={stats.validation} />
       <StatisticsCards stats={stats} />
       <SettlementPriorityRanking stats={stats} />
       <Suspense

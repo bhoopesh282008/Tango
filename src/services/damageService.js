@@ -19,8 +19,8 @@ export async function getSatellite() {
   if (USE_MOCK) return mock((await demo()).satellite)
   if (PIPELINE) {
     // A run from existing rasters records no scenes, so either side may be missing.
-    const { before, after } = await getFile(PIPELINE_FILES.satellite)
-    return { before: sceneWithUrls(before), after: sceneWithUrls(after) }
+    const { before, after, validation } = await getFile(PIPELINE_FILES.satellite)
+    return { before: sceneWithUrls(before), after: sceneWithUrls(after), validation: validation ?? null }
   }
   const [before, after] = await Promise.all([
     get(ENDPOINTS.satelliteBefore, { date: EVENT.beforeDate }),

@@ -248,13 +248,14 @@ def main():
     optical = None
     if args.optical:
         import fetch_s2   # imported here so a radar-only run does not need it
-        before, after, optical = fetch_s2.looks_around(args.bbox, args.event, crs, transform, pre.shape)
+        before, after, optical = fetch_s2.looks_around(args.bbox, args.event, crs, transform, pre.shape,
+                                                       cache=out / 'rasters')
         if before is None:
             optical['used'] = False
             optical['note'] = 'No Sentinel-2 pass on both sides of the event; radar only.'
         else:
             seen = np.isfinite(pre) & np.isfinite(post)   # radar is blind only in layover and shadow
-            classes, conf, counts = fetch_s2.fuse(classes, conf, seen, *fetch_s2.classify(before, after))
+            classes, conf, counts = fetch_s2.fuse(classes, conf, seen, *fetch_s2.classify(before, after), floor=floor)
             optical.update(used=True, pixels=counts)
             quicklook.optical_png(before, out / 'before_optical.png')
             quicklook.optical_png(after, out / 'after_optical.png')
@@ -270,6 +271,7 @@ def main():
     status = cutoff.connectivity(settlements, hospitals_or_any(osm['health']), roads)
 
     roads = describe_roads(roads, settlements)
+    roads['flooded_km'] = damage.flooded_length_km(roads, zones)
 
     settlement_rows = settlement_records(settlements, status)
     infra = infrastructure.build(osm['bridges'], osm['health'], roads, zones, settlements)

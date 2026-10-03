@@ -16,7 +16,7 @@ import { filterZones } from '../../utils/calculations'
 import { copyText } from '../../utils/clipboard'
 import { DAMAGE_TYPES, INFRA_TYPES } from '../../utils/constants'
 import { loadTerrain, pathFromPoint, settlementsAlong } from '../../utils/floodPath'
-import { formatLatLng, formatNumber, formatPeople, formatPercent } from '../../utils/formatters'
+import { formatDistance, formatLatLng, formatNumber, formatPeople, formatPercent } from '../../utils/formatters'
 import { WORDING } from '../../utils/wording'
 import FilterControls from '../Tools/FilterControls'
 import FloodPathTool, { FloodPathLayer } from '../Tools/FloodPathTool'
@@ -55,7 +55,11 @@ function describeFeature({ layer, properties: p }) {
     case 'roads-damaged':
       return {
         title: p.name,
-        lines: [`${p.damaged ? WORDING.status : 'Passable'} · ${formatNumber(p.length_km, 1)} km`],
+        lines: [
+          p.damaged && p.flooded_km != null
+            ? `${WORDING.status} · ${formatDistance(p.flooded_km)} of ${formatNumber(p.length_km, 1)} km`
+            : `${p.damaged ? WORDING.status : 'Passable'} · ${formatNumber(p.length_km, 1)} km`,
+        ],
       }
     case 'buildings':
       return { title: 'Building', lines: [p.damaged ? 'Flagged as damaged' : 'No damage detected'] }
