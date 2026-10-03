@@ -77,3 +77,10 @@ export const QUESTIONS = [
   { id: 'cut-off', en: 'Which settlements cut off?', np: 'कुन बस्ती सम्पर्कविहीन छन्?' },
   { id: 'priority', en: 'Priority rescue zones?', np: 'प्राथमिक उद्धार क्षेत्र?' },
 ]
+
+// Attribution wording required by the data licences; keep verbatim.
+export const ATTRIBUTION = [
+  'Contains modified Copernicus Sentinel data 2026.',
+  'Produced using Copernicus WorldDEM-30 © DLR e.V. 2010–2014 and © Airbus Defence and Space GmbH 2014–2018 provided under COPERNICUS by the European Union and ESA; all rights reserved.',
+  '© OpenStreetMap contributors.',
+]

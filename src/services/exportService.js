@@ -30,7 +30,7 @@ export function settlementsCsv(stats) {
       const p = ranked.get(s.id)
       return [
         s.id, s.name, s.name_np, s.lat, s.lng, s.population,
-        s.connected ? 'connected' : 'cut off', s.total, s.damaged,
+        s.connected === true ? 'connected' : s.connected === false ? 'cut off' : 'unknown', s.total, s.damaged,
         p?.rank, p?.priority, p?.band, s.access_difficulty,
       ]
     }),

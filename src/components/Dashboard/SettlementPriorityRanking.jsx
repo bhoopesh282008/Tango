@@ -3,17 +3,25 @@ import { useState } from 'react'
 import { USE_MOCK } from '../../config/apiConfig'
 import { useMapStore } from '../../store/mapStore'
 import { summarisePriority } from '../../utils/calculations'
-import { ACCESS_LEVELS, PRIORITY_BANDS } from '../../utils/constants'
+import { ACCESS_LEVELS, PRIORITY_BANDS, PRIORITY_WEIGHTS } from '../../utils/constants'
+
+const FACTOR_LABELS = {
+  population: 'population',
+  damage: 'structure damage',
+  access: 'access difficulty',
+  critical: 'critical infrastructure',
+  vulnerable: 'vulnerable residents',
+}
 import { formatNumber, formatPercent } from '../../utils/formatters'
 
 const SORTS = [
   { id: 'priority', label: 'Priority', compare: (a, b) => a.rank - b.rank },
-  { id: 'population', label: 'Population', compare: (a, b) => b.population - a.population },
+  { id: 'population', label: 'Population', compare: (a, b) => (b.population ?? -1) - (a.population ?? -1) },
   { id: 'damage', label: 'Damage', compare: (a, b) => b.damageRatio - a.damageRatio },
   {
     id: 'access',
     label: 'Access',
-    compare: (a, b) => (b.access_difficulty ?? 1) - (a.access_difficulty ?? 1) || a.rank - b.rank,
+    compare: (a, b) => (b.access_difficulty ?? 0) - (a.access_difficulty ?? 0) || a.rank - b.rank,
   },
 ]
 
@@ -65,7 +73,12 @@ function RiskSummary({ priority }) {
               <span className="block text-sm font-semibold">
                 {band.count} {band.label}
               </span>
-              <span className="block text-xs text-ink-soft">{formatNumber(band.people)} people</span>
+              <span className="block text-xs text-ink-soft">
+                {band.peopleUnknown === band.count
+                  ? 'population not recorded'
+                  : `${formatNumber(band.people)} people` +
+                    (band.peopleUnknown ? `, ${band.peopleUnknown} not recorded` : '')}
+              </span>
             </span>
           </li>
         )
@@ -88,7 +101,7 @@ function PriorityCard({ settlement: s }) {
   const focusSettlement = useMapStore((state) => state.focusSettlement)
   const band = PRIORITY_BANDS.find((b) => b.id === s.band)
   const style = BAND_STYLE[s.band]
-  const access = ACCESS_LEVELS[(s.access_difficulty ?? 1) - 1] ?? ACCESS_LEVELS[0]
+  const access = s.access_difficulty != null ? ACCESS_LEVELS[s.access_difficulty - 1] : null
   const issues = [
     s.healthPostUnreachable && 'Health post unreachable',
     s.bridgeDestroyed && 'Bridge destroyed',
@@ -130,9 +143,9 @@ function PriorityCard({ settlement: s }) {
       </div>
 
       <dl className="grid grid-cols-3 divide-x divide-line border-y border-line py-2">
-        <Metric label="People">{formatNumber(s.population)}</Metric>
+        <Metric label="People">{s.population != null ? formatNumber(s.population) : 'No data'}</Metric>
         <Metric label="Damaged">{formatPercent(s.damageRatio)}</Metric>
-        <Metric label="Access">{access.label}</Metric>
+        <Metric label="Access">{access?.label ?? 'No data'}</Metric>
       </dl>
 
       {issues.length > 0 && (
@@ -158,6 +171,9 @@ export default function SettlementPriorityRanking({ stats }) {
   const settlements = [...stats.priority].sort(sort.compare)
 
   if (settlements.length === 0) return null
+
+  const used = settlements[0].factorsUsed
+  const missing = Object.keys(FACTOR_LABELS).filter((f) => !used.includes(f))
 
   return (
     <section aria-labelledby="priority-heading">
@@ -193,12 +209,22 @@ export default function SettlementPriorityRanking({ stats }) {
         ))}
       </ul>
 
-      <p className="mt-2 text-xs text-ink-soft">
-        Score out of 100: population 35%, structure damage 25%, access difficulty 20%, critical
-        infrastructure 15%, vulnerable residents 5%. The rank number always follows the priority
-        score. Access, water supply and age figures come from field reports, not from the satellite
-        analysis{USE_MOCK ? '; in demo mode they are illustrative' : ''}.
-      </p>
+      {missing.length === 0 ? (
+        <p className="mt-2 text-xs text-ink-soft">
+          Score out of 100: population 35%, structure damage 25%, access difficulty 20%, critical
+          infrastructure 15%, vulnerable residents 5%. The rank number always follows the priority
+          score. Access, water supply and age figures come from field reports, not from the
+          satellite analysis{USE_MOCK ? '; in demo mode they are illustrative' : ''}.
+        </p>
+      ) : (
+        <p className="mt-2 text-xs text-ink-soft">
+          Score out of 100, from the factors recorded for every settlement:{' '}
+          {used.map((f) => `${FACTOR_LABELS[f]} ${Math.round(PRIORITY_WEIGHTS[f] * 100)}%`).join(', ')},
+          rescaled to add up to 100%. Not scored, because the data is missing for some or all
+          settlements: {missing.map((f) => FACTOR_LABELS[f]).join(', ')}.
+          A score built from fewer factors is a weaker guide; treat the order as provisional.
+        </p>
+      )}
     </section>
   )
 }

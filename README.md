@@ -29,7 +29,17 @@ The scene loads after the text and costs about 1.4 MB (star map, model, decoder)
 
 ## Demo data vs. backend
 
-With no backend configured the app runs on the bundled dataset in `src/data` and shows a **Demo data** badge. Everything in that dataset is illustrative: geometry is generated around approximate settlement locations, and the before/after images are drawn placeholders, not Sentinel-1 scenes.
+To show the output of a pipeline run, write it into `public/data/` and point the app at it:
+
+```bash
+pipeline/.venv/Scripts/python pipeline/run.py --bbox 85.1,27.9,85.5,28.3 --event 2026-08-26 --out public/data
+echo VITE_DATA_URL=/data > .env.local
+npm run dev
+```
+
+`public/data/` is git-ignored. In this mode the Demo data badge disappears, a settlement with no road in the pre-event map is shown as "Access unknown", and the rescue priority is scored only on factors recorded for every cut-off settlement. The pipeline has not yet been run on real scenes; see `pipeline/` and the in-app Method and limitations page (`/about`).
+
+With neither a data folder nor a backend configured the app runs on the bundled dataset in `src/data` and shows a **Demo data** badge. Everything in that dataset is illustrative: geometry is generated around approximate settlement locations, and the before/after images are drawn placeholders, not Sentinel-1 scenes.
 
 To use a real backend, copy `.env.example` to `.env.local` and set `VITE_API_BASE_URL`. The services in `src/services` then call:
 

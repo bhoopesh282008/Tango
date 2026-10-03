@@ -15,7 +15,7 @@ import { useUIStore } from '../../store/uiStore'
 import { filterZones } from '../../utils/calculations'
 import { copyText } from '../../utils/clipboard'
 import { DAMAGE_TYPES, INFRA_TYPES } from '../../utils/constants'
-import { formatLatLng, formatNumber, formatPercent } from '../../utils/formatters'
+import { formatLatLng, formatNumber, formatPeople, formatPercent } from '../../utils/formatters'
 import FilterControls from '../Tools/FilterControls'
 import MeasurementTool, { MeasurementLayer } from '../Tools/MeasurementTool'
 import DamageOverlay from './DamageOverlay'
@@ -36,8 +36,12 @@ function describeFeature({ layer, properties: p }) {
       return {
         title: p.name_np ? `${p.name} (${p.name_np})` : p.name,
         lines: [
-          `${formatNumber(p.population)} people`,
-          p.connected ? 'Road access intact' : 'Cut off: no road access',
+          formatPeople(p.population),
+          p.connected === true
+            ? 'Road access intact'
+            : p.connected === false
+              ? 'Cut off: no road access'
+              : 'Road access unknown: no road to it in the pre-event map',
           ...(p.rank ? [`Rescue priority #${p.rank} · ${p.priority}/100`] : []),
         ],
       }

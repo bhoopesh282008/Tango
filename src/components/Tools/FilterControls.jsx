@@ -1,11 +1,14 @@
 import { useState } from 'react'
+import { useDataStore } from '../../store/dataStore'
 import { useMapStore } from '../../store/mapStore'
-import { DAMAGE_TYPES, DEFAULT_FILTERS, EVENT, SIZE_CLASSES } from '../../utils/constants'
+import { imageryDates } from '../../utils/calculations'
+import { DAMAGE_TYPES, DEFAULT_FILTERS, SIZE_CLASSES } from '../../utils/constants'
 import { formatDate } from '../../utils/formatters'
 
 export default function FilterControls({ onApplied }) {
   const applied = useMapStore((s) => s.filters)
   const setFilters = useMapStore((s) => s.setFilters)
+  const imagery = imageryDates(useDataStore((s) => s.satelliteData))
   // Edits stay local until Apply so the map does not redraw on every slider tick.
   const [draft, setDraft] = useState(applied)
 
@@ -74,9 +77,11 @@ export default function FilterControls({ onApplied }) {
         ))}
       </select>
 
-      <p className="mt-3 text-xs text-ink-soft">
-        Change detected between {formatDate(EVENT.beforeDate)} and {formatDate(EVENT.afterDate)}.
-      </p>
+      {imagery.before && imagery.after && (
+        <p className="mt-3 text-xs text-ink-soft">
+          Change detected between {formatDate(imagery.before)} and {formatDate(imagery.after)}.
+        </p>
+      )}
 
       <div className="mt-3 flex gap-2">
         <button type="submit" className="btn btn-primary flex-1">

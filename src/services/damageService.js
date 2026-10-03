@@ -1,13 +1,20 @@
-import { ENDPOINTS, USE_MOCK } from '../config/apiConfig'
+import { DATA_MODE, ENDPOINTS, PIPELINE_FILES, USE_MOCK } from '../config/apiConfig'
 import { EVENT_BBOX } from '../config/mapConfig'
 import { EVENT } from '../utils/constants'
-import { get, mock } from './api'
+import { get, getFile, mock } from './api'
+
+const PIPELINE = DATA_MODE === 'pipeline'
 
 const bbox = { bbox: EVENT_BBOX.join(',') }
 const demo = () => import('../data/mockData')
 
 export async function getSatellite() {
   if (USE_MOCK) return mock((await demo()).satellite)
+  if (PIPELINE) {
+    // A run from existing rasters records no scenes, so either side may be missing.
+    const { before, after } = await getFile(PIPELINE_FILES.satellite)
+    return { before: before ?? null, after: after ?? null }
+  }
   const [before, after] = await Promise.all([
     get(ENDPOINTS.satelliteBefore, { date: EVENT.beforeDate }),
     get(ENDPOINTS.satelliteAfter, { date: EVENT.afterDate }),
@@ -18,23 +25,27 @@ export async function getSatellite() {
 // FeatureCollection of polygons with { id, name, type, confidence, area_km2 }
 export async function getFloodZones() {
   if (USE_MOCK) return mock((await demo()).floodZones)
+  if (PIPELINE) return getFile(PIPELINE_FILES.floodZones)
   return (await get(ENDPOINTS.damageAnalysis, bbox)).geojson
 }
 
 // FeatureCollection of footprints with { settlement_id, damaged }
 export async function getBuildings() {
   if (USE_MOCK) return mock((await demo()).buildings)
+  if (PIPELINE) return getFile(PIPELINE_FILES.buildings)
   return get(ENDPOINTS.buildings, bbox)
 }
 
 // FeatureCollection of lines with { name, damaged, length_km }
 export async function getRoads() {
   if (USE_MOCK) return mock((await demo()).roads)
+  if (PIPELINE) return getFile(PIPELINE_FILES.roads)
   return get(ENDPOINTS.roads, bbox)
 }
 
 // Array of { id, type, name, lat, lng, status, length_km? }
 export async function getInfrastructure() {
   if (USE_MOCK) return mock((await demo()).infrastructure)
+  if (PIPELINE) return getFile(PIPELINE_FILES.infrastructure)
   return get(ENDPOINTS.infrastructure)
 }

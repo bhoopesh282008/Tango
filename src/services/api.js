@@ -1,8 +1,8 @@
-import { API_BASE_URL } from '../config/apiConfig'
+import { API_BASE_URL, DATA_URL } from '../config/apiConfig'
 
-async function request(path, { params, ...init } = {}) {
+async function request(path, { params, base = API_BASE_URL, ...init } = {}) {
   const query = params ? `?${new URLSearchParams(params)}` : ''
-  const response = await fetch(`${API_BASE_URL}${path}${query}`, init)
+  const response = await fetch(`${base}${path}${query}`, init)
   if (!response.ok) {
     throw new Error(`Request to ${path} failed (${response.status})`)
   }
@@ -10,6 +10,9 @@ async function request(path, { params, ...init } = {}) {
 }
 
 export const get = (path, params) => request(path, { params })
+
+// A file from a pipeline run
+export const getFile = (path) => request(path, { base: DATA_URL })
 
 export const post = (path, body) =>
   request(path, {

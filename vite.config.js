@@ -10,5 +10,7 @@ export default defineConfig({
     globals: true,
     setupFiles: './src/test/setup.js',
     css: false,
+    // Tests run on the bundled demo data whatever a local .env file selects.
+    env: { VITE_DATA_URL: '', VITE_API_BASE_URL: '' },
   },
 })

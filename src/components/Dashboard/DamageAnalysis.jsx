@@ -1,6 +1,14 @@
 import { useMapStore } from '../../store/mapStore'
 import { DAMAGE_TYPES } from '../../utils/constants'
-import { formatNumber, formatPercent } from '../../utils/formatters'
+import { formatNumber, formatPeople, formatPercent } from '../../utils/formatters'
+
+const ACCESS = {
+  cutOff: { order: 0, label: 'Cut off', className: 'bg-critical-soft text-critical' },
+  unknown: { order: 1, label: 'Access unknown', className: 'bg-surface-alt text-ink-soft' },
+  connected: { order: 2, label: 'Connected', className: 'bg-success-soft text-ink' },
+}
+const accessOf = (s) =>
+  s.connected === true ? ACCESS.connected : s.connected === false ? ACCESS.cutOff : ACCESS.unknown
 
 function ConfidenceCard({ stats }) {
   return (
@@ -49,13 +57,17 @@ function ConfidenceCard({ stats }) {
 
 function InfrastructureCard({ stats }) {
   const groups = [
-    { label: 'Bridges destroyed', items: stats.bridgesDestroyed, total: String(stats.bridgesDestroyed.length) },
-    {
-      label: 'Health posts unreachable',
-      items: stats.healthPostsUnreachable,
-      total: String(stats.healthPostsUnreachable.length),
-    },
-    { label: 'Power lines down', items: stats.powerLinesDown, total: `${formatNumber(stats.powerLineKmDown, 1)} km` },
+    ...(stats.infrastructureAssessed
+      ? [
+          { label: 'Bridges destroyed', items: stats.bridgesDestroyed, total: String(stats.bridgesDestroyed.length) },
+          {
+            label: 'Health posts unreachable',
+            items: stats.healthPostsUnreachable,
+            total: String(stats.healthPostsUnreachable.length),
+          },
+          { label: 'Power lines down', items: stats.powerLinesDown, total: `${formatNumber(stats.powerLineKmDown, 1)} km` },
+        ]
+      : []),
     { label: 'Road destroyed', items: stats.damagedRoads, total: `${formatNumber(stats.damagedRoadKm, 1)} km` },
   ]
   return (
@@ -70,23 +82,29 @@ function InfrastructureCard({ stats }) {
             </span>
             {g.items.length > 0 && (
               <ul className="mt-0.5 list-disc pl-5 text-xs text-ink-soft">
-                {g.items.map((item) => (
-                  <li key={item.id}>{item.name}</li>
+                {g.items.map((item, i) => (
+                  // Roads from a pipeline run carry no id
+                  <li key={item.id ?? i}>{item.name}</li>
                 ))}
               </ul>
             )}
           </li>
         ))}
       </ul>
+      {!stats.infrastructureAssessed && (
+        <p className="mt-3 border-t border-line pt-3 text-xs text-ink-soft">
+          Bridges, health posts and power lines were not assessed in this run.
+        </p>
+      )}
     </div>
   )
 }
 
 function SettlementsCard({ stats }) {
   const setHighlighted = useMapStore((s) => s.setHighlightedSettlement)
-  // Cut-off settlements first, then by population.
+  // Cut-off settlements first, then unknown access, then by population.
   const rows = [...stats.settlementRows].sort(
-    (a, b) => Number(a.connected) - Number(b.connected) || b.population - a.population,
+    (a, b) => accessOf(a).order - accessOf(b).order || (b.population ?? 0) - (a.population ?? 0),
   )
   return (
     <div className="card p-4">
@@ -107,16 +125,14 @@ function SettlementsCard({ stats }) {
             <span className="min-w-0">
               <span className="block truncate font-medium">{s.name}</span>
               <span className="block text-xs text-ink-soft">
-                {formatNumber(s.population)} people · {formatNumber(s.damaged)} of {formatNumber(s.total)}{' '}
+                {formatPeople(s.population)} · {formatNumber(s.damaged)} of {formatNumber(s.total)}{' '}
                 structures damaged
               </span>
             </span>
             <span
-              className={`shrink-0 rounded-full px-2.5 py-1 text-xs font-semibold ${
-                s.connected ? 'bg-success-soft text-ink' : 'bg-critical-soft text-critical'
-              }`}
+              className={`shrink-0 rounded-full px-2.5 py-1 text-xs font-semibold ${accessOf(s).className}`}
             >
-              {s.connected ? 'Connected' : 'Cut off'}
+              {accessOf(s).label}
             </span>
           </li>
         ))}

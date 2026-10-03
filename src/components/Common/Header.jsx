@@ -1,7 +1,9 @@
-import { Moon, Sun } from 'lucide-react'
+import { Info, Moon, Sun } from 'lucide-react'
 import { Link } from 'react-router-dom'
 import { USE_MOCK } from '../../config/apiConfig'
+import { useDataStore } from '../../store/dataStore'
 import { useUIStore } from '../../store/uiStore'
+import { imageryDates } from '../../utils/calculations'
 import { APP, EVENT } from '../../utils/constants'
 import { formatDate } from '../../utils/formatters'
 import TangoIcon from '../Icons/TangoIcon'
@@ -10,6 +12,7 @@ import ExportPanel from '../Tools/ExportPanel'
 export default function Header() {
   const darkMode = useUIStore((s) => s.darkMode)
   const toggleDarkMode = useUIStore((s) => s.toggleDarkMode)
+  const { before, after } = imageryDates(useDataStore((s) => s.satelliteData))
 
   return (
     <header className="sticky top-0 z-[1100] border-b border-line bg-surface print:static">
@@ -23,7 +26,8 @@ export default function Header() {
               {APP.name} {APP.subtitle}
             </span>
             <span className="block truncate text-xs text-ink-soft">
-              {EVENT.location} · {formatDate(EVENT.beforeDate)} to {formatDate(EVENT.afterDate)}
+              {EVENT.location}
+              {before && after && ` · ${formatDate(before)} to ${formatDate(after)}`}
             </span>
           </span>
         </Link>
@@ -38,10 +42,13 @@ export default function Header() {
         )}
 
         <div className="no-print ml-auto flex items-center gap-2">
-          <span className="hidden text-xs text-ink-soft lg:inline">
-            Imagery as of {formatDate(EVENT.afterDate)}
-          </span>
+          {after && (
+            <span className="hidden text-xs text-ink-soft lg:inline">Imagery as of {formatDate(after)}</span>
+          )}
           <ExportPanel />
+          <Link to="/about" className="btn w-10 px-0" aria-label="Method and limitations" title="Method and limitations">
+            <Info size={18} />
+          </Link>
           <button
             type="button"
             className="btn w-10 px-0"

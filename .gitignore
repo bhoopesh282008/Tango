@@ -4,3 +4,5 @@ dist
 *.log
 .DS_Store
 .claude/settings.local.json
+# Output of a pipeline run, copied here to be served
+public/data/

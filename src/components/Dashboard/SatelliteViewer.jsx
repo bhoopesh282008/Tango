@@ -1,5 +1,6 @@
 import { Download, Maximize, MoveHorizontal, ZoomIn, ZoomOut } from 'lucide-react'
 import { useRef, useState } from 'react'
+import { USE_MOCK } from '../../config/apiConfig'
 import { downloadBlob } from '../../services/exportService'
 import { useUIStore } from '../../store/uiStore'
 import { formatDate } from '../../utils/formatters'
@@ -87,11 +88,47 @@ function Scene({ image, flooded, zoom, svgRef }) {
   )
 }
 
+// Shown instead of the drawn stand-in when real data is loaded without images:
+// a sketch of a radar scene next to real figures would pass for the real scene.
+function ScenesWithoutImagery({ before, after }) {
+  const scenes = [
+    ['Before', before],
+    ['After', after],
+  ]
+  return (
+    <section className="card p-4">
+      <h2 className="section-title">Satellite scenes</h2>
+      <dl className="mt-3 grid gap-3 text-sm sm:grid-cols-2">
+        {scenes.map(([label, scene]) => (
+          <div key={label} className="min-w-0">
+            <dt className="font-semibold">
+              {label} · {scene ? formatDate(scene.date) : 'not recorded'}
+            </dt>
+            {scene && (
+              <dd className="mt-0.5 text-xs text-ink-soft">
+                {scene.sensor}, {scene.resolution}
+                {scene.relative_orbit != null && ` · track ${scene.relative_orbit} ${scene.orbit_state ?? ''}`}
+                {scene.id && <span className="block break-all">{scene.id}</span>}
+              </dd>
+            )}
+          </div>
+        ))}
+      </dl>
+      <p className="mt-3 text-xs text-ink-soft">
+        Scene imagery is not exported by the pipeline yet, so there is no before/after picture to
+        compare. The flood zones on the map come from these two scenes.
+      </p>
+    </section>
+  )
+}
+
 export default function SatelliteViewer({ before, after, comparisonValue, onComparisonChange }) {
   const [zoom, setZoom] = useState(1)
   const afterSvg = useRef(null)
   const addToast = useUIStore((s) => s.addToast)
   const placeholder = !before?.url || !after?.url
+
+  if (placeholder && !USE_MOCK) return <ScenesWithoutImagery before={before} after={after} />
 
   const download = () => {
     if (after?.url) {

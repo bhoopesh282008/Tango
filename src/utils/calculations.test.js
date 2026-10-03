@@ -3,6 +3,8 @@ import { buildAnswer, matchQuestion } from '../services/copilotService'
 import {
   calculateRescuePriority,
   computeStats,
+  priorityFactors,
+  rankPriority,
   filterZones,
   measureAreaKm2,
   measureDistanceKm,
@@ -50,9 +52,13 @@ describe('rescue priority', () => {
     expect(calculateRescuePriority(settlement)).toBe(59)
   })
 
-  test('caps population and tolerates missing fields', () => {
-    expect(calculateRescuePriority({ population: 50000, damaged: 0, total: 0 })).toBe(39)
-    expect(calculateRescuePriority({})).toBe(4)
+  test('caps population and scores only the factors that have data', () => {
+    // Population alone: its weight is rescaled to the whole score.
+    expect(calculateRescuePriority({ population: 50000, damaged: 0, total: 0 })).toBe(100)
+    // Population 50 and damage 20, weights 35 and 25 rescaled over 60.
+    expect(calculateRescuePriority({ population: 1000, damaged: 20, total: 100 })).toBe(38)
+    expect(calculateRescuePriority({})).toBe(0)
+    expect(priorityFactors({ population: null, total: 0 })).toEqual({})
   })
 
   test('ranks the cut-off demo settlements', () => {
@@ -70,6 +76,70 @@ describe('rescue priority', () => {
     expect(byName.Syabrubesi).toMatchObject({ bridgeDestroyed: true, healthPostUnreachable: true })
     expect(byName.Timure).toMatchObject({ bridgeDestroyed: false, healthPostUnreachable: true })
     expect(byName.Lingling).toMatchObject({ bridgeDestroyed: false, healthPostUnreachable: false })
+  })
+})
+
+describe('pipeline-shaped data', () => {
+  // A run can leave road access and population unknown, and has no infrastructure layer.
+  const run = computeStats({
+    floodZones: demo.floodZones,
+    roads: demo.roads,
+    buildings: { type: 'FeatureCollection', features: [] },
+    infrastructure: [],
+    satelliteData: { before: { date: '2026-08-24' }, after: { date: '2026-09-05' } },
+    settlements: [
+      { id: 'a', name: 'Alpha', lat: 28, lng: 85, population: 400, connected: false },
+      { id: 'b', name: 'Beta', lat: 28, lng: 85, population: null, connected: false },
+      { id: 'c', name: 'Gamma', lat: 28, lng: 85, population: 900, connected: null },
+      { id: 'd', name: 'Delta', lat: 28, lng: 85, population: 150, connected: true },
+    ],
+  })
+
+  test('unknown road access is neither cut off nor connected', () => {
+    expect(run.cutOff.map((s) => s.name)).toEqual(['Alpha', 'Beta'])
+    expect(run.unknownAccess.map((s) => s.name)).toEqual(['Gamma'])
+    expect(run.connected.map((s) => s.name)).toEqual(['Delta'])
+    expect(run.priority.map((p) => p.name)).not.toContain('Gamma')
+  })
+
+  test('a missing population is reported, not counted as zero people', () => {
+    expect(run.populationAffected).toBe(400)
+    expect(run.populationUnknown).toBe(1)
+  })
+
+  test('settlements are scored on the same factors, so a data gap cannot lift a rank', () => {
+    const rows = [
+      { id: 'a', name: 'Big', population: 1700, connected: false, total: 2, damaged: 1 },
+      { id: 'b', name: 'Unknown', population: null, connected: false, total: 1, damaged: 1 },
+    ]
+    const ranked = rankPriority(rows)
+    // Population is missing for one, so both are scored on structure damage only.
+    expect(ranked.every((p) => p.factorsUsed.join() === 'damage')).toBe(true)
+    expect(ranked.map((p) => [p.name, p.priority])).toEqual([['Unknown', 100], ['Big', 50]])
+    expect(summarisePriority(ranked)[0]).toMatchObject({ people: 0, peopleUnknown: 1 })
+    // With population known for both, it counts again.
+    const known = rankPriority([rows[0], { ...rows[1], population: 100 }])
+    expect(known[0].factorsUsed).toEqual(['population', 'damage'])
+    expect(known[0].name).toBe('Big')
+  })
+
+  test('an absent infrastructure layer is not read as "nothing destroyed"', () => {
+    expect(run.infrastructureAssessed).toBe(false)
+    expect(run.priority[0].bridgeDestroyed).toBeUndefined()
+    for (const language of ['en', 'np']) {
+      expect(buildAnswer('infrastructure', language, run).answer).not.toMatch(/\(0\)/)
+    }
+    expect(buildAnswer('infrastructure', 'en', run).answer).toContain('not assessed')
+  })
+
+  test('dates and wording come from the run', () => {
+    expect(run.imagery).toEqual({ before: '2026-08-24', after: '2026-09-05' })
+    expect(buildAnswer('flood-extent', 'en', run).answer).toMatch(/24 Aug 2026 → 5 Sept? 2026/)
+    expect(buildAnswer('flood-extent', 'np', run).answer).toContain('5 सेप्टेम्बर 2026')
+    const cutOff = buildAnswer('cut-off', 'en', run).answer
+    expect(cutOff).toContain('Access unknown')
+    expect(cutOff).toContain('Beta: population not recorded')
+    expect(buildAnswer('priority', 'en', run).answer).toContain('Not scored, because the data is missing')
   })
 })
 

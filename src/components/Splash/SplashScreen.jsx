@@ -2,6 +2,7 @@ import { Check } from 'lucide-react'
 import { USE_MOCK } from '../../config/apiConfig'
 import { useDamageData } from '../../hooks/useDamageData'
 import { useCopilotStore } from '../../store/copilotStore'
+import { imageryDates } from '../../utils/calculations'
 import { APP, EVENT } from '../../utils/constants'
 import { formatDate } from '../../utils/formatters'
 import SpaceScene from './SpaceScene'
@@ -61,6 +62,7 @@ export default function SplashScreen({ onReady }) {
 
   const t = TEXT[language] ?? TEXT.en
   const ready = data.loaded
+  const imageryDate = imageryDates(data.satelliteData).after
 
   return (
     <div
@@ -143,7 +145,8 @@ export default function SplashScreen({ onReady }) {
         </div>
 
         <p className="mt-10 text-[11px] leading-relaxed text-[#b0b0b0] [text-shadow:0_1px_3px_rgba(0,0,0,0.7)]">
-          {t.imagery}: {formatDate(EVENT.afterDate)} · {EVENT.location}
+          {imageryDate ? `${t.imagery}: ${formatDate(imageryDate)} · ` : ''}
+          {EVENT.location}
           {USE_MOCK && <span className="font-semibold text-[#ffcc00]"> · {t.demo}</span>}
           <span className="block" lang="en">
             Earth imagery, star map and satellite model: NASA

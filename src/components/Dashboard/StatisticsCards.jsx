@@ -39,7 +39,9 @@ function primaryCards(stats) {
       label: 'Population affected',
       value: formatNumber(stats.populationAffected),
       unit: 'people',
-      detail: `cut off in ${stats.cutOff.length} settlements`,
+      detail:
+        `cut off in ${stats.cutOff.length} settlements` +
+        (stats.populationUnknown ? `; not recorded for ${stats.populationUnknown}` : ''),
       icon: Users,
       tone: 'red',
     },
@@ -57,6 +59,16 @@ function primaryCards(stats) {
 }
 
 function secondaryCards(stats) {
+  const roads = {
+    id: 'roads',
+    label: 'Road destroyed',
+    value: formatNumber(stats.damagedRoadKm, 1),
+    unit: 'km',
+    icon: Route,
+    tone: 'orange',
+  }
+  // Without an infrastructure layer a zero would read as "none destroyed".
+  if (!stats.infrastructureAssessed) return [roads]
   return [
     { id: 'bridges', label: 'Bridges destroyed', value: stats.bridgesDestroyed.length, icon: Bridge, tone: 'red' },
     {
@@ -74,14 +86,7 @@ function secondaryCards(stats) {
       icon: Zap,
       tone: 'orange',
     },
-    {
-      id: 'roads',
-      label: 'Road destroyed',
-      value: formatNumber(stats.damagedRoadKm, 1),
-      unit: 'km',
-      icon: Route,
-      tone: 'orange',
-    },
+    roads,
   ]
 }
 
@@ -157,7 +162,7 @@ function Breakdown({ id, stats }) {
       <div className="h-52">
         {barChart(
           stats.cutOff.map((s) => s.name),
-          stats.cutOff.map((s) => s.population),
+          stats.cutOff.map((s) => s.population ?? 0),
           barColor,
           textColor,
           gridColor,
@@ -165,6 +170,8 @@ function Breakdown({ id, stats }) {
       </div>
       <p className="mt-2 text-xs text-ink-soft">
         Residents of the {stats.cutOff.length} settlements with no road access.
+        {stats.populationUnknown > 0 &&
+          ` Population is not recorded for ${stats.populationUnknown} of them; they show as 0.`}
       </p>
     </div>
   )

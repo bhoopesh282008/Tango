@@ -5,7 +5,13 @@ export function formatNumber(value, digits = 0) {
   })
 }
 
+// A head count, or a plain statement that the source has none.
+export function formatPeople(value, missing = 'population not recorded') {
+  return value == null ? missing : `${formatNumber(value)} people`
+}
+
 export function formatDate(iso) {
+  if (!iso) return 'date not recorded'
   return new Date(`${iso}T00:00:00Z`).toLocaleDateString('en-GB', {
     day: 'numeric',
     month: 'short',

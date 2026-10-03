@@ -1,5 +1,6 @@
 import { area, length, lineString, polygon } from '@turf/turf'
-import { PRIORITY_BANDS, PRIORITY_WEIGHTS, SIZE_LIMITS } from './constants'
+import { USE_MOCK } from '../config/apiConfig'
+import { EVENT, PRIORITY_BANDS, PRIORITY_WEIGHTS, SIZE_LIMITS } from './constants'
 
 const round = (n, d = 1) => Math.round(n * 10 ** d) / 10 ** d
 const sum = (items, pick) => items.reduce((total, item) => total + pick(item), 0)
@@ -47,30 +48,36 @@ export function structuresBySettlement(buildings, settlements) {
   return settlements.map((s) => ({ ...s, ...counts.get(s.id) }))
 }
 
-// The five 0-100 factor scores behind the rescue priority.
+// The 0-100 factor scores behind the rescue priority. A factor is returned only
+// when the data carries its input; nothing is assumed for a missing one.
 export function priorityFactors(s) {
-  const population = s.population ?? 0
-  const total = s.total ?? 0
-  return {
-    // Saturates at 2,000 residents
-    population: Math.min(population / 2000, 1) * 100,
-    damage: total ? ((s.damaged ?? 0) / total) * 100 : 0,
-    // 1 = vehicle track (20) to 5 = helicopter only (100)
-    access: ((s.access_difficulty ?? 1) / 5) * 100,
-    critical:
-      (s.healthPostUnreachable ? 50 : 0) + (s.bridgeDestroyed ? 30 : 0) + (s.water_source_cut ? 20 : 0),
-    vulnerable: population
-      ? Math.min((((s.children ?? 0) + (s.elderly ?? 0)) / population) * 100, 100)
-      : 0,
+  const factors = {}
+  // Saturates at 2,000 residents
+  if (s.population != null) factors.population = Math.min(s.population / 2000, 1) * 100
+  if (s.total) factors.damage = ((s.damaged ?? 0) / s.total) * 100
+  // 1 = vehicle track (20) to 5 = helicopter only (100)
+  if (s.access_difficulty != null) factors.access = (s.access_difficulty / 5) * 100
+  const critical = [
+    [s.healthPostUnreachable, 50],
+    [s.bridgeDestroyed, 30],
+    [s.water_source_cut, 20],
+  ].filter(([known]) => known != null)
+  if (critical.length) factors.critical = sum(critical, ([hit, points]) => (hit ? points : 0))
+  if (s.population && s.children != null && s.elderly != null) {
+    factors.vulnerable = Math.min(((s.children + s.elderly) / s.population) * 100, 100)
   }
+  return factors
 }
 
-// Weighted rescue priority, 0-100.
-export function calculateRescuePriority(settlement) {
-  const factors = priorityFactors(settlement)
-  return Math.round(
-    Object.entries(PRIORITY_WEIGHTS).reduce((score, [factor, weight]) => score + factors[factor] * weight, 0),
-  )
+// Weighted rescue priority, 0-100. When some factors have no data, the weights
+// of the remaining ones are rescaled to add up to 1. `only` restricts the score
+// to a given set of factors, so that settlements are compared on the same ones.
+export function calculateRescuePriority(settlement, only) {
+  const factors = Object.entries(priorityFactors(settlement)).filter(([f]) => !only || only.includes(f))
+  const score = sum(factors, ([factor, value]) => value * PRIORITY_WEIGHTS[factor])
+  if (factors.length === Object.keys(PRIORITY_WEIGHTS).length) return Math.round(score)
+  const weight = sum(factors, ([factor]) => PRIORITY_WEIGHTS[factor])
+  return weight ? Math.round(score / weight) : 0
 }
 
 export function priorityBand(score) {
@@ -83,19 +90,24 @@ export function rankPriority(settlementRows, infrastructure = []) {
     infrastructure.some(
       (item) => item.settlement_id === settlementId && item.type === type && item.status !== 'operational',
     )
-  return settlementRows
-    .filter((s) => !s.connected)
-    .map((s) => {
-      const row = {
-        ...s,
-        damageRatio: s.total ? s.damaged / s.total : 0,
-        healthPostUnreachable: damagedAt(s.id, 'health_post'),
-        bridgeDestroyed: damagedAt(s.id, 'bridge'),
-      }
-      const priority = calculateRescuePriority(row)
-      return { ...row, priority, band: priorityBand(priority).id }
+  const rows = settlementRows
+    .filter((s) => s.connected === false)
+    .map((s) => ({
+      ...s,
+      damageRatio: s.total ? s.damaged / s.total : 0,
+      // With no infrastructure layer these are unknown, not "intact".
+      healthPostUnreachable: infrastructure.length ? damagedAt(s.id, 'health_post') : undefined,
+      bridgeDestroyed: infrastructure.length ? damagedAt(s.id, 'bridge') : undefined,
+    }))
+  // Only factors every settlement has data for are scored: a settlement missing
+  // its population must not outrank others by being scored on damage alone.
+  const factorsUsed = Object.keys(PRIORITY_WEIGHTS).filter((f) => rows.every((row) => f in priorityFactors(row)))
+  return rows
+    .map((row) => {
+      const priority = calculateRescuePriority(row, factorsUsed)
+      return { ...row, priority, band: priorityBand(priority).id, factorsUsed }
     })
-    .sort((a, b) => b.priority - a.priority || b.population - a.population)
+    .sort((a, b) => b.priority - a.priority || (b.population ?? 0) - (a.population ?? 0))
     .map((row, index) => ({ ...row, rank: index + 1 }))
 }
 
@@ -108,17 +120,31 @@ function meanConfidence(zones) {
 export function summarisePriority(priority) {
   return PRIORITY_BANDS.map((band) => {
     const members = priority.filter((p) => p.band === band.id)
-    return { ...band, count: members.length, people: sum(members, (p) => p.population) }
+    return {
+      ...band,
+      count: members.length,
+      people: sum(members, (p) => p.population ?? 0),
+      peopleUnknown: members.filter((p) => p.population == null).length,
+    }
   }).filter((band) => band.count > 0)
 }
 
-export function computeStats({ floodZones, buildings, roads, settlements, infrastructure }) {
+// Acquisition dates of the before/after scenes. Only the demo falls back to the
+// event's nominal dates; a pipeline run without scene records has none.
+export function imageryDates(satelliteData) {
+  return {
+    before: satelliteData?.before?.date ?? (USE_MOCK ? EVENT.beforeDate : null),
+    after: satelliteData?.after?.date ?? (USE_MOCK ? EVENT.afterDate : null),
+  }
+}
+
+export function computeStats({ floodZones, buildings, roads, settlements, infrastructure, satelliteData }) {
   const zones = floodZones.features.map((f) => f.properties)
   const areaOf = (type) => sum(zones.filter((z) => z.type === type), (z) => z.area_km2)
   const totalArea = sum(zones, (z) => z.area_km2)
 
   const settlementRows = structuresBySettlement(buildings, settlements)
-  const cutOff = settlementRows.filter((s) => !s.connected)
+  const cutOff = settlementRows.filter((s) => s.connected === false)
 
   const roadSections = roads.features.map((f) => f.properties)
   const damagedRoads = roadSections.filter((r) => r.damaged)
@@ -159,11 +185,19 @@ export function computeStats({ floodZones, buildings, roads, settlements, infras
     totalRoadKm: round(sum(roadSections, (r) => r.length_km)),
     damagedRoads,
 
-    populationAffected: sum(cutOff, (s) => s.population),
+    populationAffected: sum(cutOff, (s) => s.population ?? 0),
+    // Cut-off settlements whose population the source does not record
+    populationUnknown: cutOff.filter((s) => s.population == null).length,
     cutOff,
-    connected: settlementRows.filter((s) => s.connected),
+    connected: settlementRows.filter((s) => s.connected === true),
+    // No road reached these in the pre-event map, so the flood's effect is unknown
+    unknownAccess: settlementRows.filter((s) => s.connected == null),
     priority: rankPriority(settlementRows, infrastructure),
 
+    imagery: imageryDates(satelliteData),
+
+    // False when the run produced no infrastructure layer: counts below are then not findings
+    infrastructureAssessed: infrastructure.length > 0,
     bridgesDestroyed: damagedInfra('bridge'),
     healthPostsUnreachable: damagedInfra('health_post'),
     powerLinesDown: damagedInfra('power_line'),

@@ -1,10 +1,17 @@
-import { ENDPOINTS, USE_MOCK } from '../config/apiConfig'
+import { DATA_MODE, ENDPOINTS, USE_MOCK } from '../config/apiConfig'
 import { templates } from '../data/copilotTemplates'
 import { EVENT, QUESTIONS } from '../utils/constants'
 import { formatDate } from '../utils/formatters'
 import { mock, post } from './api'
 
-const DATA_SOURCE = `Sentinel-1 change detection and OSM overlay, ${formatDate(EVENT.afterDate)}`
+// Only a REST backend answers questions itself; otherwise answers are built here.
+const LOCAL = DATA_MODE !== 'api'
+
+function dataSource(stats) {
+  const source = 'Sentinel-1 change detection and OSM overlay'
+  const dated = stats.imagery.after ? `${source}, ${formatDate(stats.imagery.after)}` : source
+  return USE_MOCK ? `${dated} (demo data)` : dated
+}
 
 export function buildAnswer(questionId, language, stats) {
   const t = templates[language] ?? templates.en
@@ -14,12 +21,12 @@ export function buildAnswer(questionId, language, stats) {
     title: t.title[questionId],
     answer: t[questionId](stats),
     confidence: stats.meanConfidence,
-    dataSource: USE_MOCK ? `${DATA_SOURCE} (demo data)` : DATA_SOURCE,
+    dataSource: dataSource(stats),
   }
 }
 
 export async function askQuestion(questionId, language, stats) {
-  if (USE_MOCK) return mock(buildAnswer(questionId, language, stats), 350)
+  if (LOCAL) return mock(buildAnswer(questionId, language, stats), 350)
   const question = QUESTIONS.find((q) => q.id === questionId)
   const reply = await post(ENDPOINTS.copilotAsk, { question: question.en, language })
   const title = (templates[language] ?? templates.en).title[questionId]
@@ -57,10 +64,10 @@ const OFF_TOPIC = {
   np: 'म भू-उपग्रह विश्लेषणका आधारमा चार विषयमा मात्र उत्तर दिन सक्छु: बाढीको क्षेत्र, क्षतिग्रस्त पूर्वाधार, सम्पर्कविहीन बस्ती र उद्धार प्राथमिकता। फरक शब्दमा सोध्नुहोस् वा तलका प्रश्नमध्ये एक छान्नुहोस्।',
 }
 
-// A typed question. Demo mode has no language model: the text is matched to one of
+// A typed question. Without a backend there is no language model: the text is matched to one of
 // the four topics, and anything else gets a plain "cannot answer" notice.
 export async function askFreeText(text, language, stats) {
-  if (!USE_MOCK) {
+  if (!LOCAL) {
     const reply = await post(ENDPOINTS.copilotAsk, { question: text, language })
     return { kind: 'free-text', language, title: null, question: text, ...reply }
   }
@@ -73,7 +80,8 @@ export async function askFreeText(text, language, stats) {
 export async function generateReport(language, stats) {
   const sections = await Promise.all(QUESTIONS.map((q) => askQuestion(q.id, language, stats)))
   const t = templates[language] ?? templates.en
-  const header = `${EVENT.name}: ${EVENT.location}\n${formatDate(EVENT.beforeDate)} → ${formatDate(EVENT.afterDate)}`
+  const { before, after } = stats.imagery
+  const header = `${EVENT.name}: ${EVENT.location}` + (before && after ? `\n${formatDate(before)} → ${formatDate(after)}` : '')
   const body = sections
     .map((s) => `${s.title.toUpperCase()}\n${'-'.repeat(40)}\n${s.answer}`)
     .join('\n\n\n')

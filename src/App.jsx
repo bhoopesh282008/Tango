@@ -7,6 +7,7 @@ import { useUIStore } from './store/uiStore'
 
 const DashboardPage = lazy(() => import('./pages/DashboardPage'))
 const CopilotPage = lazy(() => import('./pages/CopilotPage'))
+const AboutPage = lazy(() => import('./pages/AboutPage'))
 const ErrorPage = lazy(() => import('./pages/ErrorPage'))
 
 // The splash is shown once per browser session, so reloads go straight to the dashboard.
@@ -48,6 +49,7 @@ export default function App() {
         <Routes>
           <Route path="/" element={<DashboardPage />} />
           <Route path="/copilot" element={<CopilotPage />} />
+          <Route path="/about" element={<AboutPage />} />
           <Route path="/404" element={<ErrorPage />} />
           <Route path="*" element={<Navigate to="/" replace />} />
         </Routes>

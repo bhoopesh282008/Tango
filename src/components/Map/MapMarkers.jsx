@@ -40,7 +40,13 @@ export function SettlementLayer({ settlements, priority = [], visible, darkBase 
         layout={layout}
         paint={{
           'circle-radius': ['case', isHighlighted, 13, 8],
-          'circle-color': ['case', ['==', ['get', 'connected'], true], '#1f9d55', '#e03131'],
+          // Green connected, red cut off, grey when access is unknown
+          'circle-color': [
+            'case',
+            ['==', ['get', 'connected'], true], '#1f9d55',
+            ['==', ['get', 'connected'], false], '#e03131',
+            '#868e96',
+          ],
           'circle-stroke-color': '#ffffff',
           'circle-stroke-width': ['case', isHighlighted, 3, 2],
         }}
