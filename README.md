@@ -11,7 +11,7 @@ This is an educational prototype, not an operational tool.
 | Dashboard and copilot | Working. Runs on bundled demo data by default, or on the output of a pipeline run. |
 | Pre-event OpenStreetMap, DEM, damage overlay, cut-off analysis, flood-path trace | Run on real data for the Trishuli area. |
 | Flood model | Trained on a sample of Kuro Siwo; results in [pipeline/MODEL.md](pipeline/MODEL.md). |
-| Sentinel-1 download, calibration, terrain correction and flood mapping | **Run end to end on real scenes** for Trishuli (16 and 28 Aug 2026): 2.6 km² of flood zones, 23 of 149 settlements cut off. **Not validated:** no comparison with Copernicus EMS (EMSR927) yet. |
+| Sentinel-1 download, calibration, terrain correction and flood mapping | **Run end to end on real scenes** for Trishuli (16 and 28 Aug 2026): 2.6 km² of flood zones, 23 of 149 settlements cut off. **Checked against Copernicus EMS (EMSR927):** precision 0.88 to 0.99, but only 4% to 23% of the reference area is found, so every figure is a lower bound. See [docs/report.md](docs/report.md), section 5. |
 | Before/after pictures | Produced from the real scenes and shown in the dashboard. |
 | Sentinel-2 optical evidence | Written and unit-tested on synthetic data. Not yet run on a real scene. |
 | Other areas and dates | Not tried. The pipeline has only run on Trishuli. |
@@ -34,7 +34,7 @@ Python 3.11 to 3.13 (the geospatial packages have no wheels for 3.14 yet). From 
 ```bash
 py -3.13 -m venv pipeline/.venv
 pipeline/.venv/Scripts/python -m pip install -r pipeline/requirements.txt
-pipeline/.venv/Scripts/python -m pytest pipeline/tests     # 50 tests
+pipeline/.venv/Scripts/python -m pytest pipeline/tests     # 57 tests
 ```
 
 For GPU training install PyTorch from its own index first: `pip install torch --index-url https://download.pytorch.org/whl/cu124`.
@@ -62,7 +62,7 @@ It needs a free [Copernicus Data Space](https://dataspace.copernicus.eu) account
 | Damage | `damage.py`, `infrastructure.py` | Features inside water or debris zones; health facilities cut from the road network |
 | Cut-off settlements | `cutoff.py` | Settlements that could reach a hospital by road before the event and no longer can |
 | Flood path (bonus) | `floodpath.py` | Drainage path from any point on the DEM and the settlements along it; `--export-dem` writes the DEM the dashboard traces on |
-| Validation | `validate.py` | IoU, precision and recall against a reference map; for checking only |
+| Validation | `validate.py` | Compares a run with extracted Copernicus EMS products, per reference area: flood extent (IoU, precision, recall), buildings, roads and bridges. For checking only: `python validate.py out/trishuli cache/reference_emsr927` |
 | Export | `export.py` | The files the dashboard reads |
 | Model | `fetch_kurosiwo.py`, `unet.py`, `train_model.py`, `evaluate_model.py` | Dataset sample, network, training and evaluation |
 
@@ -198,7 +198,8 @@ docs/           map library research
 
 ## Not built yet
 
-- The EMSR927 comparison, and with it any measure of how accurate the flood map or the model is in Himalayan terrain.
+- Anything that raises recall. The EMSR927 comparison shows the map misses most of the debris corridor, because most of it changes by less than 3 dB in the radar pair. No threshold has been tuned on the reference.
+- The EMSR927 comparison for Phosretar and the southern part of Bidur, which lie outside the area processed.
 - A run on any area or date other than the Trishuli case study.
 - A language model behind the copilot: answers are templates filled from the computed figures.
 - Drawing/annotation tool, timeline animation, Shapefile export, live polling, offline tiles / PWA, deployment. PDF export uses the browser print dialog.

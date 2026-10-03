@@ -31,12 +31,12 @@ const LIMITS = [
     'Radar cannot see slopes that are in layover or shadow. Those pixels are left out, so flooding there is missed; in a narrow gorge that can be most of the valley. Flood classes are also limited to valley floors, using height and distance limits chosen by us, so a debris flow down a gully with no mapped river is at best marked uncertain.',
   ],
   [
-    'The flood model is untested in mountains',
-    'Water can be mapped by a neural network trained on the Kuro Siwo dataset, or by fixed backscatter thresholds. On Kuro Siwo test floods absent from training the network reached an IoU of 0.46 against 0.27 for the thresholds, with large differences between events. None of that data is Himalayan, so its accuracy in a steep valley is unknown. Debris always comes from the thresholds. Wet soil, crops, snow and unrelated landslides can be mistaken for flood change.',
+    'The flood model does worse than the thresholds here',
+    'Water can be mapped by a neural network trained on the Kuro Siwo dataset, or by fixed backscatter thresholds. On Kuro Siwo test floods absent from training the network reached an IoU of 0.46 against 0.27 for the thresholds, with large differences between events. None of that data is Himalayan, and on the Trishuli scenes the network found less of the reference damage than the thresholds did. Debris always comes from the thresholds. Wet soil, crops, snow and unrelated landslides can be mistaken for flood change.',
   ],
   [
-    'Not validated',
-    'The flood map has not yet been compared with the Copernicus Emergency Management Service reference for this event (EMSR927), so its accuracy is unknown. Some of the mapped change may be ordinary variation in a monsoon river between two dates.',
+    'Most of the damage is missed',
+    'The Trishuli flood map was compared with the Copernicus Emergency Management Service reference for the event (EMSR927), in the three reference areas it covers. Where the map shows flood it is almost always right (88% to 99% of the mapped area lies inside the reference), but it finds only 4% to 23% of the reference area and about one in five of the affected buildings. Fresh debris often looks no different to the radar than the river bed it covers. Every count is a lower bound: an area with nothing marked is not known to be safe.',
   ],
   [
     'Damage is an overlap, not an inspection',
