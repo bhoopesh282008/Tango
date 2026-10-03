@@ -1,6 +1,7 @@
 import { useMapStore } from '../../store/mapStore'
 import { DAMAGE_TYPES } from '../../utils/constants'
 import { formatNumber, formatPeople, formatPercent } from '../../utils/formatters'
+import { WORDING } from '../../utils/wording'
 
 const ACCESS = {
   cutOff: { order: 0, label: 'Cut off', className: 'bg-critical-soft text-critical' },
@@ -59,16 +60,18 @@ function InfrastructureCard({ stats }) {
   const groups = [
     ...(stats.infrastructureAssessed
       ? [
-          { label: 'Bridges destroyed', items: stats.bridgesDestroyed, total: String(stats.bridgesDestroyed.length) },
+          { label: WORDING.bridges, items: stats.bridgesDestroyed, total: String(stats.bridgesDestroyed.length) },
           {
             label: 'Health posts unreachable',
             items: stats.healthPostsUnreachable,
             total: String(stats.healthPostsUnreachable.length),
           },
-          { label: 'Power lines down', items: stats.powerLinesDown, total: `${formatNumber(stats.powerLineKmDown, 1)} km` },
+          ...(stats.powerLinesAssessed
+            ? [{ label: 'Power lines down', items: stats.powerLinesDown, total: `${formatNumber(stats.powerLineKmDown, 1)} km` }]
+            : []),
         ]
       : []),
-    { label: 'Road destroyed', items: stats.damagedRoads, total: `${formatNumber(stats.damagedRoadKm, 1)} km` },
+    { label: WORDING.road, items: stats.damagedRoads, total: `${formatNumber(stats.damagedRoadKm, 1)} km` },
   ]
   return (
     <div className="card p-4">
@@ -91,9 +94,11 @@ function InfrastructureCard({ stats }) {
           </li>
         ))}
       </ul>
-      {!stats.infrastructureAssessed && (
+      {!stats.powerLinesAssessed && (
         <p className="mt-3 border-t border-line pt-3 text-xs text-ink-soft">
-          Bridges, health posts and power lines were not assessed in this run.
+          {stats.infrastructureAssessed
+            ? 'Power lines were not assessed in this run.'
+            : 'Bridges, health posts and power lines were not assessed in this run.'}
         </p>
       )}
     </div>

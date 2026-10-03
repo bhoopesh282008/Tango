@@ -13,6 +13,7 @@ const FACTOR_LABELS = {
   vulnerable: 'vulnerable residents',
 }
 import { formatNumber, formatPercent } from '../../utils/formatters'
+import { WORDING } from '../../utils/wording'
 
 const SORTS = [
   { id: 'priority', label: 'Priority', compare: (a, b) => a.rank - b.rank },
@@ -104,7 +105,7 @@ function PriorityCard({ settlement: s }) {
   const access = s.access_difficulty != null ? ACCESS_LEVELS[s.access_difficulty - 1] : null
   const issues = [
     s.healthPostUnreachable && 'Health post unreachable',
-    s.bridgeDestroyed && 'Bridge destroyed',
+    s.bridgeDestroyed && WORDING.bridgeIssue,
     s.water_source_cut && 'Water supply cut',
   ].filter(Boolean)
 

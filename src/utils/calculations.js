@@ -198,6 +198,8 @@ export function computeStats({ floodZones, buildings, roads, settlements, infras
 
     // False when the run produced no infrastructure layer: counts below are then not findings
     infrastructureAssessed: infrastructure.length > 0,
+    // A pipeline run maps bridges and health facilities but not power lines
+    powerLinesAssessed: infrastructure.some((i) => i.type === 'power_line'),
     bridgesDestroyed: damagedInfra('bridge'),
     healthPostsUnreachable: damagedInfra('health_post'),
     powerLinesDown: damagedInfra('power_line'),

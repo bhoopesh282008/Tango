@@ -1,4 +1,5 @@
 import { featureCollection, point } from '@turf/turf'
+import { WORDING } from '../utils/wording'
 
 export function downloadBlob(content, filename, type) {
   const url = URL.createObjectURL(new Blob([content], { type }))
@@ -46,12 +47,12 @@ export function statisticsCsv(stats) {
     ['Flooded area: uncertain', stats.areaByType.uncertain, 'km2'],
     ['Damaged structures', stats.damagedStructures, 'count'],
     ['Mapped structures', stats.totalStructures, 'count'],
-    ['Road destroyed', stats.damagedRoadKm, 'km'],
+    [WORDING.road, stats.damagedRoadKm, 'km'],
     ['Population in cut-off settlements', stats.populationAffected, 'people'],
     ['Settlements cut off', stats.cutOff.length, 'count'],
-    ['Bridges destroyed', stats.bridgesDestroyed.length, 'count'],
+    [WORDING.bridges, stats.bridgesDestroyed.length, 'count'],
     ['Health posts unreachable', stats.healthPostsUnreachable.length, 'count'],
-    ['Power lines down', stats.powerLineKmDown, 'km'],
+    ...(stats.powerLinesAssessed ? [['Power lines down', stats.powerLineKmDown, 'km']] : []),
   ])
 }
 

@@ -2,9 +2,10 @@ import { useMemo } from 'react'
 import { Layer, Marker, Source } from 'react-map-gl/maplibre'
 import { useMapStore } from '../../store/mapStore'
 import { INFRA_TYPES } from '../../utils/constants'
+import { WORDING } from '../../utils/wording'
 
 export const STATUS_LABEL = {
-  destroyed: 'Destroyed',
+  destroyed: WORDING.status,
   unreachable: 'Unreachable',
   down: 'Down',
   operational: 'Operational',

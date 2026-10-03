@@ -2,6 +2,7 @@
 // in an answer is the same figure the dashboard shows.
 import { ACCESS_LEVELS, DAMAGE_TYPES, PRIORITY_BANDS, PRIORITY_WEIGHTS } from '../utils/constants'
 import { formatDate, formatNumber } from '../utils/formatters'
+import { WORDING } from '../utils/wording'
 
 const n = formatNumber
 const pct = (fraction) => Math.round(fraction * 100)
@@ -70,15 +71,17 @@ const en = {
 
   infrastructure: (s) =>
     [
-      `${n(s.damagedStructures)} of ${n(s.totalStructures)} mapped structures are damaged and ${n(s.damagedRoadKm, 1)} km of road is destroyed.`,
+      `${n(s.damagedStructures)} of ${n(s.totalStructures)} mapped structures are damaged and ${n(s.damagedRoadKm, 1)} ${WORDING.en.roadKm}.`,
       ...(s.infrastructureAssessed
         ? [
-            `Bridges destroyed (${s.bridgesDestroyed.length}):\n${bullets(s.bridgesDestroyed.map((b) => b.name))}`,
+            `${WORDING.en.bridges} (${s.bridgesDestroyed.length}):\n${bullets(s.bridgesDestroyed.map((b) => b.name))}`,
             `Health posts unreachable (${s.healthPostsUnreachable.length}):\n${bullets(s.healthPostsUnreachable.map((h) => h.name))}`,
-            `Power lines down (${n(s.powerLineKmDown, 1)} km):\n${bullets(s.powerLinesDown.map((p) => `${p.name}: ${n(p.length_km, 1)} km`))}`,
+            s.powerLinesAssessed
+              ? `Power lines down (${n(s.powerLineKmDown, 1)} km):\n${bullets(s.powerLinesDown.map((p) => `${p.name}: ${n(p.length_km, 1)} km`))}`
+              : 'Power lines were not assessed in this run.',
           ]
         : ['Bridges, health posts and power lines were not assessed in this run.']),
-      `Destroyed road sections:\n${bullets(s.damagedRoads.map((r) => `${r.name}: ${n(r.length_km, 1)} km`))}`,
+      `${WORDING.en.roadSections}:\n${bullets(s.damagedRoads.map((r) => `${r.name}: ${n(r.length_km, 1)} km`))}`,
     ].join('\n\n'),
 
   'cut-off': (s) =>
@@ -100,7 +103,7 @@ const en = {
     const issues = (p) =>
       [
         p.healthPostUnreachable && 'health post unreachable',
-        p.bridgeDestroyed && 'bridge destroyed',
+        p.bridgeDestroyed && WORDING.en.bridgeIssue,
         p.water_source_cut && 'water supply cut',
       ].filter(Boolean)
     const { used, missing } = factorSplit(s)
@@ -119,7 +122,7 @@ const en = {
       ),
       `${n(urgent(s).reduce((sum, p) => sum + (p.population ?? 0), 0))} people are in critical or high priority settlements.`,
       known(s.priority, 'bridgeDestroyed') && known(s.priority, 'water_source_cut')
-        ? `Main obstacles: ${s.priority.filter((p) => p.bridgeDestroyed).length} settlements with a destroyed bridge, ${s.priority.filter((p) => p.water_source_cut).length} with water supply cut.`
+        ? `Main obstacles: ${s.priority.filter((p) => p.bridgeDestroyed).length} ${WORDING.en.withBridge}, ${s.priority.filter((p) => p.water_source_cut).length} with water supply cut.`
         : null,
       s.priority.length ? `Recommended first: ${s.priority[0].name}.` : null,
       missing.length
@@ -160,15 +163,17 @@ const np = {
 
   infrastructure: (s) =>
     [
-      `नक्साङ्कन गरिएका ${n(s.totalStructures)} संरचनामध्ये ${n(s.damagedStructures)} क्षतिग्रस्त छन् र ${n(s.damagedRoadKm, 1)} कि.मी. सडक भत्किएको छ।`,
+      `नक्साङ्कन गरिएका ${n(s.totalStructures)} संरचनामध्ये ${n(s.damagedStructures)} क्षतिग्रस्त छन् र ${n(s.damagedRoadKm, 1)} ${WORDING.np.roadKm}।`,
       ...(s.infrastructureAssessed
         ? [
-            `भत्किएका पुलहरू (${s.bridgesDestroyed.length}):\n${bullets(s.bridgesDestroyed.map((b) => b.name_np ?? b.name))}`,
+            `${WORDING.np.bridges} (${s.bridgesDestroyed.length}):\n${bullets(s.bridgesDestroyed.map((b) => b.name_np ?? b.name))}`,
             `पहुँच बाहिरका स्वास्थ्य चौकीहरू (${s.healthPostsUnreachable.length}):\n${bullets(s.healthPostsUnreachable.map((h) => h.name_np ?? h.name))}`,
-            `अवरुद्ध विद्युत् लाइन (${n(s.powerLineKmDown, 1)} कि.मी.):\n${bullets(s.powerLinesDown.map((p) => `${p.name_np ?? p.name}: ${n(p.length_km, 1)} कि.मी.`))}`,
+            s.powerLinesAssessed
+              ? `अवरुद्ध विद्युत् लाइन (${n(s.powerLineKmDown, 1)} कि.मी.):\n${bullets(s.powerLinesDown.map((p) => `${p.name_np ?? p.name}: ${n(p.length_km, 1)} कि.मी.`))}`
+              : 'यस विश्लेषणमा विद्युत् लाइनको मूल्याङ्कन गरिएको छैन।',
           ]
         : ['यस विश्लेषणमा पुल, स्वास्थ्य चौकी र विद्युत् लाइनको मूल्याङ्कन गरिएको छैन।']),
-      `भत्किएका सडक खण्डहरू:\n${bullets(s.damagedRoads.map((r) => `${r.name_np ?? r.name}: ${n(r.length_km, 1)} कि.मी.`))}`,
+      `${WORDING.np.roadSections}:\n${bullets(s.damagedRoads.map((r) => `${r.name_np ?? r.name}: ${n(r.length_km, 1)} कि.मी.`))}`,
     ].join('\n\n'),
 
   'cut-off': (s) =>
@@ -190,7 +195,7 @@ const np = {
     const issues = (p) =>
       [
         p.healthPostUnreachable && 'स्वास्थ्य चौकी पहुँच बाहिर',
-        p.bridgeDestroyed && 'पुल भत्किएको',
+        p.bridgeDestroyed && WORDING.np.bridgeIssue,
         p.water_source_cut && 'खानेपानी अवरुद्ध',
       ].filter(Boolean)
     const { used, missing } = factorSplit(s)
@@ -209,7 +214,7 @@ const np = {
       ),
       `अति गम्भीर वा उच्च प्राथमिकताका बस्तीमा ${n(urgent(s).reduce((sum, p) => sum + (p.population ?? 0), 0))} जना छन्।`,
       known(s.priority, 'bridgeDestroyed') && known(s.priority, 'water_source_cut')
-        ? `मुख्य अवरोध: ${s.priority.filter((p) => p.bridgeDestroyed).length} बस्तीमा पुल भत्किएको, ${s.priority.filter((p) => p.water_source_cut).length} बस्तीमा खानेपानी अवरुद्ध।`
+        ? `मुख्य अवरोध: ${s.priority.filter((p) => p.bridgeDestroyed).length} ${WORDING.np.withBridge}, ${s.priority.filter((p) => p.water_source_cut).length} बस्तीमा खानेपानी अवरुद्ध।`
         : null,
       s.priority.length ? `पहिलो उद्धारका लागि सिफारिस: ${s.priority[0].name_np ?? s.priority[0].name}।` : null,
       missing.length

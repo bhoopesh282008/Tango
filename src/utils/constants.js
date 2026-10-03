@@ -34,7 +34,7 @@ export const DEFAULT_FILTERS = {
 export const MAP_LAYERS = [
   { id: 'damage', label: 'Flood damage zones', hint: 'Water, debris and uncertain change (Sentinel-1)' },
   { id: 'buildings', label: 'Buildings', hint: 'Footprints; damaged ones in red' },
-  { id: 'roads', label: 'Roads', hint: 'Destroyed sections dashed red' },
+  { id: 'roads', label: 'Roads', hint: 'Damaged sections dashed red' },
   { id: 'settlements', label: 'Settlements', hint: 'Cut off in red with priority rank, connected in green' },
   { id: 'infrastructure', label: 'Infrastructure', hint: 'Bridges, health posts, power lines' },
   { id: 'elevation', label: 'Terrain shading', hint: 'Hillshade from elevation data' },

@@ -1,5 +1,7 @@
 """Which settlements can no longer reach a hospital by road?"""
 import networkx as nx
+import numpy as np
+from scipy.spatial import cKDTree
 from shapely.geometry import LineString, MultiLineString
 
 
@@ -24,13 +26,18 @@ def build_graph(roads, include_damaged):
     return g
 
 
-def _snap(g, point, max_m):
-    best, best_d = None, max_m
-    for n in g.nodes:
-        d = ((n[0] - point.x) ** 2 + (n[1] - point.y) ** 2) ** 0.5
-        if d < best_d:
-            best, best_d = n, d
-    return best
+def snapper(g):
+    """Function mapping a point to its nearest graph node within max_m, or None."""
+    nodes = list(g.nodes)
+    tree = cKDTree(np.array(nodes)) if nodes else None
+
+    def snap(point, max_m):
+        if tree is None:
+            return None
+        distance, index = tree.query([point.x, point.y], distance_upper_bound=max_m)
+        return nodes[index] if np.isfinite(distance) else None
+
+    return snap
 
 
 def connectivity(settlements, destinations, roads, snap_m=500):
@@ -49,15 +56,16 @@ def connectivity(settlements, destinations, roads, snap_m=500):
         return {n: i for i, c in enumerate(nx.connected_components(g)) for n in c}
 
     comp_b, comp_a = components(before), components(after)
-    dest_b = {comp_b[n] for n in (_snap(before, p, snap_m) for p in destinations.geometry) if n}
-    dest_a = {comp_a[n] for n in (_snap(after, p, snap_m) for p in destinations.geometry) if n}
+    snap_b, snap_a = snapper(before), snapper(after)
+    dest_b = {comp_b[n] for n in (snap_b(p, snap_m) for p in destinations.geometry) if n}
+    dest_a = {comp_a[n] for n in (snap_a(p, snap_m) for p in destinations.geometry) if n}
 
     result = {}
     for _, s in settlements.iterrows():
-        nb = _snap(before, s.geometry, snap_m)
+        nb = snap_b(s.geometry, snap_m)
         if nb is None or comp_b[nb] not in dest_b:
             result[s['id']] = None
             continue
-        na = _snap(after, s.geometry, snap_m)
+        na = snap_a(s.geometry, snap_m)
         result[s['id']] = bool(na is not None and comp_a[na] in dest_a)
     return result

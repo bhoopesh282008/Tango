@@ -23,6 +23,7 @@ import export
 import fetch_dem
 import fetch_osm
 import fetch_s1
+import infrastructure
 import preprocess_s1 as P
 import segment
 
@@ -73,21 +74,38 @@ def prepare_pair(bbox, event, out, res=10.0, pol='vv'):
     return paths, meta
 
 
-def settlements_from_places(places, hospitals):
+def settlements_from_places(places):
     """OSM places -> settlement table. Population only where OSM carries it."""
     rows = []
     for i, (_, p) in enumerate(places.iterrows()):
-        name = p.get('name')
+        name = text(p.get('name'))
         if not name:
             continue
         try:
-            population = int(p.get('population') or 0) or None
+            population = int(str(p.get('population')).replace(',', '')) or None
         except (TypeError, ValueError):
             population = None
-        rows.append({'id': f's{i + 1:03d}', 'name': name, 'name_np': p.get('name:ne'),
-                     'lat': p.geometry.y, 'lng': p.geometry.x, 'population': population,
-                     'geometry': p.geometry})
-    return gpd.GeoDataFrame(rows, geometry='geometry', crs=places.crs)
+        point = p.geometry.representative_point()   # places mapped as areas count too
+        rows.append({'id': f's{i + 1:03d}', 'name': name, 'name_np': text(p.get('name:ne')),
+                     'lat': point.y, 'lng': point.x, 'population': population, 'geometry': point})
+    return gpd.GeoDataFrame(rows, columns=['id', 'name', 'name_np', 'lat', 'lng', 'population', 'geometry'],
+                            geometry='geometry', crs=places.crs)
+
+
+def text(value):
+    """A tag value, or None when the tag is absent (pandas reads that as NaN)."""
+    return value if isinstance(value, str) and value else None
+
+
+def hospitals_or_any(health):
+    """Hospitals as destinations; any health facility where none is mapped."""
+    health = health.copy()
+    health['geometry'] = health.geometry.representative_point()
+    if 'amenity' in health.columns:
+        hospitals = health[health['amenity'] == 'hospital']
+        if len(hospitals):
+            return hospitals
+    return health
 
 
 def main():
@@ -115,21 +133,21 @@ def main():
     osm = fetch_osm.fetch_all(args.bbox)
     roads = damage.flag_damaged(osm['roads'], zones)
     buildings = damage.flag_damaged(osm['buildings'], zones)
-    settlements = settlements_from_places(osm['places'], osm['health'])
+    settlements = settlements_from_places(osm['places'])
     buildings = damage.assign_settlement(buildings, settlements)
 
-    hospitals = osm['health'][osm['health'].get('amenity', '') == 'hospital']
-    status = cutoff.connectivity(settlements, hospitals if len(hospitals) else osm['health'], roads)
+    status = cutoff.connectivity(settlements, hospitals_or_any(osm['health']), roads)
 
     metric = roads.to_crs(roads.estimate_utm_crs())
     roads['length_km'] = (metric.length / 1000).round(2).to_numpy()
-    roads['name'] = roads.get('name', '').fillna('Unnamed road') if 'name' in roads else 'Unnamed road'
+    roads['name'] = roads['name'].fillna('Unnamed road') if 'name' in roads.columns else 'Unnamed road'
 
     settlement_rows = [
         {k: v for k, v in s.items() if k != 'geometry'} | {'connected': status[s['id']]}
         for s in settlements.to_dict('records')
     ]
-    export.export_all(args.out, zones, buildings, roads, settlement_rows, [], {
+    infra = infrastructure.build(osm['bridges'], osm['health'], roads, zones, settlements)
+    export.export_all(args.out, zones, buildings, roads, settlement_rows, infra, {
         'event': args.event, 'method': 'Sentinel-1 change detection (baseline thresholds)',
         'osm_snapshot': C.OSM_SNAPSHOT, 'before': scenes.get('pre'), 'after': scenes.get('post'),
     })

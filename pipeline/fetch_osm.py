@@ -11,8 +11,9 @@ FILTERS = {
     'roads': 'highway in (motorway, trunk, primary, secondary, tertiary, unclassified, '
              'residential, track, service) and geometry:line',
     'bridges': 'bridge=yes and geometry:line',
-    'health': '(amenity in (hospital, clinic, doctors) or healthcare=*) and geometry:point',
-    'places': 'place in (city, town, village, hamlet) and geometry:point',
+    # Often mapped as areas, so polygons are kept and reduced to a point later.
+    'health': '(amenity in (hospital, clinic, doctors) or healthcare=*) and (geometry:point or geometry:polygon)',
+    'places': 'place in (city, town, village, hamlet) and (geometry:point or geometry:polygon)',
 }
 
 
@@ -33,6 +34,11 @@ def fetch_layer(name, bbox, snapshot=C.OSM_SNAPSHOT, use_cache=True):
         },
         timeout=300,
     )
+    if response.status_code == 403:
+        raise RuntimeError(
+            'ohsome refused the geometry extraction request (HTTP 403). Its count and metadata '
+            'endpoints may still answer; the block is on the service side.'
+        )
     response.raise_for_status()
     cache.parent.mkdir(parents=True, exist_ok=True)
     cache.write_text(json.dumps(response.json()), encoding='utf-8')

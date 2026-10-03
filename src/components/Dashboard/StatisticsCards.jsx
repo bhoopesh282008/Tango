@@ -13,6 +13,7 @@ import { Bar, Doughnut } from 'react-chartjs-2'
 import { useUIStore } from '../../store/uiStore'
 import { DAMAGE_TYPES } from '../../utils/constants'
 import { formatNumber, formatPercent } from '../../utils/formatters'
+import { WORDING } from '../../utils/wording'
 
 ChartJS.register(ArcElement, BarElement, CategoryScale, LinearScale, Tooltip, Legend)
 
@@ -61,7 +62,7 @@ function primaryCards(stats) {
 function secondaryCards(stats) {
   const roads = {
     id: 'roads',
-    label: 'Road destroyed',
+    label: WORDING.road,
     value: formatNumber(stats.damagedRoadKm, 1),
     unit: 'km',
     icon: Route,
@@ -70,7 +71,7 @@ function secondaryCards(stats) {
   // Without an infrastructure layer a zero would read as "none destroyed".
   if (!stats.infrastructureAssessed) return [roads]
   return [
-    { id: 'bridges', label: 'Bridges destroyed', value: stats.bridgesDestroyed.length, icon: Bridge, tone: 'red' },
+    { id: 'bridges', label: WORDING.bridges, value: stats.bridgesDestroyed.length, icon: Bridge, tone: 'red' },
     {
       id: 'health',
       label: 'Health posts unreachable',
@@ -78,14 +79,18 @@ function secondaryCards(stats) {
       icon: Hospital,
       tone: 'orange',
     },
-    {
-      id: 'power',
-      label: 'Power lines down',
-      value: formatNumber(stats.powerLineKmDown, 1),
-      unit: 'km',
-      icon: Zap,
-      tone: 'orange',
-    },
+    ...(stats.powerLinesAssessed
+      ? [
+          {
+            id: 'power',
+            label: 'Power lines down',
+            value: formatNumber(stats.powerLineKmDown, 1),
+            unit: 'km',
+            icon: Zap,
+            tone: 'orange',
+          },
+        ]
+      : []),
     roads,
   ]
 }

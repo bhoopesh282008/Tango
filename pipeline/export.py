@@ -24,7 +24,9 @@ def export_all(out, zones, buildings, roads, settlements, infrastructure, satell
     zones['name'] = zones['type'].str.capitalize() + ' ' + zones['id']
     _write(out / 'flood_zones.geojson', _fc(zones, ['id', 'name', 'type', 'confidence', 'area_km2']))
     _write(out / 'buildings.geojson', _fc(buildings, ['settlement_id', 'damaged']))
-    _write(out / 'roads.geojson', _fc(roads, ['name', 'damaged', 'length_km']))
+    roads = roads.copy()
+    roads['id'] = [f'r{i + 1:04d}' for i in range(len(roads))]
+    _write(out / 'roads.geojson', _fc(roads, ['id', 'name', 'damaged', 'length_km']))
     _write(out / 'settlements.json', settlements)
     _write(out / 'infrastructure.json', infrastructure)
     _write(out / 'satellite.json', satellite)
