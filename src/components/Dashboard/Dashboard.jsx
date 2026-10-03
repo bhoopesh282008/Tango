@@ -42,7 +42,12 @@ export default function Dashboard() {
           </div>
         }
       >
-        <FloodMap data={data} priority={stats.priority} confidence={stats.meanConfidence} />
+        <FloodMap
+          data={data}
+          settlementRows={stats.settlementRows}
+          priority={stats.priority}
+          confidence={stats.meanConfidence}
+        />
       </Suspense>
       <DamageAnalysis stats={stats} />
     </div>

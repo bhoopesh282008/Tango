@@ -55,7 +55,7 @@ def main():
     settlements = run.settlements_from_places(osm['places'])
     buildings = damage.assign_settlement(buildings, settlements)
     status = cutoff.connectivity(settlements, run.hospitals_or_any(osm['health']), roads)
-    roads = run.describe_roads(roads)
+    roads = run.describe_roads(roads, settlements)
     infra = infrastructure.build(osm['bridges'], osm['health'], roads, zones.to_crs(roads.crs), settlements)
     export.export_all(args.out, zones, buildings, roads, run.settlement_records(settlements, status), infra,
                       {'method': METHOD, 'osm_snapshot': fetch_osm.C.OSM_SNAPSHOT,

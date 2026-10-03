@@ -39,7 +39,10 @@ function describeFeature({ layer, properties: p }) {
       return {
         title: p.name_np ? `${p.name} (${p.name_np})` : p.name,
         lines: [
-          formatPeople(p.population),
+          // Where the population is not recorded, the mapped buildings give the size.
+          p.population == null && p.total != null
+            ? `${formatNumber(p.total)} mapped buildings, ${formatNumber(p.damaged)} damaged`
+            : formatPeople(p.population),
           p.connected === true
             ? 'Road access intact'
             : p.connected === false
@@ -78,7 +81,7 @@ function describeInfrastructure(item) {
   }
 }
 
-export default function FloodMap({ data, priority, confidence }) {
+export default function FloodMap({ data, settlementRows, priority, confidence }) {
   const {
     zoom, center, baseMap, visibleLayers, filters, measureMode, pathMode, focus,
     setMeasureMode, setPathMode, setFloodPath, setView, addMeasurePoint,
@@ -315,7 +318,8 @@ export default function FloodMap({ data, priority, confidence }) {
           </Source>
 
           <SettlementLayer
-            settlements={data.settlements}
+            // Rows carry each settlement's building counts, for the popup
+            settlements={settlementRows ?? data.settlements}
             priority={priority}
             visible={visibleLayers.settlements}
             darkBase={darkBase}

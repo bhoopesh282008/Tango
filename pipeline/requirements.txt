@@ -10,3 +10,4 @@ pystac-client
 pytest
 boto3
 torch
+markdown

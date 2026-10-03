@@ -13,7 +13,7 @@ This is an educational prototype, not an operational tool.
 | Flood model | Trained on a sample of Kuro Siwo; results in [pipeline/MODEL.md](pipeline/MODEL.md). |
 | Sentinel-1 download, calibration, terrain correction and flood mapping | Written and unit-tested on synthetic data. **Not yet run on a real scene**, so there is no real flood map and no comparison with Copernicus EMS (EMSR927) yet. |
 
-What the system cannot do is listed in the app at `/about` (Method and limitations). The draft challenge report is [docs/report.md](docs/report.md).
+What the system cannot do is listed in the app at `/about` (Method and limitations). The draft challenge report is [docs/report.md](docs/report.md), rendered to [docs/report.pdf](docs/report.pdf) by `docs/build_report.py`.
 
 ## Run the dashboard
 
@@ -31,7 +31,7 @@ Python 3.11 to 3.13 (the geospatial packages have no wheels for 3.14 yet). From 
 ```bash
 py -3.13 -m venv pipeline/.venv
 pipeline/.venv/Scripts/python -m pip install -r pipeline/requirements.txt
-pipeline/.venv/Scripts/python -m pytest pipeline/tests     # 35 tests
+pipeline/.venv/Scripts/python -m pytest pipeline/tests     # 39 tests
 ```
 
 For GPU training install PyTorch from its own index first: `pip install torch --index-url https://download.pytorch.org/whl/cu124`.
@@ -47,7 +47,7 @@ It needs a free [Copernicus Data Space](https://dataspace.copernicus.eu) account
 
 | Step | File | What it does |
 | --- | --- | --- |
-| Scene pair | `fetch_s1.py` | Finds a before/after Sentinel-1 GRD pair on the same orbit track, 12 days apart, bracketing the event |
+| Scene pair | `fetch_s1.py` | Finds a before/after Sentinel-1 GRD pair on the same orbit track, 12 days apart, bracketing the event; prefers full coverage of the area, then the earliest image after the event |
 | Scene access | `download.py` | Reads the scene window and annotation from the Copernicus Data Space |
 | DEM | `fetch_dem.py` | Copernicus DEM GLO-30 from the AWS open-data bucket, converted to ellipsoid heights |
 | Preprocessing | `preprocess_s1.py` | Calibration to sigma0, thermal-noise removal, Lee speckle filter, Range-Doppler terrain correction, layover and shadow masks |

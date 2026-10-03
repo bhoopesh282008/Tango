@@ -72,6 +72,7 @@ def prepare_pair(bbox, event, out, res=10.0, pols=('vv',)):
             'sensor': f"Sentinel-1 GRD ({'+'.join(p.upper() for p in pols)})", 'resolution': f'{res:.0f} m',
             'relative_orbit': item.properties.get('sat:relative_orbit'),
             'orbit_state': item.properties.get('sat:orbit_state'),
+            'area_covered': round(fetch_s1.coverage(item, bbox), 3),
             'geolocation_check_px': P.check_geolocation(ann),
             'masked_fraction': round(float((geo['layover'] | geo['shadow']).mean()), 3),
         }
@@ -129,12 +130,38 @@ def names(row):
             text(row.get('name:ne')) or (local if devanagari else None))
 
 
-def describe_roads(roads):
-    """Add length_km and a display name (English where OSM has one) to the road segments."""
+ROAD_KINDS = {'track': 'track', 'unclassified': 'road', 'residential': 'residential road', 'service': 'service road'}
+
+
+def describe_roads(roads, settlements=None):
+    """Add length_km and a display name to the road segments.
+
+    Most rural roads have no name in OSM. Those get their reference number if
+    they have one, otherwise their kind and the nearest settlement ("Unnamed
+    track near Lingling"), so a list of cut roads says where the cuts are.
+    """
     roads = roads.copy()
     metric = roads.to_crs(roads.estimate_utm_crs())
     roads['length_km'] = (metric.length / 1000).round(2).to_numpy()
-    roads['name'] = [names(row)[0] or 'Unnamed road' for _, row in roads.iterrows()]
+
+    near = [None] * len(roads)
+    if settlements is not None and len(settlements) and len(roads):
+        points = metric[['geometry']].copy()
+        points['geometry'] = points.geometry.representative_point()
+        places = settlements.to_crs(metric.crs)[['name', 'geometry']].rename(columns={'name': 'place'})
+        joined = gpd.sjoin_nearest(points, places, how='left')
+        near = joined[~joined.index.duplicated()]['place'].reindex(roads.index).tolist()
+
+    labels = []
+    for (_, row), place in zip(roads.iterrows(), near):
+        name = names(row)[0] or (f"Road {text(row.get('ref'))}" if text(row.get('ref')) else None)
+        if not name:
+            highway = text(row.get('highway')) or 'road'
+            name = f"Unnamed {ROAD_KINDS.get(highway, f'{highway} road')}"
+            if isinstance(place, str):
+                name += f' near {place}'
+        labels.append(name)
+    roads['name'] = labels
     return roads
 
 
@@ -194,7 +221,7 @@ def main():
 
     status = cutoff.connectivity(settlements, hospitals_or_any(osm['health']), roads)
 
-    roads = describe_roads(roads)
+    roads = describe_roads(roads, settlements)
 
     settlement_rows = settlement_records(settlements, status)
     infra = infrastructure.build(osm['bridges'], osm['health'], roads, zones, settlements)

@@ -30,13 +30,13 @@ No published damage map and no post-event OpenStreetMap edit is used as an input
 
 ## 3. Method
 
-**Scene pair.** The pipeline searches the Copernicus catalogue 20 days either side of the event and keeps only pairs on the same relative orbit and direction, 12 days apart, with the event between them. Scenes from different tracks view the terrain from different angles and cannot be compared pixel by pixel. For Trishuli it selects track 19 descending, 24 August and 5 September 2026.
+**Scene pair.** The pipeline searches the Copernicus catalogue 20 days either side of the event and keeps only pairs on the same relative orbit and direction, 12 days apart, with the event between them. Scenes from different tracks view the terrain from different angles and cannot be compared pixel by pixel. Among valid pairs it prefers one whose scenes cover the whole area, then the earliest image after the event. For Trishuli three tracks have a valid pair; it selects track 85 ascending, 16 and 28 August 2026, whose post-event image is two days after the flood. Track 19 would give one ten days after, and track 121 covers only 43% of the area.
 
 **Preprocessing, written from scratch without ESA SNAP.** Digital numbers are calibrated to sigma0 with the product's calibration and thermal-noise tables, speckle is reduced with a Lee filter, and the image is terrain-corrected by the Range-Doppler method: for every cell of a 10 m UTM grid the zero-Doppler time is solved on the orbit from the product annotation, the slant range is converted to a ground-range pixel, and the image is sampled there. DEM heights are converted from geoid to ellipsoid first. Cells in layover or shadow are masked. Both scenes are resampled to the same grid, so they are aligned by construction.
 
 **Flood map.** Two methods. The baseline compares backscatter: a pixel that is dark after the event (below -18 dB) and dropped by more than 3 dB is water; a rise of more than 3 dB is debris; weaker change is "uncertain". Slopes above 20 degrees are excluded. The alternative uses the trained model for water (section 4) and the same rule for debris.
 
-**Damage.** Buildings, roads and bridges that intersect a water or debris zone are flagged. This is an overlap, not an inspection, so the dashboard labels them "in flood zone" and not "destroyed".
+**Damage.** Buildings, roads and bridges that intersect a water or debris zone are flagged. This is an overlap, not an inspection, so the dashboard labels them "in flood zone" and not "destroyed". Most rural roads have no name in OpenStreetMap, so an unnamed road is listed by its kind and nearest settlement.
 
 **Cut-off settlements.** Roads become a graph. Flagged road segments are removed. A settlement is cut off when it had a road route to a hospital before the event and has none afterwards. A settlement with no mapped road before the event is reported as "access unknown", so that gaps in the map are not counted as flood damage.
 
@@ -89,7 +89,7 @@ By default the dashboard opens on a bundled demo dataset, labelled "Demo data", 
 
 ## 7. Limitations
 
-- **No early warning.** Sentinel-1 returns to the same track every 12 days. The system maps a flood after the next pass; it cannot warn of a glacier collapse or a flood in progress. For Trishuli the selected pair's post-event scene is 10 days after the event; a pair on another track has one 5 days after.
+- **No early warning.** Sentinel-1 returns to the same track every 12 days. The system maps a flood after the next pass; it cannot warn of a glacier collapse or a flood in progress. For Trishuli the earliest usable post-event scene is two days after the event.
 - **Steep terrain.** Radar cannot see slopes in layover or shadow, and the classifier excludes slopes above 20 degrees. In this valley that leaves a small share of the area, mostly the valley floor.
 - **The flood map is unvalidated.** See section 5.
 - **The model is untested in mountains** and has no debris class. Debris always comes from fixed thresholds, which can also fire on wet soil, crops, snow and unrelated landslides.

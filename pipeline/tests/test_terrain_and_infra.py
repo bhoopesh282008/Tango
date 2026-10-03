@@ -198,3 +198,22 @@ def test_export_dem_writes_a_grid_the_dashboard_can_read(tmp_path, monkeypatch):
     # Cell centres, rows from the north.
     assert seen['crs'] == 'EPSG:4326' and abs(seen['xs'][0] - 85.005) < 1e-9
     assert seen['ys'][0] > seen['ys'][-1] and abs(seen['ys'][0] - 28.055) < 1e-9
+
+
+def test_unnamed_roads_are_described_by_kind_and_nearest_settlement():
+    x0, y0 = 500000, 3000000
+    roads = gpd.GeoDataFrame(
+        {'name': ['Pasang Lhamu Highway', np.nan, np.nan, np.nan],
+         'highway': ['primary', 'track', 'unclassified', 'tertiary'],
+         'ref': [np.nan, np.nan, 'F021', np.nan]},
+        geometry=[LineString([(x0, y0), (x0 + 1000, y0)]), LineString([(x0, y0 + 50), (x0 + 100, y0 + 50)]),
+                  LineString([(x0, y0), (x0, y0 + 500)]), LineString([(x0 + 9000, y0), (x0 + 9500, y0)])],
+        crs=CRS)
+    settlements = gpd.GeoDataFrame({'id': ['a', 'b'], 'name': ['Lingling', 'Thade']},
+                                   geometry=[Point(x0, y0), Point(x0 + 9000, y0)], crs=CRS)
+    described = run.describe_roads(roads, settlements)
+    assert described['name'].tolist() == [
+        'Pasang Lhamu Highway', 'Unnamed track near Lingling', 'Road F021', 'Unnamed tertiary road near Thade']
+    assert described['length_km'].tolist() == [1.0, 0.1, 0.5, 0.5]
+    # Without settlements the kind is still given.
+    assert run.describe_roads(roads)['name'][1] == 'Unnamed track'
