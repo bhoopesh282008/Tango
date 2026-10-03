@@ -31,6 +31,7 @@ class Annotation:
     srgr_sr0: np.ndarray
     srgr_coeffs: list            # slant range -> ground range polynomials
     grid: dict = field(default_factory=dict)  # geolocation grid arrays
+    srgr_shift: float = 0.0      # seconds added to srgr_t; see fit_srgr_shift
 
 
 def _secs(text, epoch):
@@ -48,7 +49,7 @@ def parse_annotation(xml_text):
     info = root.find('.//imageAnnotation/imageInformation')
     conversions = root.findall('.//coordinateConversionList/coordinateConversion')
     points = root.findall('.//geolocationGridPointList/geolocationGridPoint')
-    return Annotation(
+    ann = Annotation(
         epoch=epoch,
         t_first_line=_secs(info.findtext('productFirstLineUtcTime'), epoch),
         line_interval=float(info.findtext('azimuthTimeInterval')),
@@ -66,6 +67,8 @@ def parse_annotation(xml_text):
                              ('lon', 'longitude'), ('height', 'height')]
         },
     )
+    ann.srgr_shift = fit_srgr_shift(ann)
+    return ann
 
 
 # -------------------------------------------------------------------- orbit
@@ -104,17 +107,23 @@ def zero_doppler(orbit, target, t_init, iterations=10):
     return t, np.linalg.norm(target - orbit.pos(t), axis=-1)
 
 
-def slant_to_pixel(ann, slant_range, t):
-    """Slant range (m) at azimuth time t -> ground-range pixel index."""
+def slant_to_pixel(ann, slant_range, t, shift=None):
+    """Slant range (m) at azimuth time t -> ground-range pixel index.
+
+    The conversion polynomials change along the track (the terrain height used
+    for ground projection changes), and the image varies smoothly between
+    them, so neighbouring records are blended in time.
+    """
     def ground(k):
         return np.polynomial.polynomial.polyval(slant_range - ann.srgr_sr0[k], ann.srgr_coeffs[k])
 
     n = len(ann.srgr_t)
     if n == 1:
         return ground(0) / ann.range_spacing
-    idx = np.clip(np.searchsorted(ann.srgr_t, t) - 1, 0, n - 2)
-    span = ann.srgr_t[idx + 1] - ann.srgr_t[idx]
-    w = np.clip((t - ann.srgr_t[idx]) / span, 0, 1)
+    times = ann.srgr_t + (ann.srgr_shift if shift is None else shift)
+    idx = np.clip(np.searchsorted(times, t) - 1, 0, n - 2)
+    span = times[idx + 1] - times[idx]
+    w = np.clip((t - times[idx]) / span, 0, 1)
     out = np.zeros_like(slant_range, dtype=float)
     for k in range(n):
         g = None
@@ -123,6 +132,37 @@ def slant_to_pixel(ann, slant_range, t):
             g = ground(k)
             out += np.where(lower, (1 - w) * g, 0) + np.where(upper, w * g, 0)
     return out / ann.range_spacing
+
+
+def fit_srgr_shift(ann):
+    """Time offset of the slant-to-ground conversion records, from the product's own grid.
+
+    On real products the records are not exact at their stated azimuth time:
+    blending them as stamped leaves the annotation's geolocation grid off by
+    several pixels where the terrain height changes quickly. Shifting the
+    record times by a fraction of their spacing reproduces the grid to a
+    hundredth of a pixel, and gives the sharper match between the geocoded
+    image and the terrain. The shift is found by trying offsets within half a
+    record spacing either way and keeping the one that best reproduces the grid.
+    """
+    g = ann.grid
+    if len(ann.srgr_t) < 2 or not len(g.get('line', [])) or len(ann.orbit_t) < 2:
+        return 0.0
+    to_ecef = Transformer.from_crs('EPSG:4979', 'EPSG:4978', always_xy=True)
+    target = np.stack(to_ecef.transform(g['lon'], g['lat'], g['height']), axis=-1)
+    t, slant = zero_doppler(Orbit(ann.orbit_t, ann.orbit_pos), target,
+                            ann.t_first_line + ann.line_interval * ann.n_lines / 2)
+    spacing = float(np.median(np.diff(ann.srgr_t)))
+
+    def error(shift):
+        return float(np.mean(np.abs(slant_to_pixel(ann, slant, t, shift) - g['pixel'])))
+
+    coarse = np.linspace(-0.5, 0.5, 201) * spacing
+    best = min(coarse, key=error)
+    fine = best + np.linspace(-1, 1, 81) * (coarse[1] - coarse[0])
+    best = min(fine, key=error)
+    # Keep the stated times unless shifting them is clearly better.
+    return float(best) if error(best) < 0.5 * error(0.0) else 0.0
 
 
 def locate(ann, orbit, lon, lat, height):
