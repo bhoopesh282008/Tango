@@ -1,15 +1,80 @@
 # TANGO — Flood Response System
 
-Flood segmentation dashboard and situation-report copilot for rescue teams (Trishuli flood, Nepal, August 2026).
+A system for mapping flood damage from space for rescue teams: a Python pipeline that turns Sentinel-1 radar scenes, a DEM and pre-event OpenStreetMap into a flood map, a damage overlay and a list of cut-off settlements, and a React dashboard with a situation-report copilot in English and Nepali. Case study: the Trishuli flood, Nepal, August 2026.
 
-## Run
+This is an educational prototype, not an operational tool.
+
+## Status
+
+| Part | State |
+| --- | --- |
+| Dashboard and copilot | Working. Runs on bundled demo data by default, or on the output of a pipeline run. |
+| Pre-event OpenStreetMap, DEM, damage overlay, cut-off analysis, flood-path trace | Run on real data for the Trishuli area. |
+| Flood model | Trained on a sample of Kuro Siwo; results in [pipeline/MODEL.md](pipeline/MODEL.md). |
+| Sentinel-1 download, calibration, terrain correction and flood mapping | Written and unit-tested on synthetic data. **Not yet run on a real scene**, so there is no real flood map and no comparison with Copernicus EMS (EMSR927) yet. |
+
+What the system cannot do is listed in the app at `/about` (Method and limitations).
+
+## Run the dashboard
 
 ```bash
 npm install
 npm run dev      # http://localhost:5173
-npm run test
+npm run test     # 44 tests
 npm run build
 ```
+
+## Run the pipeline
+
+Python 3.11 to 3.13 (the geospatial packages have no wheels for 3.14 yet). From the repository root, on Windows:
+
+```bash
+py -3.13 -m venv pipeline/.venv
+pipeline/.venv/Scripts/python -m pip install -r pipeline/requirements.txt
+pipeline/.venv/Scripts/python -m pytest pipeline/tests     # 35 tests
+```
+
+For GPU training install PyTorch from its own index first: `pip install torch --index-url https://download.pytorch.org/whl/cu124`.
+
+A full run takes an area and a flood date:
+
+```bash
+cd pipeline
+.venv/Scripts/python run.py --bbox 85.1,27.9,85.5,28.3 --event 2026-08-26 --out ../public/data
+```
+
+It needs a free [Copernicus Data Space](https://dataspace.copernicus.eu) account. Set the S3 keys from its dashboard as `AWS_ACCESS_KEY_ID` and `AWS_SECRET_ACCESS_KEY` (only the needed window of each scene is read), or `CDSE_USER` and `CDSE_PASSWORD` (whole products are downloaded, about 1.3 GB each). Add `--model models/unet_kurosiwo.pt` to map water with the trained model instead of thresholds.
+
+| Step | File | What it does |
+| --- | --- | --- |
+| Scene pair | `fetch_s1.py` | Finds a before/after Sentinel-1 GRD pair on the same orbit track, 12 days apart, bracketing the event |
+| Scene access | `download.py` | Reads the scene window and annotation from the Copernicus Data Space |
+| DEM | `fetch_dem.py` | Copernicus DEM GLO-30 from the AWS open-data bucket, converted to ellipsoid heights |
+| Preprocessing | `preprocess_s1.py` | Calibration to sigma0, thermal-noise removal, Lee speckle filter, Range-Doppler terrain correction, layover and shadow masks |
+| Flood map | `segment.py`, `predict.py` | Threshold change detection (water, debris, uncertain), or the U-Net for water with thresholds for debris |
+| OpenStreetMap | `fetch_osm.py` | Buildings, roads, bridges, health facilities and places as of 27 July 2026 |
+| Damage | `damage.py`, `infrastructure.py` | Features inside water or debris zones; health facilities cut from the road network |
+| Cut-off settlements | `cutoff.py` | Settlements that could reach a hospital by road before the event and no longer can |
+| Flood path (bonus) | `floodpath.py` | Drainage path from any point on the DEM and the settlements along it |
+| Validation | `validate.py` | IoU, precision and recall against a reference map; for checking only |
+| Export | `export.py` | The files the dashboard reads |
+| Model | `fetch_kurosiwo.py`, `unet.py`, `train_model.py`, `evaluate_model.py` | Dataset sample, network, training and evaluation |
+
+The flood-path trace runs without any account:
+
+```bash
+.venv/Scripts/python floodpath.py --point 85.378,28.277 --bbox 85.1,27.9,85.5,28.3 --out out
+```
+
+### Data rules
+
+Inputs are Sentinel-1, Copernicus DEM, OpenStreetMap as it was before the event, and Kuro Siwo for training. Published damage maps (Copernicus EMS, UNOSAT) and post-event OpenStreetMap edits are not used as inputs; `fetch_osm.py` refuses a snapshot date on or after the event.
+
+The ohsome API, which the challenge names for the OpenStreetMap snapshot, answered HTTP 403 on its geometry endpoints when this was built. The pipeline asks ohsome first and falls back to the Overpass API with the same snapshot date; `satellite.json` records which service supplied the data.
+
+### Attribution
+
+Contains modified Copernicus Sentinel data 2026. Produced using Copernicus WorldDEM-30 © DLR e.V. 2010–2014 and © Airbus Defence and Space GmbH 2014–2018 provided under COPERNICUS by the European Union and ESA; all rights reserved. © OpenStreetMap contributors (ODbL). Flood model trained on Kuro Siwo (Bountos et al., NeurIPS 2024), CC BY 4.0; full citation in [pipeline/MODEL.md](pipeline/MODEL.md).
 
 ## Splash screen
 
@@ -27,7 +92,7 @@ NASA states these assets are free and without copyright. The model is Draco-comp
 
 The scene loads after the text and costs about 1.4 MB (star map, model, decoder) plus three.js. On slow or data-saving connections and on devices without WebGL2 only the star map is shown; with reduced motion nothing moves.
 
-## Demo data vs. backend
+## Data sources for the dashboard
 
 To show the output of a pipeline run, write it into `public/data/` and point the app at it:
 
@@ -37,7 +102,13 @@ echo VITE_DATA_URL=/data > .env.local
 npm run dev
 ```
 
-`public/data/` is git-ignored. In this mode the Demo data badge disappears, a settlement with no road in the pre-event map is shown as "Access unknown", and the rescue priority is scored only on factors recorded for every cut-off settlement. The pipeline has not yet been run on real scenes; see `pipeline/` and the in-app Method and limitations page (`/about`).
+`public/data/` is git-ignored. In this mode the Demo data badge disappears and the dashboard states what the data does not contain instead of filling gaps:
+
+- A settlement with no road in the pre-event map is shown as "Access unknown", not as cut off.
+- OpenStreetMap records a population for very few settlements here (1 of 149 in the Trishuli area), so settlement size is given in mapped buildings and no head count is shown.
+- Roads and bridges inside a flood zone are labelled "in flood zone", not "destroyed". Power lines are not assessed.
+
+`pipeline/dev_fixture.py` writes a real-scale dataset with a made-up flood (a buffer around the traced river path) for testing the dashboard before a real run. Its output is labelled synthetic and is not a flood map.
 
 With neither a data folder nor a backend configured the app runs on the bundled dataset in `src/data` and shows a **Demo data** badge. Everything in that dataset is illustrative: geometry is generated around approximate settlement locations, and the before/after images are drawn placeholders, not Sentinel-1 scenes.
 
@@ -67,7 +138,9 @@ Cut-off settlements are ranked by a 0-100 score (`calculateRescuePriority` in `s
 | Critical infrastructure: health post unreachable 50, bridge destroyed 30, water supply cut 20 | 15% | infrastructure layer via `settlement_id`; `water_source_cut`, field report |
 | Children and elderly as a share of residents | 5% | `children`, `elderly`, field report |
 
-Bands: above 80 critical, above 60 high, above 40 medium, otherwise low. The field-report inputs cannot be seen from satellite; missing values count as the lowest level. In the demo dataset they are illustrative.
+Bands: above 80 critical, above 60 high, above 40 medium, otherwise low. The field-report inputs cannot be seen from satellite. In the demo dataset they are illustrative.
+
+Nothing is assumed for a missing input. Only factors recorded for every cut-off settlement are scored, and their weights are rescaled to add up to 100%, so that a gap in the data cannot lift one settlement above another. Where population is missing, settlement size is taken from mapped buildings (saturating at 400) with the population weight. On a pipeline run this usually leaves building count, share of buildings in the flood zone and critical infrastructure; the note under the ranking lists what was scored.
 
 ## Map
 
@@ -98,16 +171,24 @@ The Nepali templates have not been reviewed by a native speaker.
 
 ```
 src/
-  pages/        DashboardPage, CopilotPage, ErrorPage
-  components/   Dashboard, Map, Tools, Copilot, Common, Layout
+  pages/        DashboardPage, CopilotPage, AboutPage, ErrorPage
+  components/   Dashboard, Map, Tools, Copilot, Common, Layout, Splash
   store/        Zustand stores: map, data, copilot, ui
-  services/     API access with demo-data fallback, exports
+  services/     pipeline files, API or demo data; exports
   hooks/        useDamageData, useCopilot
-  utils/        calculations, formatters, constants
+  utils/        calculations, formatters, constants, wording
   data/         demo dataset and copilot templates
-  config/       API endpoints, map settings
+  config/       data mode and endpoints, map settings
+pipeline/       Python pipeline, model, tests (see above)
+  results/      model evaluation and training log
+docs/           map library research
 ```
 
 ## Not built yet
 
-Drawing/annotation tool, timeline animation, Shapefile export, live polling, offline tiles / PWA, EMSR927 accuracy validation, deployment. PDF export uses the browser print dialog.
+- A run on real Sentinel-1 scenes, and with it the EMSR927 comparison and any test of the model in Himalayan terrain.
+- Before/after scene images in the dashboard (the pipeline exports no quicklooks; the viewer lists the scenes instead).
+- The flood path in the dashboard; it is command-line only.
+- Sentinel-2 optical input.
+- A language model behind the copilot: answers are templates filled from the computed figures.
+- Drawing/annotation tool, timeline animation, Shapefile export, live polling, offline tiles / PWA, deployment. PDF export uses the browser print dialog.
