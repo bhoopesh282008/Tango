@@ -6,7 +6,8 @@ import config as C
 
 
 def _write(path, data):
-    Path(path).write_text(json.dumps(data, ensure_ascii=False), encoding='utf-8')
+    # allow_nan=False: a NaN would be written as a bare NaN, which browsers reject.
+    Path(path).write_text(json.dumps(data, ensure_ascii=False, allow_nan=False), encoding='utf-8')
 
 
 def _fc(gdf, columns):
@@ -21,7 +22,8 @@ def export_all(out, zones, buildings, roads, settlements, infrastructure, satell
     out = Path(out)
     out.mkdir(parents=True, exist_ok=True)
     zones = zones.copy()
-    zones['name'] = zones['type'].str.capitalize() + ' ' + zones['id']
+    # Built row by row so that a run which finds no flood (no rows) still exports.
+    zones['name'] = [f'{t.capitalize()} {i}' for t, i in zip(zones['type'], zones['id'])]
     _write(out / 'flood_zones.geojson', _fc(zones, ['id', 'name', 'type', 'confidence', 'area_km2']))
     _write(out / 'buildings.geojson', _fc(buildings, ['settlement_id', 'damaged']))
     roads = roads.copy()

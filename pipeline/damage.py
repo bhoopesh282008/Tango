@@ -18,7 +18,7 @@ def flag_damaged(features, zones):
 def assign_settlement(buildings, settlements):
     """Tag each building with the nearest settlement id."""
     crs = buildings.estimate_utm_crs()
-    b = buildings.to_crs(crs)
+    b = buildings[['geometry']].to_crs(crs)   # OSM tags can include columns named like ours
     s = settlements.to_crs(crs)[['id', 'geometry']].rename(columns={'id': 'settlement_id'})
     joined = gpd.sjoin_nearest(b, s, how='left')
     joined = joined[~joined.index.duplicated()]

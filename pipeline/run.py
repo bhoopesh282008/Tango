@@ -78,7 +78,7 @@ def settlements_from_places(places):
     """OSM places -> settlement table. Population only where OSM carries it."""
     rows = []
     for i, (_, p) in enumerate(places.iterrows()):
-        name = text(p.get('name'))
+        name, name_np = names(p)
         if not name:
             continue
         try:
@@ -86,15 +86,41 @@ def settlements_from_places(places):
         except (TypeError, ValueError):
             population = None
         point = p.geometry.representative_point()   # places mapped as areas count too
-        rows.append({'id': f's{i + 1:03d}', 'name': name, 'name_np': text(p.get('name:ne')),
+        rows.append({'id': f's{i + 1:03d}', 'name': name, 'name_np': name_np,
                      'lat': point.y, 'lng': point.x, 'population': population, 'geometry': point})
     return gpd.GeoDataFrame(rows, columns=['id', 'name', 'name_np', 'lat', 'lng', 'population', 'geometry'],
                             geometry='geometry', crs=places.crs)
 
 
+def settlement_records(settlements, status):
+    """Rows for settlements.json. pandas holds a missing value as NaN, which is not valid JSON."""
+    rows = []
+    for s in settlements.to_dict('records'):
+        population = s['population']
+        rows.append({
+            'id': s['id'], 'name': s['name'], 'name_np': text(s['name_np']),
+            'lat': s['lat'], 'lng': s['lng'],
+            'population': None if population is None or population != population else int(population),
+            'connected': status[s['id']],
+        })
+    return rows
+
+
 def text(value):
     """A tag value, or None when the tag is absent (pandas reads that as NaN)."""
     return value if isinstance(value, str) and value else None
+
+
+def names(row):
+    """(display name, Nepali name) from OSM tags.
+
+    In Nepal the plain `name` tag is usually in Devanagari, so the English name
+    is preferred for display and a Devanagari `name` doubles as the Nepali one.
+    """
+    local = text(row.get('name'))
+    devanagari = bool(local) and any('ऀ' <= ch <= 'ॿ' for ch in local)
+    return (text(row.get('name:en')) or local,
+            text(row.get('name:ne')) or (local if devanagari else None))
 
 
 def hospitals_or_any(health):
@@ -142,14 +168,11 @@ def main():
     roads['length_km'] = (metric.length / 1000).round(2).to_numpy()
     roads['name'] = roads['name'].fillna('Unnamed road') if 'name' in roads.columns else 'Unnamed road'
 
-    settlement_rows = [
-        {k: v for k, v in s.items() if k != 'geometry'} | {'connected': status[s['id']]}
-        for s in settlements.to_dict('records')
-    ]
+    settlement_rows = settlement_records(settlements, status)
     infra = infrastructure.build(osm['bridges'], osm['health'], roads, zones, settlements)
     export.export_all(args.out, zones, buildings, roads, settlement_rows, infra, {
         'event': args.event, 'method': 'Sentinel-1 change detection (baseline thresholds)',
-        'osm_snapshot': C.OSM_SNAPSHOT, 'before': scenes.get('pre'), 'after': scenes.get('post'),
+        'osm_snapshot': C.OSM_SNAPSHOT, 'osm_source': sorted(set(fetch_osm.SOURCES.values())), 'before': scenes.get('pre'), 'after': scenes.get('post'),
     })
     print(json.dumps({
         'zones': len(zones),

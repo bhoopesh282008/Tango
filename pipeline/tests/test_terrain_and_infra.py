@@ -103,3 +103,48 @@ def test_settlements_from_places_handles_missing_tags_and_areas():
 def test_hospitals_or_any_without_an_amenity_column():
     health = gpd.GeoDataFrame({'healthcare': ['clinic']}, geometry=[Point(85.3, 28.1)], crs='EPSG:4326')
     assert len(run.hospitals_or_any(health)) == 1
+
+
+def test_names_prefer_english_and_reuse_a_devanagari_name_as_nepali():
+    assert run.names({'name': 'धुन्चे', 'name:en': 'Dhunche'}) == ('Dhunche', 'धुन्चे')
+    assert run.names({'name': 'धुन्चे'}) == ('धुन्चे', 'धुन्चे')
+    assert run.names({'name': 'Ramche', 'name:ne': 'राम्चे'}) == ('Ramche', 'राम्चे')
+    assert run.names({'name': np.nan}) == (None, None)
+
+
+def test_overpass_elements_become_points_lines_and_polygons():
+    import fetch_osm
+    square = [{'lat': 0, 'lon': 0}, {'lat': 0, 'lon': 1}, {'lat': 1, 'lon': 1}, {'lat': 0, 'lon': 0}]
+    elements = [
+        {'type': 'node', 'id': 1, 'lat': 28.1, 'lon': 85.3, 'tags': {'place': 'village', 'name': 'A'}},
+        {'type': 'way', 'id': 2, 'geometry': square, 'tags': {'building': 'yes'}},
+        {'type': 'way', 'id': 2, 'geometry': square, 'tags': {'building': 'yes'}},   # duplicate
+        {'type': 'way', 'id': 3, 'geometry': square[:2]},
+        {'type': 'relation', 'id': 4, 'members': []},
+    ]
+    as_areas = fetch_osm.overpass_to_geojson(elements, areas=True)['features']
+    assert [f['geometry']['type'] for f in as_areas] == ['Point', 'Polygon', 'LineString']
+    assert as_areas[0]['properties'] == {'@osmId': 'node/1', 'place': 'village', 'name': 'A'}
+    assert as_areas[0]['geometry']['coordinates'] == [85.3, 28.1]
+    # A closed road (a roundabout) stays a line.
+    as_lines = fetch_osm.overpass_to_geojson(elements, areas=False)['features']
+    assert as_lines[1]['geometry']['type'] == 'LineString'
+
+
+def test_post_event_snapshot_is_refused():
+    import fetch_osm
+    import pytest
+    with pytest.raises(ValueError):
+        fetch_osm.fetch_layer('roads', '85.1,27.9,85.5,28.3', snapshot='2026-08-27')
+
+
+def test_settlement_records_are_valid_json():
+    import json
+    places = gpd.GeoDataFrame(
+        {'name': ['Dhunche', 'Ramche'], 'population': ['2744', np.nan]},
+        geometry=[Point(85.3, 28.1), Point(85.2, 28.0)], crs='EPSG:4326')
+    s = run.settlements_from_places(places)
+    rows = run.settlement_records(s, {s['id'][0]: True, s['id'][1]: None})
+    json.dumps(rows, allow_nan=False)
+    assert rows[0]['population'] == 2744 and rows[1]['population'] is None
+    assert rows[1]['name_np'] is None and rows[1]['connected'] is None

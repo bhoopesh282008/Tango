@@ -25,17 +25,21 @@ def _nearest_settlement(points, settlements):
     if not len(points) or not len(settlements):
         return [None] * len(points)
     crs = points.estimate_utm_crs()
-    joined = gpd.sjoin_nearest(points.to_crs(crs), settlements.to_crs(crs)[['id', 'geometry']], how='left')
+    # Only geometry on the left: OSM tags can include columns named like ours.
+    left = points[['geometry']].to_crs(crs)
+    right = settlements.to_crs(crs)[['id', 'geometry']].rename(columns={'id': 'settlement_id'})
+    joined = gpd.sjoin_nearest(left, right, how='left')
     joined = joined[~joined.index.duplicated()]
-    return joined['id'].reindex(points.index).tolist()
+    return joined['settlement_id'].reindex(points.index).tolist()
 
 
-def _text(value):
-    return value if isinstance(value, str) and value else None
-
-
-def _name(row, fallback):
-    return _text(row.get('name')) or fallback
+def _names(row, fallback):
+    """(display name, Nepali name); see run.names for the tag convention."""
+    local = row.get('name') if isinstance(row.get('name'), str) and row.get('name') else None
+    english = row.get('name:en') if isinstance(row.get('name:en'), str) and row.get('name:en') else None
+    nepali = row.get('name:ne') if isinstance(row.get('name:ne'), str) and row.get('name:ne') else None
+    devanagari = bool(local) and any('ऀ' <= ch <= 'ॿ' for ch in local)
+    return english or local or fallback, nepali or (local if devanagari else None)
 
 
 def build(bridges, health, roads, zones, settlements, snap_m=500):
@@ -50,9 +54,10 @@ def build(bridges, health, roads, zones, settlements, snap_m=500):
         pts = _points(flagged).to_crs('EPSG:4326')
         near = _nearest_settlement(pts, settlements)
         for i, (_, b) in enumerate(pts.iterrows()):
+            name, name_np = _names(b, 'Unnamed bridge')
             items.append({
                 'id': f'b{i + 1:03d}', 'settlement_id': near[i], 'type': 'bridge',
-                'name': _name(b, 'Unnamed bridge'), 'name_np': _text(b.get('name:ne')),
+                'name': name, 'name_np': name_np,
                 'lat': b.geometry.y, 'lng': b.geometry.x,
                 'status': 'destroyed' if b['damaged'] else 'operational',
             })
@@ -76,9 +81,10 @@ def build(bridges, health, roads, zones, settlements, snap_m=500):
             if node is None or node not in main:
                 continue  # not on the mapped road network before the event: cannot be assessed
             status = 'operational' if snap_after(m, snap_m) in still_main else 'unreachable'
+            name, name_np = _names(h, 'Unnamed health facility')
             items.append({
                 'id': f'h{i + 1:03d}', 'settlement_id': near[i], 'type': HEALTH_TYPE,
-                'name': _name(h, 'Unnamed health facility'), 'name_np': _text(h.get('name:ne')),
+                'name': name, 'name_np': name_np,
                 'lat': h.geometry.y, 'lng': h.geometry.x, 'status': status,
             })
     return items
