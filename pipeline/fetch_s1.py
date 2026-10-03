@@ -3,7 +3,7 @@
 Searching is open; downloading needs a free CDSE account (CDSE_USER and
 CDSE_PASSWORD in the environment). Downloads are large, about 1 GB a scene.
 """
-from datetime import date, datetime
+from datetime import date, datetime, timedelta
 
 from pystac_client import Client
 
@@ -54,3 +54,17 @@ def choose_pair(items, event_day, tolerance_days=3):
             if best is None or score < best[0]:
                 best = (score, before, after)
     return None if best is None else (best[1], best[2])
+
+
+def find_pair(bbox, event_day, search_days=20):
+    """Search around the event and return the best same-track (before, after) pair."""
+    event = date.fromisoformat(event_day) if isinstance(event_day, str) else event_day
+    window = timedelta(days=search_days)
+    items = search(bbox, (event - window).isoformat(), (event + window).isoformat())
+    pair = choose_pair(items, event)
+    if pair is None:
+        raise RuntimeError(
+            f'No Sentinel-1 pair on one orbit track brackets {event} over {bbox} '
+            f'({len(items)} scenes found within {search_days} days).'
+        )
+    return pair

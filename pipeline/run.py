@@ -18,14 +18,59 @@ from shapely.geometry import Point
 import config as C
 import cutoff
 import damage
+import download
 import export
+import fetch_dem
 import fetch_osm
+import fetch_s1
+import preprocess_s1 as P
 import segment
 
 
 def read_db(path):
     with rasterio.open(path) as src:
         return src.read(1).astype('float32'), src.transform, src.crs
+
+
+def write_raster(path, array, crs, transform):
+    with rasterio.open(path, 'w', driver='GTiff', height=array.shape[0], width=array.shape[1],
+                       count=1, dtype='float32', crs=crs, transform=transform,
+                       nodata=np.nan, compress='deflate') as dst:
+        dst.write(array.astype('float32'), 1)
+
+
+def prepare_pair(bbox, event, out, res=10.0, pol='vv'):
+    """Raw GRD scenes -> co-registered dB rasters. Returns paths and scene metadata."""
+    out = Path(out)
+    out.mkdir(parents=True, exist_ok=True)
+    before, after = fetch_s1.find_pair(bbox, event)
+    crs, xs, ys = P.make_grid([float(v) for v in bbox.split(',')], res)
+    transform = fetch_dem.grid_transform(xs, ys)
+    height = fetch_dem.fetch(crs, xs, ys)
+
+    paths, meta, slope = {}, {}, None
+    for label, item in (('pre', before), ('post', after)):
+        scene = download.get_scene(item, pol)
+        ann = P.parse_annotation(scene.product_xml)
+        geo = P.geocode(ann, crs, xs, ys, height)
+        window = P.radar_window(geo, ann)
+        db = P.terrain_correct(download.read_window(scene, window), window, geo,
+                               P.parse_calibration(scene.calibration_xml),
+                               P.parse_noise(scene.noise_xml))
+        paths[label] = out / f'{label}_{pol}_db.tif'
+        write_raster(paths[label], db, crs, transform)
+        slope = geo['slope_deg']
+        meta[label] = {
+            'id': item.id, 'date': item.properties['datetime'][:10],
+            'sensor': f"Sentinel-1 GRD ({pol.upper()})", 'resolution': f'{res:.0f} m',
+            'relative_orbit': item.properties.get('sat:relative_orbit'),
+            'orbit_state': item.properties.get('sat:orbit_state'),
+            'geolocation_check_px': P.check_geolocation(ann),
+            'masked_fraction': round(float((geo['layover'] | geo['shadow']).mean()), 3),
+        }
+    paths['slope'] = out / 'slope.tif'
+    write_raster(paths['slope'], slope, crs, transform)
+    return paths, meta
 
 
 def settlements_from_places(places, hospitals):
@@ -48,12 +93,17 @@ def settlements_from_places(places, hospitals):
 def main():
     ap = argparse.ArgumentParser()
     ap.add_argument('--bbox', required=True, help='W,S,E,N')
-    ap.add_argument('--pre', required=True)
-    ap.add_argument('--post', required=True)
+    ap.add_argument('--pre', help='existing terrain-corrected VV dB raster (skips the satellite steps)')
+    ap.add_argument('--post')
     ap.add_argument('--event', required=True)
     ap.add_argument('--slope', help='optional slope raster (degrees) on the same grid')
     ap.add_argument('--out', default=str(C.OUT))
     args = ap.parse_args()
+
+    scenes = {}
+    if not (args.pre and args.post):
+        paths, scenes = prepare_pair(args.bbox, args.event, Path(args.out) / 'rasters')
+        args.pre, args.post, args.slope = str(paths['pre']), str(paths['post']), str(paths['slope'])
 
     pre, transform, crs = read_db(args.pre)
     post, _, _ = read_db(args.post)
@@ -81,7 +131,7 @@ def main():
     ]
     export.export_all(args.out, zones, buildings, roads, settlement_rows, [], {
         'event': args.event, 'method': 'Sentinel-1 change detection (baseline thresholds)',
-        'osm_snapshot': C.OSM_SNAPSHOT,
+        'osm_snapshot': C.OSM_SNAPSHOT, 'before': scenes.get('pre'), 'after': scenes.get('post'),
     })
     print(json.dumps({
         'zones': len(zones),
