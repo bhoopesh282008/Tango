@@ -21,6 +21,7 @@ FILTERS = {
     # Often mapped as areas, so polygons are kept and reduced to a point later.
     'health': '(amenity in (hospital, clinic, doctors) or healthcare=*) and (geometry:point or geometry:polygon)',
     'places': 'place in (city, town, village, hamlet) and (geometry:point or geometry:polygon)',
+    'waterways': 'waterway in (river, stream) and geometry:line',
 }
 
 OVERPASS_URL = 'https://overpass-api.de/api/interpreter'
@@ -34,6 +35,7 @@ OVERPASS = {
                 'node["healthcare"]({b});', 'way["healthcare"]({b});'], True),
     'places': (['node["place"~"^(city|town|village|hamlet)$"]({b});',
                 'way["place"~"^(city|town|village|hamlet)$"]({b});'], True),
+    'waterways': (['way["waterway"~"^(river|stream)$"]({b});'], False),
 }
 
 # layer -> 'ohsome' or 'overpass', filled as layers are fetched
@@ -125,5 +127,17 @@ def fetch_layer(name, bbox, snapshot=C.OSM_SNAPSHOT, use_cache=True):
     return _read(cache)
 
 
+# Layers the run can do without: the valley-floor mask falls back to the DEM.
+OPTIONAL = ('waterways',)
+
+
 def fetch_all(bbox, snapshot=C.OSM_SNAPSHOT):
-    return {name: fetch_layer(name, bbox, snapshot) for name in FILTERS}
+    layers = {}
+    for name in FILTERS:
+        try:
+            layers[name] = fetch_layer(name, bbox, snapshot)
+        except requests.RequestException:
+            if name not in OPTIONAL:
+                raise
+            layers[name], SOURCES[name] = None, 'unavailable'
+    return layers

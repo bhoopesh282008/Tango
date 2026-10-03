@@ -217,3 +217,63 @@ def test_unnamed_roads_are_described_by_kind_and_nearest_settlement():
     assert described['length_km'].tolist() == [1.0, 0.1, 0.5, 0.5]
     # Without settlements the kind is still given.
     assert run.describe_roads(roads)['name'][1] == 'Unnamed track'
+
+
+def v_valley(rows=120, cols=90, cell=10.0):
+    """A V-shaped valley draining south along the middle column."""
+    return (2000 - 2.0 * np.arange(rows)[:, None] + 0.5 * cell * np.abs(np.arange(cols) - cols // 2)[None, :]).astype('float32')
+
+
+def test_height_above_drainage_and_valley_floor_from_a_waterway():
+    import terrain
+    from rasterio.transform import from_origin
+    height, cell = v_valley(), 10.0
+    transform = from_origin(500000, 3100000, cell, cell)
+    river = gpd.GeoDataFrame(geometry=[LineString([(500000 + 45.5 * cell, 3100000), (500000 + 45.5 * cell, 3100000 - 120 * cell)])], crs=CRS)
+    drainage = terrain.drainage_from_waterways(river, transform, height.shape, CRS)
+    assert drainage[:, 45].all() and not drainage[:, 30].any()
+    hand, distance = terrain.height_above_drainage(height, drainage, cell)
+    assert hand[60, 45] == 0 and abs(hand[60, 49] - 20) < 1e-3 and abs(distance[60, 49] - 40) < 1e-3
+    floor, source = terrain.valley_floor(height, cell, river, transform, CRS, max_height_m=30)
+    assert source == 'OpenStreetMap waterways'
+    assert floor[60, 45] and floor[60, 51] and not floor[60, 52]        # 30 m above the river is 6 cells out
+
+
+def test_drainage_falls_back_to_the_dem_when_no_waterway_is_mapped():
+    import terrain
+    height = v_valley(300, 240)
+    floor, source = terrain.valley_floor(height, 10.0)
+    assert source == 'DEM-derived channels'
+    channels = terrain.drainage_from_dem(height, 10.0)
+    assert channels[250:, 117:123].any() and not channels[:, :60].any()   # a channel forms down the valley axis only
+    assert floor[280, 120] and not floor[280, 20]
+    hand, distance = terrain.height_above_drainage(height, np.zeros(height.shape, bool), 10.0)
+    assert np.isinf(hand).all() and np.isinf(distance).all()
+
+
+def test_classification_on_the_floor_keeps_floods_and_drops_slope_speckle():
+    import config as C
+    import segment
+    rng = np.random.default_rng(1)
+    pre = rng.normal(-8, 0.6, (120, 90)).astype('float32')
+    post = pre + rng.normal(0, 0.6, pre.shape).astype('float32')
+    floor = np.zeros(pre.shape, bool)
+    floor[:, 40:51] = True
+    post[20:40, 42:48] -= 6          # new water on the floor; -14 dB, never "open water" dark
+    post[60:80, 42:48] += 6          # debris on the floor
+    post[10:12, 5:7] -= 9            # a speck on a slope: ignored
+    post[90:105, 10:25] += 8         # a hectare of strong change on a slope: flagged, not called flood
+    post[0, 0] = np.nan
+    classes, conf = segment.classify(pre, post, floor=floor)
+    assert (classes[22:38, 43:47] == C.CLASS_WATER).all() and conf[30, 45] > 0.6
+    assert (classes[62:78, 43:47] == C.CLASS_DEBRIS).all()
+    assert (classes[8:14, 3:9] == 0).all()
+    assert (classes[92:103, 12:23] == C.CLASS_UNCERTAIN).all()
+    assert classes[0, 0] == 0
+    untouched = np.ones(pre.shape, bool)
+    for rows, cols in ((slice(18, 42), slice(40, 51)), (slice(58, 82), slice(40, 51)), (slice(88, 107), slice(8, 27))):
+        untouched[rows, cols] = False
+    assert (classes[untouched] == 0).mean() > 0.999          # noise alone raises almost nothing
+    # Without a floor mask the original rules still apply, and reject this water as not dark enough.
+    old, _ = segment.classify(pre, post)
+    assert (old[22:38, 43:47] != C.CLASS_WATER).all()

@@ -40,24 +40,27 @@ def flood_probability(model, device, post_vv, post_vh, pre_vv, pre_vh, overlap=3
     return (total / np.maximum(count, 1))[:h, :w]
 
 
-def classify(probability, pre_db, post_db, slope_deg=None, flood_at=0.5, uncertain_at=0.3):
+def classify(probability, pre_db, post_db, slope_deg=None, floor=None, flood_at=0.5, uncertain_at=0.3):
     """Model flood map combined with the baseline's debris rule.
 
     Kuro Siwo has no debris class, so water comes from the model and debris
     (a rise in backscatter) still comes from the thresholds in segment.py.
     Returns (classes, confidence) like segment.classify.
     """
-    base_classes, base_conf = segment.classify(pre_db, post_db, slope_deg)
+    base_classes, base_conf = segment.classify(pre_db, post_db, slope_deg, floor)
     valid = np.isfinite(pre_db) & np.isfinite(post_db)
-    if slope_deg is not None:
+    if floor is not None:
+        valid &= floor          # the model's water is accepted only where a flood can be
+    elif slope_deg is not None:
         valid &= slope_deg < C.MAX_SLOPE_DEG
     water = valid & (probability >= flood_at)
     uncertain = valid & ~water & (probability >= uncertain_at)
     debris = (base_classes == C.CLASS_DEBRIS) & ~water
+    slope_change = (base_classes == C.CLASS_UNCERTAIN) & ~water
 
     classes = np.zeros(post_db.shape, 'uint8')
     conf = np.zeros(post_db.shape, 'float32')
-    classes[uncertain], conf[uncertain] = C.CLASS_UNCERTAIN, 0.4
+    classes[uncertain | slope_change], conf[uncertain | slope_change] = C.CLASS_UNCERTAIN, 0.4
     classes[debris], conf[debris] = C.CLASS_DEBRIS, base_conf[debris]
     classes[water], conf[water] = C.CLASS_WATER, probability[water]
     return classes, conf

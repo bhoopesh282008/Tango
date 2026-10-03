@@ -10,6 +10,9 @@ def flood_union(zones, include_uncertain=False):
 def flag_damaged(features, zones):
     """Add boolean `damaged` to a GeoDataFrame of buildings/roads/bridges."""
     features = features.copy()
+    # Zones come on the raster's UTM grid, OSM features in degrees: compare them in one system.
+    if len(zones) and zones.crs is not None and features.crs is not None and zones.crs != features.crs:
+        zones = zones.to_crs(features.crs)
     union = flood_union(zones)
     features['damaged'] = False if union is None else features.geometry.intersects(union).to_numpy()
     return features

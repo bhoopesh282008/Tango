@@ -21,6 +21,10 @@ DEBRIS_RISE_DB = 3.0       # rough mud/rock raises backscatter
 UNCERTAIN_FRACTION = 0.6   # weaker change still counts, flagged uncertain
 MAX_SLOPE_DEG = 20.0       # steep slopes: shadow/layover, not water
 MIN_ZONE_M2 = 2000         # drop speckle-sized polygons
+# With a valley-floor mask (terrain.py): change on the floor is flood; elsewhere only
+# strong, large change is kept, as 'uncertain' (it may be a landslide or debris flow).
+SLOPE_CHANGE_DB = 4.5
+SLOPE_MIN_PIXELS = 100     # 1 ha at 10 m
 
 CLASS_NONE, CLASS_WATER, CLASS_DEBRIS, CLASS_UNCERTAIN = 0, 1, 2, 3
 CLASS_NAMES = {CLASS_WATER: 'water', CLASS_DEBRIS: 'debris', CLASS_UNCERTAIN: 'uncertain'}

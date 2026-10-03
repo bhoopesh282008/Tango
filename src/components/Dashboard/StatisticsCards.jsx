@@ -10,6 +10,7 @@ import {
 import { Bridge, Building2, ChevronDown, Droplets, Hospital, Route, Users, Zap } from 'lucide-react'
 import { useState } from 'react'
 import { Bar, Doughnut } from 'react-chartjs-2'
+import { USE_MOCK } from '../../config/apiConfig'
 import { useUIStore } from '../../store/uiStore'
 import { DAMAGE_TYPES } from '../../utils/constants'
 import { formatNumber, formatPercent } from '../../utils/formatters'
@@ -33,7 +34,8 @@ function primaryCards(stats) {
       label: 'Flooded area',
       value: formatNumber(stats.floodedAreaKm2, 1),
       unit: 'km²',
-      detail: `${formatNumber(stats.areaByType.water, 1)} km² open water`,
+      // A pipeline run cannot tell open water from wet sediment on a valley floor.
+      detail: `${formatNumber(stats.areaByType.water, 1)} km² ${USE_MOCK ? 'open water' : 'water or wet sediment'}`,
       icon: Droplets,
       tone: 'blue',
     },

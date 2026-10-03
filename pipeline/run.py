@@ -28,6 +28,7 @@ import infrastructure
 import preprocess_s1 as P
 import quicklook
 import segment
+import terrain
 
 
 def read_db(path):
@@ -54,31 +55,41 @@ def prepare_pair(bbox, event, out, res=10.0, pols=('vv',)):
     transform = fetch_dem.grid_transform(xs, ys)
     height = fetch_dem.fetch(crs, xs, ys)
 
-    paths, meta, slope = {}, {}, None
+    # Rasters already in the output folder are reused, so a second run (for
+    # example to add the VH band for the model) only processes what is missing.
+    record = out / 'scenes.json'
+    saved = json.loads(record.read_text(encoding='utf-8')) if record.exists() else {}
+    paths, meta = {'slope': out / 'slope.tif'}, {}
     for label, item in (('pre', before), ('post', after)):
+        geo = ann = None
         for pol in pols:
+            key = label if pol == 'vv' else f'{label}_{pol}'
+            paths[key] = out / f'{label}_{pol}_db.tif'
+            if paths[key].exists() and saved.get(label, {}).get('id') == item.id:
+                continue
             scene = download.get_scene(item, pol)
             ann = P.parse_annotation(scene.product_xml)
-            geo = P.geocode(ann, crs, xs, ys, height)
+            if geo is None:     # both polarisations share one viewing geometry
+                geo = P.geocode(ann, crs, xs, ys, height)
             window = P.radar_window(geo, ann)
             db = P.terrain_correct(download.read_window(scene, window), window, geo,
                                    P.parse_calibration(scene.calibration_xml),
                                    P.parse_noise(scene.noise_xml))
-            key = label if pol == 'vv' else f'{label}_{pol}'
-            paths[key] = out / f'{label}_{pol}_db.tif'
             write_raster(paths[key], db, crs, transform)
-        slope = geo['slope_deg']
-        meta[label] = {
-            'id': item.id, 'date': item.properties['datetime'][:10],
-            'sensor': f"Sentinel-1 GRD ({'+'.join(p.upper() for p in pols)})", 'resolution': f'{res:.0f} m',
-            'relative_orbit': item.properties.get('sat:relative_orbit'),
-            'orbit_state': item.properties.get('sat:orbit_state'),
-            'area_covered': round(fetch_s1.coverage(item, bbox), 3),
-            'geolocation_check_px': P.check_geolocation(ann),
-            'masked_fraction': round(float((geo['layover'] | geo['shadow']).mean()), 3),
-        }
-    paths['slope'] = out / 'slope.tif'
-    write_raster(paths['slope'], slope, crs, transform)
+        if geo is None:
+            meta[label] = saved[label]
+        else:
+            write_raster(paths['slope'], geo['slope_deg'], crs, transform)
+            meta[label] = {
+                'id': item.id, 'date': item.properties['datetime'][:10], 'resolution': f'{res:.0f} m',
+                'relative_orbit': item.properties.get('sat:relative_orbit'),
+                'orbit_state': item.properties.get('sat:orbit_state'),
+                'area_covered': round(fetch_s1.coverage(item, bbox), 3),
+                'geolocation_check_px': P.check_geolocation(ann),
+                'masked_fraction': round(float((geo['layover'] | geo['shadow']).mean()), 3),
+            }
+        meta[label]['sensor'] = f"Sentinel-1 GRD ({'+'.join(p.upper() for p in pols)})"
+    record.write_text(json.dumps(meta), encoding='utf-8')
     return paths, meta
 
 
@@ -204,16 +215,28 @@ def main():
     post, _, _ = read_db(args.post)
     slope = read_db(args.slope)[0] if args.slope else None
 
+    # Where a flood can be: ground within a few tens of metres above the nearest drainage line.
+    osm = fetch_osm.fetch_all(args.bbox)
+    cell = abs(transform.a)
+    xs = transform.c + transform.a * (np.arange(pre.shape[1]) + 0.5)
+    ys = transform.f + transform.e * (np.arange(pre.shape[0]) + 0.5)
+    height = fetch_dem.fetch(crs.to_string(), xs, ys)
+    # Rivers only: mountain streams run down every gully, and a mask around all of them is no mask.
+    rivers = osm['waterways']
+    if rivers is not None and 'waterway' in rivers.columns:
+        rivers = rivers[rivers['waterway'] == 'river']
+    floor, drainage_source = terrain.valley_floor(height, cell, rivers, transform, crs)
+
     if args.model:
         import predict   # imported here so the baseline runs without PyTorch installed
         model, device = predict.load_model(args.model)
         probability = predict.flood_probability(model, device, post, read_db(paths['post_vh'])[0],
                                                 pre, read_db(paths['pre_vh'])[0])
-        classes, conf = predict.classify(probability, pre, post, slope)
-        method = 'U-Net trained on Kuro Siwo (water) + threshold rule (debris)'
+        classes, conf = predict.classify(probability, pre, post, slope, floor)
+        method = 'U-Net trained on Kuro Siwo (water) + change detection (debris), on valley floors'
     else:
-        classes, conf = segment.classify(pre, post, slope)
-        method = 'Sentinel-1 change detection (baseline thresholds)'
+        classes, conf = segment.classify(pre, post, slope, floor)
+        method = 'Sentinel-1 change detection on valley floors'
 
     # Pictures for the dashboard's before/after viewer.
     out = Path(args.out)
@@ -230,9 +253,7 @@ def main():
             optical['used'] = False
             optical['note'] = 'No Sentinel-2 pass on both sides of the event; radar only.'
         else:
-            seen = np.isfinite(pre) & np.isfinite(post)
-            if slope is not None:
-                seen &= slope < C.MAX_SLOPE_DEG
+            seen = np.isfinite(pre) & np.isfinite(post)   # radar is blind only in layover and shadow
             classes, conf, counts = fetch_s2.fuse(classes, conf, seen, *fetch_s2.classify(before, after))
             optical.update(used=True, pixels=counts)
             quicklook.optical_png(before, out / 'before_optical.png')
@@ -241,7 +262,6 @@ def main():
             method += ' + Sentinel-2 (confirms detections, fills radar blind spots)'
     zones = segment.vectorise(classes, conf, transform, crs)
 
-    osm = fetch_osm.fetch_all(args.bbox)
     roads = damage.flag_damaged(osm['roads'], zones)
     buildings = damage.flag_damaged(osm['buildings'], zones)
     settlements = settlements_from_places(osm['places'])
@@ -255,10 +275,12 @@ def main():
     infra = infrastructure.build(osm['bridges'], osm['health'], roads, zones, settlements)
     export.export_all(args.out, zones, buildings, roads, settlement_rows, infra, {
         'event': args.event, 'method': method,
-        'osm_snapshot': C.OSM_SNAPSHOT, 'osm_source': sorted(set(fetch_osm.SOURCES.values())),
+        'osm_snapshot': C.OSM_SNAPSHOT,
+        'osm_source': sorted({v for k, v in fetch_osm.SOURCES.items() if v != 'unavailable'}),
         'before': {**(scenes.get('pre') or {}), **images['pre']},
         'after': {**(scenes.get('post') or {}), **images['post']},
         'optical': optical,
+        'valley_floor': {'drainage': drainage_source, 'share_of_area': round(float(floor.mean()), 3)},
     })
     # The DEM the dashboard's flood-path tool traces on
     floodpath.export_dem(args.out, [float(v) for v in args.bbox.split(',')])

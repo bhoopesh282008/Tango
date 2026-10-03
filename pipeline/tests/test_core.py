@@ -101,3 +101,12 @@ def test_flag_damaged_and_assign_settlement():
     )
     assigned = damage.assign_settlement(buildings, settlements)
     assert assigned['settlement_id'].tolist() == ['s1', 's2', 's2']
+
+
+def test_flag_damaged_compares_layers_in_different_coordinate_systems():
+    # Zones on a UTM grid, features in degrees, as in a real run.
+    zones = gpd.GeoDataFrame({'type': ['water']}, geometry=[box(331000, 3110000, 332000, 3111000)], crs='EPSG:32645')
+    inside = zones.to_crs('EPSG:4326').geometry[0].centroid
+    features = gpd.GeoDataFrame(geometry=[inside.buffer(0.0002), inside.buffer(0.0002).__class__(
+        [(x + 0.2, y) for x, y in inside.buffer(0.0002).exterior.coords])], crs='EPSG:4326')
+    assert damage.flag_damaged(features, zones)['damaged'].tolist() == [True, False]

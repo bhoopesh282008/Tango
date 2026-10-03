@@ -5,14 +5,52 @@ rasters in dB from the same orbit track.
 """
 import numpy as np
 import rasterio.features
+from scipy import ndimage
 import geopandas as gpd
 from shapely.geometry import shape
 
 import config as C
 
 
-def classify(pre_db, post_db, slope_deg=None):
-    """Return (classes, confidence) arrays. NaN input pixels are class 0."""
+def classify_on_floor(pre_db, post_db, floor):
+    """Change detection constrained by terrain. Returns (classes, confidence).
+
+    On the valley floor a drop of 3 dB is new water or wet sediment and a rise
+    of 3 dB is debris. No absolute darkness is required: a river tens of
+    metres wide in a gorge never looks like open water at 10 m. Away from the
+    floor a flood cannot be the cause, so only strong change over at least a
+    hectare is kept, as 'uncertain'. The change image is median-filtered first
+    so that single-pixel speckle does not pass a threshold.
+    """
+    valid = np.isfinite(pre_db) & np.isfinite(post_db)
+    diff = ndimage.median_filter(np.where(valid, post_db - pre_db, 0.0), size=3)
+
+    water = valid & floor & (diff < C.WATER_DROP_DB)
+    debris = valid & floor & (diff > C.DEBRIS_RISE_DB)
+    strong = valid & ~floor & (np.abs(diff) > C.SLOPE_CHANGE_DB)
+    labels, _ = ndimage.label(strong)
+    sizes = np.bincount(labels.ravel())
+    uncertain = strong & (sizes[labels] >= C.SLOPE_MIN_PIXELS)
+
+    classes = np.zeros(post_db.shape, dtype=np.uint8)
+    classes[water] = C.CLASS_WATER
+    classes[debris] = C.CLASS_DEBRIS
+    classes[uncertain] = C.CLASS_UNCERTAIN
+    conf = np.zeros(post_db.shape, dtype=np.float32)
+    conf[water] = np.clip(0.6 + 0.4 * (-diff[water] - 3) / 9, 0.6, 1.0)
+    conf[debris] = np.clip(0.6 + 0.4 * (diff[debris] - 3) / 9, 0.6, 1.0)
+    conf[uncertain] = 0.4
+    return classes, conf
+
+
+def classify(pre_db, post_db, slope_deg=None, floor=None):
+    """Return (classes, confidence) arrays. NaN input pixels are class 0.
+
+    With a valley-floor mask the terrain-constrained rules are used; without
+    one, the original rules (absolute darkness for water, a slope limit).
+    """
+    if floor is not None:
+        return classify_on_floor(pre_db, post_db, floor)
     diff = post_db - pre_db
     valid = np.isfinite(pre_db) & np.isfinite(post_db)
     if slope_deg is not None:
