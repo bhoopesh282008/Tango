@@ -23,6 +23,7 @@ import export
 import fetch_dem
 import fetch_osm
 import fetch_s1
+import floodpath
 import infrastructure
 import preprocess_s1 as P
 import segment
@@ -201,6 +202,8 @@ def main():
         'event': args.event, 'method': method,
         'osm_snapshot': C.OSM_SNAPSHOT, 'osm_source': sorted(set(fetch_osm.SOURCES.values())), 'before': scenes.get('pre'), 'after': scenes.get('post'),
     })
+    # The DEM the dashboard's flood-path tool traces on
+    floodpath.export_dem(args.out, [float(v) for v in args.bbox.split(',')])
     print(json.dumps({
         'zones': len(zones),
         'flooded_km2': float(zones.loc[zones['type'].isin(['water', 'debris']), 'area_km2'].sum()),

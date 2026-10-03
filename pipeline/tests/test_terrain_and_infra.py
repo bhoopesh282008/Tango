@@ -176,3 +176,25 @@ def test_synthetic_fixture_zone_is_labelled_and_follows_the_path():
     assert len(zones) == 1 and zones.geometry[0].contains(Point(500100, 3099500))
     assert not zones.geometry[0].contains(Point(500200, 3099500))
     assert 'SYNTHETIC' in dev_fixture.METHOD and 'not a result' in dev_fixture.METHOD
+
+
+def test_export_dem_writes_a_grid_the_dashboard_can_read(tmp_path, monkeypatch):
+    import json
+    import fetch_dem
+
+    seen = {}
+
+    def fake_fetch(crs, xs, ys):
+        seen.update(crs=crs, xs=xs, ys=ys)
+        return np.full((len(ys), len(xs)), 1234.5, 'float32')
+
+    monkeypatch.setattr(fetch_dem, 'fetch', fake_fetch)
+    shape = floodpath.export_dem(tmp_path, [85.0, 28.0, 85.03, 28.06], step=0.01)
+    meta = json.loads((tmp_path / 'dem.json').read_text())
+    cells = np.fromfile(tmp_path / 'dem.bin', '<u2')
+
+    assert shape == (6, 3) and (meta['width'], meta['height']) == (3, 6)
+    assert cells.size == 18 and abs(cells[0] * meta['unit_m'] - 1234.5) < meta['unit_m']
+    # Cell centres, rows from the north.
+    assert seen['crs'] == 'EPSG:4326' and abs(seen['xs'][0] - 85.005) < 1e-9
+    assert seen['ys'][0] > seen['ys'][-1] and abs(seen['ys'][0] - 28.055) < 1e-9

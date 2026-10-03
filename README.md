@@ -13,14 +13,14 @@ This is an educational prototype, not an operational tool.
 | Flood model | Trained on a sample of Kuro Siwo; results in [pipeline/MODEL.md](pipeline/MODEL.md). |
 | Sentinel-1 download, calibration, terrain correction and flood mapping | Written and unit-tested on synthetic data. **Not yet run on a real scene**, so there is no real flood map and no comparison with Copernicus EMS (EMSR927) yet. |
 
-What the system cannot do is listed in the app at `/about` (Method and limitations).
+What the system cannot do is listed in the app at `/about` (Method and limitations). The draft challenge report is [docs/report.md](docs/report.md).
 
 ## Run the dashboard
 
 ```bash
 npm install
 npm run dev      # http://localhost:5173
-npm run test     # 44 tests
+npm run test     # 49 tests
 npm run build
 ```
 
@@ -55,7 +55,7 @@ It needs a free [Copernicus Data Space](https://dataspace.copernicus.eu) account
 | OpenStreetMap | `fetch_osm.py` | Buildings, roads, bridges, health facilities and places as of 27 July 2026 |
 | Damage | `damage.py`, `infrastructure.py` | Features inside water or debris zones; health facilities cut from the road network |
 | Cut-off settlements | `cutoff.py` | Settlements that could reach a hospital by road before the event and no longer can |
-| Flood path (bonus) | `floodpath.py` | Drainage path from any point on the DEM and the settlements along it |
+| Flood path (bonus) | `floodpath.py` | Drainage path from any point on the DEM and the settlements along it; `--export-dem` writes the DEM the dashboard traces on |
 | Validation | `validate.py` | IoU, precision and recall against a reference map; for checking only |
 | Export | `export.py` | The files the dashboard reads |
 | Model | `fetch_kurosiwo.py`, `unet.py`, `train_model.py`, `evaluate_model.py` | Dataset sample, network, training and evaluation |
@@ -126,6 +126,12 @@ To use a real backend, copy `.env.example` to `.env.local` and set `VITE_API_BAS
 
 `type` is `water`, `debris` or `uncertain`. Infrastructure `status` is `operational` or anything else (treated as damaged).
 
+## Flood path
+
+The **Flood path** button on the map traces, from any point you tap, where water would run: it expands outward over the DEM always taking the lowest cell on the frontier, so it follows the valley floor and climbs out of pits. The settlements within 500 m of the path are listed in downstream order. The trace runs in the browser (`src/utils/floodPath.js`) on a 30 m Copernicus DEM, about 3.6 MB, fetched the first time the tool is used: `public/terrain/` for the Trishuli area, or `dem.bin` in the data folder of a pipeline run. It is a drainage line, not a flood model: it gives direction, not depth, width, timing or reach.
+
+For another area, write the DEM with `python pipeline/floodpath.py --export-dem --bbox W,S,E,N --out public/terrain`.
+
 ## Rescue priority
 
 Cut-off settlements are ranked by a 0-100 score (`calculateRescuePriority` in `src/utils/calculations.js`):
@@ -188,7 +194,6 @@ docs/           map library research
 
 - A run on real Sentinel-1 scenes, and with it the EMSR927 comparison and any test of the model in Himalayan terrain.
 - Before/after scene images in the dashboard (the pipeline exports no quicklooks; the viewer lists the scenes instead).
-- The flood path in the dashboard; it is command-line only.
 - Sentinel-2 optical input.
 - A language model behind the copilot: answers are templates filled from the computed figures.
 - Drawing/annotation tool, timeline animation, Shapefile export, live polling, offline tiles / PWA, deployment. PDF export uses the browser print dialog.

@@ -53,7 +53,10 @@ def geoid_undulation(crs, xs, ys, step=100):
 
 def fetch(crs, xs, ys, use_cache=True):
     """Ellipsoid heights (float32, rows follow ys) for the grid."""
-    name = f'dem_{crs.split(":")[1]}_{xs[0]:.0f}_{ys[0]:.0f}_{len(xs)}x{len(ys)}_{xs[1] - xs[0]:.0f}.tif'
+    # Grids in degrees need the decimals to tell them apart; metric grids keep their whole-metre names.
+    digits = 5 if abs(xs[1] - xs[0]) < 1 else 0
+    name = (f'dem_{crs.split(":")[1]}_{xs[0]:.{digits}f}_{ys[0]:.{digits}f}_'
+            f'{len(xs)}x{len(ys)}_{xs[1] - xs[0]:.{digits}f}.tif')
     cache = C.CACHE / 'dem' / name
     transform = grid_transform(xs, ys)
     if use_cache and cache.exists():

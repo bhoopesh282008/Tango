@@ -1,6 +1,6 @@
 import 'maplibre-gl/dist/maplibre-gl.css'
 import '../../config/maplibreWorker'
-import { Copy, Layers, Maximize2, Minimize2, Ruler, SlidersHorizontal, X } from 'lucide-react'
+import { Copy, Layers, Maximize2, Minimize2, Ruler, SlidersHorizontal, Waves, X } from 'lucide-react'
 import { useEffect, useMemo, useRef, useState } from 'react'
 import Map, { Layer, NavigationControl, Popup, ScaleControl, Source } from 'react-map-gl/maplibre'
 import {
@@ -15,9 +15,11 @@ import { useUIStore } from '../../store/uiStore'
 import { filterZones } from '../../utils/calculations'
 import { copyText } from '../../utils/clipboard'
 import { DAMAGE_TYPES, INFRA_TYPES } from '../../utils/constants'
+import { loadTerrain, pathFromPoint, settlementsAlong } from '../../utils/floodPath'
 import { formatLatLng, formatNumber, formatPeople, formatPercent } from '../../utils/formatters'
 import { WORDING } from '../../utils/wording'
 import FilterControls from '../Tools/FilterControls'
+import FloodPathTool, { FloodPathLayer } from '../Tools/FloodPathTool'
 import MeasurementTool, { MeasurementLayer } from '../Tools/MeasurementTool'
 import DamageOverlay from './DamageOverlay'
 import Spinner from '../Common/Spinner'
@@ -78,9 +80,11 @@ function describeInfrastructure(item) {
 
 export default function FloodMap({ data, priority, confidence }) {
   const {
-    zoom, center, baseMap, visibleLayers, filters, measureMode, focus,
-    setMeasureMode, setView, addMeasurePoint,
+    zoom, center, baseMap, visibleLayers, filters, measureMode, pathMode, focus,
+    setMeasureMode, setPathMode, setFloodPath, setView, addMeasurePoint,
   } = useMapStore()
+  // A tool that takes over map clicks is active.
+  const toolActive = !!measureMode || pathMode
   const darkMode = useUIStore((s) => s.darkMode)
   const addToast = useUIStore((s) => s.addToast)
   const [panel, setPanel] = useState(null) // 'layers' | 'filters' | null
@@ -134,6 +138,23 @@ export default function FloodMap({ data, priority, confidence }) {
     setPopup(null)
     setMeasureMode(measureMode ? null : 'distance')
   }
+  const togglePath = () => {
+    setPanel(null)
+    setCoordinate(null)
+    setPopup(null)
+    setPathMode(!pathMode)
+  }
+  // Trace the drainage path from a clicked point; the DEM is fetched on first use.
+  const tracePath = async (lng, lat) => {
+    setFloodPath({ status: 'loading' })
+    const terrain = await loadTerrain()
+    if (!useMapStore.getState().pathMode) return
+    if (!terrain) return setFloodPath({ status: 'unavailable' })
+    const path = pathFromPoint(terrain, lng, lat)
+    setFloodPath(
+      path ? { ...path, settlements: settlementsAlong(path.line, data.settlements) } : { status: 'outside' },
+    )
+  }
   const copyCoordinate = async () => {
     const ok = await copyText(formatLatLng(coordinate))
     addToast(ok ? 'Coordinates copied' : 'Could not copy', ok ? 'success' : 'error')
@@ -143,6 +164,10 @@ export default function FloodMap({ data, priority, confidence }) {
     const { lng, lat } = event.lngLat
     if (measureMode) {
       addMeasurePoint([lng, lat])
+      return
+    }
+    if (pathMode) {
+      tracePath(lng, lat)
       return
     }
     const feature = event.features?.[0]
@@ -172,6 +197,7 @@ export default function FloodMap({ data, priority, confidence }) {
       onClick: () => togglePanel('filters'),
     },
     { id: 'measure', label: 'Measure', icon: Ruler, active: !!measureMode, onClick: toggleMeasure },
+    { id: 'path', label: 'Flood path', icon: Waves, active: pathMode, onClick: togglePath },
   ]
 
   return (
@@ -229,9 +255,9 @@ export default function FloodMap({ data, priority, confidence }) {
           maxZoom={MAP_DEFAULTS.maxZoom}
           mapStyle={mapStyle}
           style={{ width: '100%', height: '100%' }}
-          // While measuring, features must not swallow clicks.
-          interactiveLayerIds={measureMode ? [] : CLICKABLE_LAYERS}
-          cursor={measureMode ? 'crosshair' : hovering ? 'pointer' : 'grab'}
+          // While a tool is active, features must not swallow clicks.
+          interactiveLayerIds={toolActive ? [] : CLICKABLE_LAYERS}
+          cursor={toolActive ? 'crosshair' : hovering ? 'pointer' : 'grab'}
           onClick={handleClick}
           onMouseEnter={() => setHovering(true)}
           onMouseLeave={() => setHovering(false)}
@@ -295,12 +321,13 @@ export default function FloodMap({ data, priority, confidence }) {
             darkBase={darkBase}
           />
           <MeasurementLayer />
+          <FloodPathLayer />
 
           {visibleLayers.infrastructure && (
             <InfrastructureMarkers
               infrastructure={data.infrastructure}
               onSelect={(item) => {
-                if (measureMode) return
+                if (toolActive) return
                 setCoordinate(null)
                 setPopup(describeInfrastructure(item))
               }}
@@ -338,7 +365,8 @@ export default function FloodMap({ data, priority, confidence }) {
 
         <div className="no-print absolute bottom-3 left-3 z-[9] flex flex-col items-start gap-2">
           <MeasurementTool />
-          {coordinate && !measureMode && (
+          <FloodPathTool />
+          {coordinate && !toolActive && (
             <div className="card flex items-center gap-1 py-1 pl-3 pr-1 text-sm shadow-md">
               <span className="font-mono">{formatLatLng(coordinate)}</span>
               <button type="button" className="p-2 text-ink-soft" onClick={copyCoordinate} aria-label="Copy coordinates">

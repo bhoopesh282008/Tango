@@ -73,6 +73,31 @@ def settlements_along(path, crs, settlements, within_m=500):
     return sorted(rows, key=lambda r: r['distance_km'])
 
 
+# The dashboard traces paths in the browser from this file: heights as unsigned
+# 16-bit integers in units of HEIGHT_UNIT metres, row by row from the north-west corner.
+HEIGHT_UNIT = 0.2
+DEM_STEP_DEG = 0.0003   # about 30 m
+
+
+def export_dem(out, bbox, step=DEM_STEP_DEG):
+    """Write dem.bin and dem.json for the dashboard's flood-path tool."""
+    import fetch_dem
+
+    west, south, east, north = bbox
+    xs = west + step * (np.arange(int(round((east - west) / step))) + 0.5)
+    ys = north - step * (np.arange(int(round((north - south) / step))) + 0.5)
+    height = fetch_dem.fetch('EPSG:4326', xs, ys)
+    encoded = np.clip(np.round(height / HEIGHT_UNIT), 0, 65535).astype('<u2')
+    out = Path(out)
+    out.mkdir(parents=True, exist_ok=True)
+    (out / 'dem.bin').write_bytes(encoded.tobytes())
+    (out / 'dem.json').write_text(json.dumps({
+        'west': west, 'north': north, 'step': step, 'width': len(xs), 'height': len(ys),
+        'unit_m': HEIGHT_UNIT, 'source': 'Copernicus DEM GLO-30',
+    }), encoding='utf-8')
+    return encoded.shape
+
+
 def main():
     import fetch_dem
     import fetch_osm
@@ -80,11 +105,17 @@ def main():
     from run import settlements_from_places
 
     ap = argparse.ArgumentParser()
-    ap.add_argument('--point', required=True, help='lon,lat of the release point')
+    ap.add_argument('--point', help='lon,lat of the release point')
+    ap.add_argument('--export-dem', action='store_true', help='write dem.bin / dem.json for the dashboard and stop')
     ap.add_argument('--bbox', required=True, help='W,S,E,N')
     ap.add_argument('--out', default='out')
     args = ap.parse_args()
 
+    if args.export_dem:
+        print('dem grid', export_dem(args.out, [float(v) for v in args.bbox.split(',')]))
+        return
+    if not args.point:
+        ap.error('--point is required unless --export-dem is given')
     lon, lat = (float(v) for v in args.point.split(','))
     crs, xs, ys = P.make_grid([float(v) for v in args.bbox.split(',')], res=30.0)
     path = trace_from_point(fetch_dem.fetch(crs, xs, ys), xs, ys, crs, lon, lat)

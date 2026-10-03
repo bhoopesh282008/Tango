@@ -19,6 +19,8 @@ export const useMapStore = create((set) => ({
   focus: null, // settlement the map should fly to
   measureMode: null, // 'distance' | 'area' | null
   measurePoints: [], // [lng, lat]
+  pathMode: false, // flood-path tool: the next map click starts a trace
+  floodPath: null, // { status } while working or failed, { line, lengthKm, settlements } when traced
 
   setView: (center, zoom) => set({ center, zoom }),
   setBaseMap: (baseMap) => set({ baseMap }),
@@ -33,7 +35,17 @@ export const useMapStore = create((set) => ({
   setHighlightedSettlement: (id) => set({ highlightedSettlement: id }),
   // A new object each time, so asking for the same settlement twice still moves the map.
   focusSettlement: (settlement) => set({ focus: { settlement } }),
-  setMeasureMode: (measureMode) => set({ measureMode, measurePoints: [] }),
+  // The two map tools both take over clicks, so starting one stops the other.
+  setMeasureMode: (measureMode) =>
+    set((state) => ({ measureMode, measurePoints: [], pathMode: measureMode ? false : state.pathMode })),
+  setPathMode: (pathMode) =>
+    set((state) => ({
+      pathMode,
+      floodPath: null,
+      measureMode: pathMode ? null : state.measureMode,
+      measurePoints: pathMode ? [] : state.measurePoints,
+    })),
+  setFloodPath: (floodPath) => set({ floodPath }),
   addMeasurePoint: (p) => set((state) => ({ measurePoints: [...state.measurePoints, p] })),
   clearMeasure: () => set({ measurePoints: [] }),
 }))

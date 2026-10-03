@@ -51,6 +51,10 @@ const LIMITS = [
     'The rescue priority uses only the factors recorded for every cut-off settlement and rescales their weights. On real data that is usually the number of mapped buildings and the share of them in the flood zone, so it should be treated as a starting point for people who know the area.',
   ],
   [
+    'The flood path is a drainage line',
+    'The path traced from a point on the map follows the lowest ground on a 30 m elevation model. It shows which way water would run and which settlements lie along that line. It says nothing about depth, width, timing or how far a flood would reach.',
+  ],
+  [
     'Nepali text',
     'The Nepali wording in the copilot has not been reviewed by a native speaker.',
   ],
