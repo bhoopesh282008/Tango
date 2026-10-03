@@ -1,0 +1,228 @@
+{
+ "test_patches": 1170,
+ "test_events": [
+  147,
+  275,
+  277,
+  279,
+  324,
+  427,
+  470,
+  497,
+  502,
+  554,
+  555,
+  561,
+  1111004,
+  1111005,
+  1111007,
+  1111009,
+  1111011,
+  1111013
+ ],
+ "trained_epoch": 11,
+ "train_patches": 3531,
+ "flood_pixel_share": 0.0774,
+ "model_per_class_iou": {
+  "no water": 0.9308,
+  "permanent water": 0.3723,
+  "flood": 0.6675
+ },
+ "flood": {
+  "all": {
+   "patches": 1170,
+   "model": {
+    "iou": 0.6675,
+    "precision": 0.736,
+    "recall": 0.8775,
+    "f1": 0.8006
+   },
+   "threshold_baseline": {
+    "iou": 0.4387,
+    "precision": 0.7528,
+    "recall": 0.5125,
+    "f1": 0.6098
+   }
+  },
+  "unseen_events": {
+   "patches": 312,
+   "model": {
+    "iou": 0.4597,
+    "precision": 0.5499,
+    "recall": 0.7371,
+    "f1": 0.6299
+   },
+   "threshold_baseline": {
+    "iou": 0.2747,
+    "precision": 0.8051,
+    "recall": 0.2943,
+    "f1": 0.431
+   }
+  },
+  "seen_events": {
+   "patches": 858,
+   "model": {
+    "iou": 0.6908,
+    "precision": 0.7552,
+    "recall": 0.8903,
+    "f1": 0.8172
+   },
+   "threshold_baseline": {
+    "iou": 0.4522,
+    "precision": 0.7504,
+    "recall": 0.5322,
+    "f1": 0.6227
+   }
+  },
+  "steep": {
+   "patches": 36,
+   "model": {
+    "iou": 0.5685,
+    "precision": 0.5773,
+    "recall": 0.9739,
+    "f1": 0.7249
+   },
+   "threshold_baseline": {
+    "iou": 0.0171,
+    "precision": 0.2417,
+    "recall": 0.0181,
+    "f1": 0.0337
+   }
+  },
+  "steep_unseen": {
+   "patches": 0,
+   "model": {
+    "iou": null,
+    "precision": null,
+    "recall": null,
+    "f1": null
+   },
+   "threshold_baseline": {
+    "iou": null,
+    "precision": null,
+    "recall": null,
+    "f1": null
+   }
+  },
+  "flat": {
+   "patches": 1134,
+   "model": {
+    "iou": 0.6682,
+    "precision": 0.7373,
+    "recall": 0.877,
+    "f1": 0.8011
+   },
+   "threshold_baseline": {
+    "iou": 0.4408,
+    "precision": 0.7531,
+    "recall": 0.5153,
+    "f1": 0.6119
+   }
+  }
+ },
+ "test_events_also_in_training": [
+  470,
+  497,
+  502,
+  555,
+  561,
+  1111004,
+  1111005,
+  1111007,
+  1111009,
+  1111011,
+  1111013
+ ],
+ "flood_iou_by_event": {
+  "147": {
+   "patches": 52,
+   "model": 0.1914,
+   "threshold_baseline": 0.1604
+  },
+  "275": {
+   "patches": 26,
+   "model": 0.8187,
+   "threshold_baseline": 0.3319
+  },
+  "277": {
+   "patches": 52,
+   "model": 0.7289,
+   "threshold_baseline": 0.4557
+  },
+  "279": {
+   "patches": 26,
+   "model": 0.1645,
+   "threshold_baseline": 0.0793
+  },
+  "324": {
+   "patches": 26,
+   "model": 0.6897,
+   "threshold_baseline": 0.4929
+  },
+  "427": {
+   "patches": 104,
+   "model": 0.2043,
+   "threshold_baseline": 0.0156
+  },
+  "470": {
+   "patches": 26,
+   "model": 0.5832,
+   "threshold_baseline": 0.4434
+  },
+  "497": {
+   "patches": 26,
+   "model": 0.6605,
+   "threshold_baseline": 0.6028
+  },
+  "502": {
+   "patches": 26,
+   "model": 0.1137,
+   "threshold_baseline": 0.0341
+  },
+  "554": {
+   "patches": 26,
+   "model": 0.4191,
+   "threshold_baseline": 0.1759
+  },
+  "555": {
+   "patches": 26,
+   "model": 0.0133,
+   "threshold_baseline": 0.0
+  },
+  "561": {
+   "patches": 26,
+   "model": 0.7761,
+   "threshold_baseline": 0.297
+  },
+  "1111004": {
+   "patches": 78,
+   "model": 0.7802,
+   "threshold_baseline": 0.0865
+  },
+  "1111005": {
+   "patches": 26,
+   "model": 0.7588,
+   "threshold_baseline": 0.2826
+  },
+  "1111007": {
+   "patches": 78,
+   "model": 0.6004,
+   "threshold_baseline": 0.3128
+  },
+  "1111009": {
+   "patches": 338,
+   "model": 0.6914,
+   "threshold_baseline": 0.5463
+  },
+  "1111011": {
+   "patches": 52,
+   "model": 0.7268,
+   "threshold_baseline": 0.4367
+  },
+  "1111013": {
+   "patches": 156,
+   "model": 0.6682,
+   "threshold_baseline": 0.2543
+  }
+ }
+}

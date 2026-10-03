@@ -27,8 +27,8 @@ const LIMITS = [
     'Radar cannot see slopes that are in layover or shadow, which is a large share of a Himalayan valley. Those pixels are left out, so flooding there is missed. Slopes steeper than 20° are also excluded to limit false alarms.',
   ],
   [
-    'Fixed thresholds, not a trained model',
-    'Water and debris are separated with fixed backscatter thresholds. Wet soil, crops, snow and landslides unrelated to the flood can be mistaken for flood change. The confidence value reflects how far a change exceeds the threshold; it is not a measured accuracy.',
+    'The flood model is untested in mountains',
+    'Water can be mapped by a neural network trained on the Kuro Siwo dataset, or by fixed backscatter thresholds. On Kuro Siwo test floods absent from training the network reached an IoU of 0.46 against 0.27 for the thresholds, with large differences between events. None of that data is Himalayan, so its accuracy in a steep valley is unknown. Debris always comes from the thresholds. Wet soil, crops, snow and unrelated landslides can be mistaken for flood change.',
   ],
   [
     'Not validated',

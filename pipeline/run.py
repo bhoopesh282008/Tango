@@ -40,8 +40,11 @@ def write_raster(path, array, crs, transform):
         dst.write(array.astype('float32'), 1)
 
 
-def prepare_pair(bbox, event, out, res=10.0, pol='vv'):
-    """Raw GRD scenes -> co-registered dB rasters. Returns paths and scene metadata."""
+def prepare_pair(bbox, event, out, res=10.0, pols=('vv',)):
+    """Raw GRD scenes -> co-registered dB rasters. Returns paths and scene metadata.
+
+    paths are keyed 'pre', 'post' (VV), 'pre_vh', 'post_vh' when VH is asked for, and 'slope'.
+    """
     out = Path(out)
     out.mkdir(parents=True, exist_ok=True)
     before, after = fetch_s1.find_pair(bbox, event)
@@ -51,19 +54,21 @@ def prepare_pair(bbox, event, out, res=10.0, pol='vv'):
 
     paths, meta, slope = {}, {}, None
     for label, item in (('pre', before), ('post', after)):
-        scene = download.get_scene(item, pol)
-        ann = P.parse_annotation(scene.product_xml)
-        geo = P.geocode(ann, crs, xs, ys, height)
-        window = P.radar_window(geo, ann)
-        db = P.terrain_correct(download.read_window(scene, window), window, geo,
-                               P.parse_calibration(scene.calibration_xml),
-                               P.parse_noise(scene.noise_xml))
-        paths[label] = out / f'{label}_{pol}_db.tif'
-        write_raster(paths[label], db, crs, transform)
+        for pol in pols:
+            scene = download.get_scene(item, pol)
+            ann = P.parse_annotation(scene.product_xml)
+            geo = P.geocode(ann, crs, xs, ys, height)
+            window = P.radar_window(geo, ann)
+            db = P.terrain_correct(download.read_window(scene, window), window, geo,
+                                   P.parse_calibration(scene.calibration_xml),
+                                   P.parse_noise(scene.noise_xml))
+            key = label if pol == 'vv' else f'{label}_{pol}'
+            paths[key] = out / f'{label}_{pol}_db.tif'
+            write_raster(paths[key], db, crs, transform)
         slope = geo['slope_deg']
         meta[label] = {
             'id': item.id, 'date': item.properties['datetime'][:10],
-            'sensor': f"Sentinel-1 GRD ({pol.upper()})", 'resolution': f'{res:.0f} m',
+            'sensor': f"Sentinel-1 GRD ({'+'.join(p.upper() for p in pols)})", 'resolution': f'{res:.0f} m',
             'relative_orbit': item.properties.get('sat:relative_orbit'),
             'orbit_state': item.properties.get('sat:orbit_state'),
             'geolocation_check_px': P.check_geolocation(ann),
@@ -141,19 +146,34 @@ def main():
     ap.add_argument('--post')
     ap.add_argument('--event', required=True)
     ap.add_argument('--slope', help='optional slope raster (degrees) on the same grid')
+    ap.add_argument('--model', help='trained U-Net checkpoint; without it the threshold baseline is used')
     ap.add_argument('--out', default=str(C.OUT))
     args = ap.parse_args()
 
     scenes = {}
     if not (args.pre and args.post):
-        paths, scenes = prepare_pair(args.bbox, args.event, Path(args.out) / 'rasters')
+        if args.model and not Path(args.model).exists():
+            ap.error(f'model file not found: {args.model}')
+        paths, scenes = prepare_pair(args.bbox, args.event, Path(args.out) / 'rasters',
+                                     pols=('vv', 'vh') if args.model else ('vv',))
         args.pre, args.post, args.slope = str(paths['pre']), str(paths['post']), str(paths['slope'])
+    elif args.model:
+        ap.error('--model needs the VH rasters too, so it cannot be combined with --pre/--post')
 
     pre, transform, crs = read_db(args.pre)
     post, _, _ = read_db(args.post)
     slope = read_db(args.slope)[0] if args.slope else None
 
-    classes, conf = segment.classify(pre, post, slope)
+    if args.model:
+        import predict   # imported here so the baseline runs without PyTorch installed
+        model, device = predict.load_model(args.model)
+        probability = predict.flood_probability(model, device, post, read_db(paths['post_vh'])[0],
+                                                pre, read_db(paths['pre_vh'])[0])
+        classes, conf = predict.classify(probability, pre, post, slope)
+        method = 'U-Net trained on Kuro Siwo (water) + threshold rule (debris)'
+    else:
+        classes, conf = segment.classify(pre, post, slope)
+        method = 'Sentinel-1 change detection (baseline thresholds)'
     zones = segment.vectorise(classes, conf, transform, crs)
 
     osm = fetch_osm.fetch_all(args.bbox)
@@ -171,7 +191,7 @@ def main():
     settlement_rows = settlement_records(settlements, status)
     infra = infrastructure.build(osm['bridges'], osm['health'], roads, zones, settlements)
     export.export_all(args.out, zones, buildings, roads, settlement_rows, infra, {
-        'event': args.event, 'method': 'Sentinel-1 change detection (baseline thresholds)',
+        'event': args.event, 'method': method,
         'osm_snapshot': C.OSM_SNAPSHOT, 'osm_source': sorted(set(fetch_osm.SOURCES.values())), 'before': scenes.get('pre'), 'after': scenes.get('post'),
     })
     print(json.dumps({
