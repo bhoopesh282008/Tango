@@ -31,6 +31,10 @@ Permanent water IoU is 0.37; the model often confuses permanent water with flood
 - **Preprocessing differs.** Kuro Siwo patches come from the dataset authors' processing chain; this pipeline uses its own calibration and terrain correction. The patch values are in the range of linear sigma0 backscatter, which is what this pipeline produces, but differences in filtering and geocoding may reduce accuracy on our rasters.
 - **A sample, not the full dataset.** Training on all 47 GB of training patches would likely do better.
 
+## On the real Trishuli scenes
+
+On the 16 and 28 August 2026 scenes, which the model has never seen, it marks 0.53 km² of water on valley floors; the threshold rule marks 1.62 km², and 0.43 km² is common to both. The model fires where the surface became very dark (median -15 dB after the event), such as a large new dark patch at the Betrawati confluence, and finds nothing in the upper gorge near Rasuwagadhi. There is no reference comparison yet, so this says how the two maps differ, not which is right.
+
 ## Reproduce
 
 ```bash

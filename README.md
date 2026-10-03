@@ -11,8 +11,10 @@ This is an educational prototype, not an operational tool.
 | Dashboard and copilot | Working. Runs on bundled demo data by default, or on the output of a pipeline run. |
 | Pre-event OpenStreetMap, DEM, damage overlay, cut-off analysis, flood-path trace | Run on real data for the Trishuli area. |
 | Flood model | Trained on a sample of Kuro Siwo; results in [pipeline/MODEL.md](pipeline/MODEL.md). |
-| Sentinel-1 download, calibration, terrain correction and flood mapping | Written and unit-tested on synthetic data. **Not yet run on a real scene**, so there is no real flood map and no comparison with Copernicus EMS (EMSR927) yet. |
-| Sentinel-2 optical evidence and the before/after pictures | Written and unit-tested on synthetic data. Not yet run on a real scene. |
+| Sentinel-1 download, calibration, terrain correction and flood mapping | **Run end to end on real scenes** for Trishuli (16 and 28 Aug 2026): 2.6 km² of flood zones, 23 of 149 settlements cut off. **Not validated:** no comparison with Copernicus EMS (EMSR927) yet. |
+| Before/after pictures | Produced from the real scenes and shown in the dashboard. |
+| Sentinel-2 optical evidence | Written and unit-tested on synthetic data. Not yet run on a real scene. |
+| Other areas and dates | Not tried. The pipeline has only run on Trishuli. |
 
 What the system cannot do is listed in the app at `/about` (Method and limitations). The draft challenge report is [docs/report.md](docs/report.md), rendered to [docs/report.pdf](docs/report.pdf) by `docs/build_report.py`.
 
@@ -32,7 +34,7 @@ Python 3.11 to 3.13 (the geospatial packages have no wheels for 3.14 yet). From 
 ```bash
 py -3.13 -m venv pipeline/.venv
 pipeline/.venv/Scripts/python -m pip install -r pipeline/requirements.txt
-pipeline/.venv/Scripts/python -m pytest pipeline/tests     # 46 tests
+pipeline/.venv/Scripts/python -m pytest pipeline/tests     # 50 tests
 ```
 
 For GPU training install PyTorch from its own index first: `pip install torch --index-url https://download.pytorch.org/whl/cu124`.
@@ -44,7 +46,7 @@ cd pipeline
 .venv/Scripts/python run.py --bbox 85.1,27.9,85.5,28.3 --event 2026-08-26 --out ../public/data
 ```
 
-It needs a free [Copernicus Data Space](https://dataspace.copernicus.eu) account. Set the S3 keys from its dashboard as `AWS_ACCESS_KEY_ID` and `AWS_SECRET_ACCESS_KEY` (only the needed window of each scene is read), or `CDSE_USER` and `CDSE_PASSWORD` (whole products are downloaded, about 1.3 GB each). Add `--model models/unet_kurosiwo.pt` to map water with the trained model instead of thresholds, and `--optical` to bring in Sentinel-2 where the sky was clear (S3 keys only).
+It needs a free [Copernicus Data Space](https://dataspace.copernicus.eu) account. Set the S3 keys from its keys manager as `AWS_ACCESS_KEY_ID` and `AWS_SECRET_ACCESS_KEY` (only the needed window of each scene is read; on Windows, `pipeline/set_cdse_keys.ps1` prompts for them and stores them), or `CDSE_USER` and `CDSE_PASSWORD` (whole products are downloaded, about 1.3 GB each). Add `--model models/unet_kurosiwo.pt` to map water with the trained model instead of thresholds, and `--optical` to bring in Sentinel-2 where the sky was clear (S3 keys only).
 
 | Step | File | What it does |
 | --- | --- | --- |
@@ -52,7 +54,8 @@ It needs a free [Copernicus Data Space](https://dataspace.copernicus.eu) account
 | Scene access | `download.py` | Reads the scene window and annotation from the Copernicus Data Space |
 | DEM | `fetch_dem.py` | Copernicus DEM GLO-30 from the AWS open-data bucket, converted to ellipsoid heights |
 | Preprocessing | `preprocess_s1.py` | Calibration to sigma0, thermal-noise removal, Lee speckle filter, Range-Doppler terrain correction, layover and shadow masks |
-| Flood map | `segment.py`, `predict.py` | Threshold change detection (water, debris, uncertain), or the U-Net for water with thresholds for debris |
+| Valley floor | `terrain.py` | Ground within 30 m above and 600 m of a river (pre-event OSM, or DEM-derived channels): where a flood can be |
+| Flood map | `segment.py`, `predict.py` | Change detection on valley floors (water, debris; strong change elsewhere is "uncertain"), or the U-Net for water with the same rule for debris |
 | Optical | `fetch_s2.py` | Sentinel-2 clear-sky composites either side of the event; confirms radar detections and fills radar blind spots (layover, shadow, steep slopes). It never removes a radar detection |
 | Pictures | `quicklook.py` | Before/after PNGs for the dashboard's satellite viewer |
 | OpenStreetMap | `fetch_osm.py` | Buildings, roads, bridges, health facilities and places as of 27 July 2026 |
@@ -195,6 +198,7 @@ docs/           map library research
 
 ## Not built yet
 
-- A run on real Sentinel-1 scenes, and with it the EMSR927 comparison and any test of the model in Himalayan terrain.
+- The EMSR927 comparison, and with it any measure of how accurate the flood map or the model is in Himalayan terrain.
+- A run on any area or date other than the Trishuli case study.
 - A language model behind the copilot: answers are templates filled from the computed figures.
 - Drawing/annotation tool, timeline animation, Shapefile export, live polling, offline tiles / PWA, deployment. PDF export uses the browser print dialog.

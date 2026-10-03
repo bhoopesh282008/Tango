@@ -3,7 +3,7 @@
 Space Track challenge report. Case study: Trishuli flood, Rasuwa, Nepal, 26 August 2026.
 Repository: https://github.com/bhoopesh282008/Tango
 
-> **Draft, 3 October 2026.** Two sections are marked PENDING because the Sentinel-1 stage has not yet been run on real scenes. Everything else reports work that was actually run, with the numbers it produced.
+> **Draft, 3 October 2026.** The pipeline has run end to end on real Sentinel-1 scenes for the Trishuli area. Its flood map has **not yet been compared with the EMSR927 reference**, so every flood figure below is unvalidated. Sections still waiting on that comparison are marked PENDING.
 
 ## 1. What the system does
 
@@ -32,9 +32,9 @@ No published damage map and no post-event OpenStreetMap edit is used as an input
 
 **Scene pair.** The pipeline searches the Copernicus catalogue 20 days either side of the event and keeps only pairs on the same relative orbit and direction, 12 days apart, with the event between them. Scenes from different tracks view the terrain from different angles and cannot be compared pixel by pixel. Among valid pairs it prefers one whose scenes cover the whole area, then the earliest image after the event. For Trishuli three tracks have a valid pair; it selects track 85 ascending, 16 and 28 August 2026, whose post-event image is two days after the flood. Track 19 would give one ten days after, and track 121 covers only 43% of the area.
 
-**Preprocessing, written from scratch without ESA SNAP.** Digital numbers are calibrated to sigma0 with the product's calibration and thermal-noise tables, speckle is reduced with a Lee filter, and the image is terrain-corrected by the Range-Doppler method: for every cell of a 10 m UTM grid the zero-Doppler time is solved on the orbit from the product annotation, the slant range is converted to a ground-range pixel, and the image is sampled there. DEM heights are converted from geoid to ellipsoid first. Cells in layover or shadow are masked. Both scenes are resampled to the same grid, so they are aligned by construction.
+**Preprocessing, written from scratch without ESA SNAP.** Digital numbers are calibrated to sigma0 with the product's calibration and thermal-noise tables, speckle is reduced with a Lee filter, and the image is terrain-corrected by the Range-Doppler method: for every cell of a 10 m UTM grid the zero-Doppler time is solved on the orbit from the product annotation, the slant range is converted to a ground-range pixel, and the image is sampled there. DEM heights are converted from geoid to ellipsoid first. Cells in layover or shadow are masked. Both scenes are resampled to the same grid, so they are aligned by construction. On the real scenes the result reproduces the product's own geolocation grid to 0.03 pixels, and the geocoded image correlates 0.80 with brightness simulated from the DEM, best at zero shift. Getting there needed one correction found only on real data: the product's slant-to-ground conversion records are not exact at their stated times, and using them as stamped misplaced pixels by up to 57 m.
 
-**Flood map.** Two methods. The baseline compares backscatter: a pixel that is dark after the event (below -18 dB) and dropped by more than 3 dB is water; a rise of more than 3 dB is debris; weaker change is "uncertain". Slopes above 20 degrees are excluded. The alternative uses the trained model for water (section 4) and the same rule for debris.
+**Flood map.** A flood fills valley floors, so change counts as flood only on ground within 30 m above and 600 m of a river (from pre-event OpenStreetMap, or from DEM-derived channels where no river is mapped). There, a drop of more than 3 dB is water or wet sediment and a rise of more than 3 dB is debris. Elsewhere only strong change (4.5 dB) over at least a hectare is kept, as "uncertain". The first version required water to be darker than -18 dB; on the real scenes only 5% of darkened river pixels are that dark, because a river tens of metres wide in a gorge never looks like open water at 10 m. The 30 m and 600 m limits are our assumptions; they were not tuned against any reference map. The alternative method uses the trained model for water (section 4) and the same rule for debris.
 
 **Optical evidence.** With `--optical` the pipeline adds Sentinel-2. In monsoon most passes are cloudy, so it builds per-pixel composites: the latest clear look before the event and the earliest clear look after it, rejecting cloud, shadow and snow with the scene classification layer. New water is a water index (MNDWI) that turns positive; debris is vegetation (NDVI) that disappears. Optical never removes a radar detection. Where both agree the confidence is raised; where radar cannot see (layover, shadow, slopes above 20 degrees) an optical detection is taken at lower confidence; where radar saw nothing and optical finds change, the pixel is marked "uncertain".
 
@@ -60,13 +60,26 @@ A small U-Net (7.8 million weights) labels each pixel as no water, permanent wat
 
 **How to read this.** 11 of the 18 test activations also occur in the training sample, as other areas of the same flood. The first row is therefore the honest "never seen" figure. On those seven floods the IoU ranges from 0.16 to 0.82, and three are at about 0.20 or below. The model beats the threshold rule in every row, mostly by finding more of the flood (recall 0.74 against 0.29 on unseen floods) at the cost of more false alarms (precision 0.55 against 0.81).
 
-**Himalayan scenes: PENDING.** The brief asks how the model performs on Himalayan scenes it has never seen. We cannot answer that yet. Almost none of the sample is mountainous: only 36 test patches have more than 300 m of relief, and all of them come from floods also present in training. The answer needs the Trishuli run compared against EMSR927.
+**Himalayan scenes: PENDING a reference.** Almost none of the Kuro Siwo sample is mountainous: only 36 test patches have more than 300 m of relief, all from floods also present in training. On the real Trishuli scenes, which the model has never seen, it marks 0.53 km² of water on valley floors against 1.62 km² for the threshold rule, and 0.43 km² is common to both. The model fires where the surface became very dark (median -15 dB after the event): a large new dark patch at the Betrawati confluence and parts of the channel below it. It finds nothing in the upper gorge near Rasuwagadhi, where much of the valley is in radar layover or shadow. Without the EMSR927 comparison we cannot say which map is closer to the truth; the area where both agree is the most reliable part.
 
 ## 5. Results for the Trishuli area
 
-**Flood and damage map: PENDING.** The Sentinel-1 and Sentinel-2 stages have been unit-tested on synthetic data (orbit geometry, calibration, layover and shadow on synthetic slopes, optical indices and fusion) but have not been run on a real scene. There is no real flood map, no damage count and no comparison with EMSR927 in this draft.
+**Flood and damage map (unvalidated).** Scenes: Sentinel-1D, track 85 ascending, 16 and 28 August 2026. The whole run, from scene search to dashboard files, takes about four and a half minutes on a laptop.
 
-What has been run on real data:
+| | Threshold rule | Model for water |
+|---|---|---|
+| Water or wet sediment | 1.62 km² | 0.53 km² |
+| Debris (same rule in both) | 0.89 km² | 0.89 km² |
+| Buildings in a flood zone | 672 of 85,186 | 154 |
+| Road segments in a flood zone | 121 of 2,059 | 56 |
+| Bridges in a flood zone | 14 of 192 | 7 |
+| Settlements cut off | 23 of 149 | 14 |
+
+The valley floor is 2.8% of the area and 7% of the scene is lost to layover and shadow. Within 100 m of rivers the share of pixels that changed by more than 3 dB is about twice the share elsewhere, so the corridor signal is real, but part of it may be ordinary change in a monsoon river between two dates.
+
+**Comparison with EMSR927: PENDING.** Not yet done; the comparison code (`validate.py`) reports IoU, precision and recall.
+
+Other results on real data:
 
 | Item | Result |
 |---|---|
@@ -74,10 +87,9 @@ What has been run on real data:
 | Settlements with a road route to a hospital before the event | 84 of 149; the other 65 are "access unknown" |
 | Settlements with a population in OpenStreetMap | 1 of 149 |
 | DEM | 440 m to 6,888 m; spot heights match known values (Dhunche 2,018 m, Betrawati 617 m) |
-| Area under 20 degrees of slope | 14.6% |
 | Flood path from Rasuwagadhi | 59.9 km down the Trishuli; median 13 m from the OpenStreetMap river line, 90% within 42 m |
 
-Two of these shape what the system can say. With population recorded for one settlement, the dashboard reports mapped buildings instead of people and does not convert one into the other. With 14.6% of the area under 20 degrees, most of the scene is outside what the threshold classifier will consider.
+With population recorded for one settlement, the dashboard reports mapped buildings instead of people and does not convert one into the other.
 
 ## 6. Dashboard and situation report
 
@@ -92,13 +104,14 @@ By default the dashboard opens on a bundled demo dataset, labelled "Demo data", 
 ## 7. Limitations
 
 - **No early warning.** Sentinel-1 returns to the same track every 12 days. The system maps a flood after the next pass; it cannot warn of a glacier collapse or a flood in progress. For Trishuli the earliest usable post-event scene is two days after the event.
-- **Cloud.** Of the six Sentinel-2 passes covering the area in the three weeks after the event, the catalogue lists the main tile as 55% to 88% cloudy on every one. Optical evidence will be patchy, and where it comes from a later pass the water may already have receded.
-- **Steep terrain.** Radar cannot see slopes in layover or shadow, and the classifier excludes slopes above 20 degrees. In this valley that leaves a small share of the area, mostly the valley floor.
-- **The flood map is unvalidated.** See section 5.
-- **The model is untested in mountains** and has no debris class. Debris always comes from fixed thresholds, which can also fire on wet soil, crops, snow and unrelated landslides.
+- **Optical is untested.** The Sentinel-2 step has not been run on real scenes. Of the six Sentinel-2 passes covering the area in the three weeks after the event, the catalogue lists the main tile as 55% to 88% cloudy on every one. Optical evidence will be patchy, and where it comes from a later pass the water may already have receded.
+- **Steep terrain.** Radar cannot see slopes in layover or shadow. In the upper gorge near Rasuwagadhi, where this flood began, much of the valley is hidden and little is detected.
+- **The flood map is unvalidated.** See section 5. The two methods differ by a factor of three in water area.
+- **Valley floors only.** Flood classes are limited to ground near a mapped river, using limits we chose. A debris flow down an unmapped gully is at best marked "uncertain".
+- **The model is unvalidated in mountains** and has no debris class. Debris always comes from fixed thresholds, which can also fire on wet soil, crops, snow and unrelated landslides.
 - **Damage is an overlap.** A building in a flood zone is counted whether or not it was damaged; one destroyed outside the mapped zone is not. At 10 m, single houses are not resolved.
 - **OpenStreetMap is incomplete.** Footpaths and small settlements may be missing; 65 of 149 settlements have no mapped road. Building counts stand in for population, each building is assigned to the nearest named place, and not every building is a home. Multipolygon buildings are skipped.
-- **Road cuts are coarse.** A road segment touching a flood zone is removed whole, so some settlements may be reported cut off when a way through exists, and the reverse. Most of the 14 mapped "hospitals" are unnamed and are probably health posts, which makes the cut-off test easier to pass than it should be.
+- **Road cuts are coarse.** A road segment touching a flood zone is removed whole, and its whole length is counted, so some settlements may be reported cut off when a way through exists, and the reverse. Most of the 14 mapped "hospitals" are unnamed and are probably health posts, which makes the cut-off test easier to pass than it should be.
 - **The flood path is a drainage line.** It gives direction, not depth, width, timing or reach.
 - **The preprocessing is simplified.** Orbit data comes from the product, not precise orbit files; there is no radiometric terrain flattening; only the range part of the noise tables is applied.
 - **Nepali text** was written without review by a native speaker.

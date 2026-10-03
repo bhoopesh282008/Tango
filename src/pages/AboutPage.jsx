@@ -5,7 +5,7 @@ import { ATTRIBUTION } from '../utils/constants'
 const METHOD = [
   [
     'Where the flood hit',
-    'Two Sentinel-1 radar scenes from the same orbit track, one before and one after the event, are calibrated, corrected for terrain with the Copernicus DEM and compared pixel by pixel. A strong drop in backscatter over a dark surface is mapped as water, a strong rise as debris, and a weaker change as uncertain.',
+    'Two Sentinel-1 radar scenes from the same orbit track, one before and one after the event, are calibrated, corrected for terrain with the Copernicus DEM and compared pixel by pixel. On valley floors, meaning ground within 30 m above and 600 m of a mapped river, a strong drop in backscatter is mapped as water or wet sediment and a strong rise as debris. Strong change over a large area anywhere else is marked uncertain.',
   ],
   [
     'Optical images, where the sky is clear',
@@ -28,7 +28,7 @@ const LIMITS = [
   ],
   [
     'Steep terrain',
-    'Radar cannot see slopes that are in layover or shadow, which is a large share of a Himalayan valley. Those pixels are left out, so flooding there is missed. Slopes steeper than 20° are also excluded to limit false alarms.',
+    'Radar cannot see slopes that are in layover or shadow. Those pixels are left out, so flooding there is missed; in a narrow gorge that can be most of the valley. Flood classes are also limited to valley floors, using height and distance limits chosen by us, so a debris flow down a gully with no mapped river is at best marked uncertain.',
   ],
   [
     'The flood model is untested in mountains',
@@ -36,7 +36,7 @@ const LIMITS = [
   ],
   [
     'Not validated',
-    'The flood map has not yet been compared with the Copernicus Emergency Management Service reference for this event (EMSR927), so its accuracy is unknown.',
+    'The flood map has not yet been compared with the Copernicus Emergency Management Service reference for this event (EMSR927), so its accuracy is unknown. Some of the mapped change may be ordinary variation in a monsoon river between two dates.',
   ],
   [
     'Damage is an overlap, not an inspection',
