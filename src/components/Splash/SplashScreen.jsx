@@ -1,11 +1,12 @@
 import { Check } from 'lucide-react'
+import { useState } from 'react'
 import { USE_MOCK } from '../../config/apiConfig'
 import { useDamageData } from '../../hooks/useDamageData'
 import { useCopilotStore } from '../../store/copilotStore'
 import { imageryDates } from '../../utils/calculations'
 import { APP, EVENT } from '../../utils/constants'
 import { formatDate } from '../../utils/formatters'
-import SpaceScene from './SpaceScene'
+import SpaceScene, { sceneAllowed } from './SpaceScene'
 
 // The checklist is the loading indicator: each line is ticked when its datasets
 // have actually arrived (see DATA_PARTS in useDamageData).
@@ -61,13 +62,17 @@ export default function SplashScreen({ onReady }) {
   const setLanguage = useCopilotStore((s) => s.setLanguage)
 
   const t = TEXT[language] ?? TEXT.en
+  // On a phone the text sits high to leave the Earth room below; with no 3D scene it is centred.
+  const [scene] = useState(sceneAllowed)
   const ready = data.loaded
   const imageryDate = imageryDates(data.satelliteData).after
 
   return (
     <div
       lang={language === 'np' ? 'ne' : 'en'}
-      className="relative isolate flex min-h-[100dvh] flex-col items-center justify-center bg-[#0f0f1e] px-5 py-16 text-center text-white"
+      className={`relative isolate flex min-h-[100dvh] flex-col items-center bg-[#0f0f1e] px-5 pb-16 text-center text-white sm:justify-center sm:pt-16 lg:items-start lg:pl-[6vw] lg:text-left ${
+        scene ? 'justify-start pt-[20vh]' : 'justify-center pt-16'
+      }`}
     >
       <SpaceScene />
 
@@ -91,14 +96,14 @@ export default function SplashScreen({ onReady }) {
         ))}
       </div>
 
-      <div className="flex w-full max-w-md flex-col items-center">
-        <h1 className="text-5xl font-bold leading-none tracking-[2px] text-[#ff6b6b] [text-shadow:0_2px_10px_rgba(0,0,0,0.8)] sm:text-[64px]">
+      <div className="flex w-full max-w-md flex-col items-center lg:max-w-sm lg:items-start xl:max-w-md">
+        <h1 className="text-5xl font-bold leading-none tracking-tight text-[#ff6b6b] [text-shadow:0_2px_10px_rgba(0,0,0,0.8)] sm:text-[64px] lg:text-7xl">
           {APP.name}
         </h1>
-        <p className="mt-3 text-base text-white [text-shadow:0_1px_5px_rgba(0,0,0,0.7)] sm:text-lg">{t.subtitle}</p>
+        <p className="mt-3 text-base font-medium text-white [text-shadow:0_1px_5px_rgba(0,0,0,0.7)] sm:text-lg lg:text-xl">{t.subtitle}</p>
         <p className="mt-2 text-sm italic text-[#c0c0c0] [text-shadow:0_1px_5px_rgba(0,0,0,0.7)]">{t.tagline}</p>
 
-        <ul className="mt-8 flex flex-col gap-2.5 rounded-lg border border-[rgba(255,107,107,0.2)] bg-[rgba(26,26,46,0.55)] px-6 py-4 text-left backdrop-blur-md">
+        <ul className="mt-6 flex flex-col gap-2.5 rounded-xl border border-white/10 bg-[rgba(18,18,36,0.6)] px-6 py-4 text-left shadow-[inset_0_1px_0_rgba(255,255,255,0.06)] backdrop-blur-md sm:mt-8">
           {SOURCES.map((source) => {
             const done = source.parts.every((part) => data.loadedParts[part])
             return (
@@ -117,7 +122,7 @@ export default function SplashScreen({ onReady }) {
           })}
         </ul>
 
-        <p className="mt-6 text-sm text-[#d0d0d0] [text-shadow:0_1px_5px_rgba(0,0,0,0.7)]" role="status">
+        <p className="mt-5 text-sm text-[#d0d0d0] [text-shadow:0_1px_5px_rgba(0,0,0,0.7)] sm:mt-6" role="status">
           {error ? t.failed : ready ? t.ready : t.loading}
         </p>
 
@@ -128,7 +133,7 @@ export default function SplashScreen({ onReady }) {
               type="button"
               autoFocus
               onClick={onReady}
-              className="h-12 w-full rounded-lg bg-gradient-to-br from-[#ff6b6b] to-[#ff8800] px-10 text-[15px] font-bold text-[#1a1a1a] shadow-[0_8px_24px_rgba(255,107,107,0.4)] transition hover:-translate-y-0.5 sm:w-auto"
+              className="h-12 w-full rounded-lg bg-gradient-to-br from-[#ff6b6b] to-[#ff8800] px-10 text-[15px] font-bold text-[#1a1a1a] shadow-[0_6px_18px_rgba(3,3,10,0.55)] transition duration-150 hover:-translate-y-0.5 hover:brightness-105 active:translate-y-0 active:scale-[0.98] sm:w-auto"
             >
               {t.start}
             </button>
@@ -144,7 +149,7 @@ export default function SplashScreen({ onReady }) {
           )}
         </div>
 
-        <p className="mt-10 text-[11px] leading-relaxed text-[#b0b0b0] [text-shadow:0_1px_3px_rgba(0,0,0,0.7)]">
+        <p className="mt-6 text-[11px] leading-relaxed text-[#c4c8d4] [text-shadow:0_1px_2px_rgba(0,0,0,0.95),0_0_8px_rgba(0,0,0,0.9)] sm:mt-10">
           {imageryDate ? `${t.imagery}: ${formatDate(imageryDate)} · ` : ''}
           {EVENT.location}
           {USE_MOCK && <span className="font-semibold text-[#ffcc00]"> · {t.demo}</span>}

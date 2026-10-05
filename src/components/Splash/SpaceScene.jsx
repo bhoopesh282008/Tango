@@ -10,7 +10,7 @@ const STAR_MAP = '/images/starmap.webp'
 
 // On slow or metered connections only the star map is shown, so nothing delays the data.
 // The 3D parts also need WebGL2, which some older devices lack.
-function sceneAllowed() {
+export function sceneAllowed() {
   if (typeof navigator === 'undefined') return false
   const connection = navigator.connection
   if (connection?.saveData) return false
@@ -22,13 +22,21 @@ function sceneAllowed() {
   }
 }
 
+// From this width the text sits in a column on the left and the scene takes the right.
+// Must match the `lg` breakpoint used by SplashScreen.
+const SPLIT_FROM = 1025
+// Right edge of that text column: its left padding (6vw) plus its width (max-w-sm, max-w-md from xl).
+const textColumnEnd = (width) => width * 0.06 + (width < 1280 ? 384 : 448)
+
 // Where the planet and the satellite sit, in pixels, for a given window size.
 function layout(width, height) {
   const narrow = width < 640
+  const split = width >= SPLIT_FROM
   // Both are kept wholly inside the frame, with a margin.
   let planet
   if (narrow) {
-    const diameter = Math.min(width * 0.92, height * 0.5)
+    // Low and small enough that the button above it stays on the sky, not on the Earth.
+    const diameter = Math.min(width * 0.92, height * 0.36)
     planet = { x: width * 0.5, y: height - diameter / 2 - 12, diameter }
   } else {
     // No wider than about half the window, so there is room to sit it to the right.
@@ -37,11 +45,22 @@ function layout(width, height) {
     planet = { x: Math.min(width * 0.82, width - diameter / 2 - 16), y: height * 0.57, diameter }
   }
 
-  const size = narrow ? 170 : Math.min(width, height) * 0.34
+  if (split) {
+    // Above the Earth's upper-left limb, clear of the text column.
+    const size = Math.min(width, height) * 0.26
+    const satellite = {
+      x: Math.max(planet.x - planet.diameter * 0.5, textColumnEnd(width) + size / 2 + 24),
+      y: Math.max(size / 2 + 16, planet.y - planet.diameter * 0.62),
+      size,
+    }
+    return { planet, satellite }
+  }
+
+  const size = narrow ? 150 : Math.min(width, height) * 0.34
   // Upper left, but never so far right that a wing runs under the centred title.
   const beforeTitle = width / 2 - 150 - size / 2
   const satellite = narrow
-    ? { x: size / 2 + 16, y: height * 0.13, size }
+    ? { x: size / 2 + 12, y: height * 0.1, size }
     : { x: Math.max(size / 2 + 24, Math.min(width * 0.2, beforeTitle)), y: height * 0.2, size }
   return { planet, satellite }
 }
