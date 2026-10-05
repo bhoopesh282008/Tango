@@ -1,3 +1,4 @@
+import { filePrefix } from '../config/run'
 import { useCallback, useEffect, useRef } from 'react'
 import { askFreeText, askQuestion, generateReport } from '../services/copilotService'
 import { downloadBlob } from '../services/exportService'
@@ -85,7 +86,7 @@ export function useCopilot(stats) {
     if (!latestAnswer) return
     downloadBlob(
       latestAnswer.answer,
-      `trishuli-${latestAnswer.kind}-${latestAnswer.language}.txt`,
+      `${filePrefix()}-${latestAnswer.kind}-${latestAnswer.language}.txt`,
       'text/plain;charset=utf-8',
     )
     addToast('Report downloaded')

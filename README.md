@@ -23,7 +23,7 @@ What the system cannot do is listed in the app at `/about` (Method and limitatio
 ```bash
 npm install
 npm run dev      # http://localhost:5173
-npm run test     # 60 tests
+npm run test     # 64 tests
 npm run build
 ```
 
@@ -34,17 +34,29 @@ Python 3.11 to 3.13 (the geospatial packages have no wheels for 3.14 yet). From 
 ```bash
 py -3.13 -m venv pipeline/.venv
 pipeline/.venv/Scripts/python -m pip install -r pipeline/requirements.txt
-pipeline/.venv/Scripts/python -m pytest pipeline/tests     # 62 tests
+pipeline/.venv/Scripts/python -m pytest pipeline/tests     # 64 tests
 ```
 
 For GPU training install PyTorch from its own index first: `pip install torch --index-url https://download.pytorch.org/whl/cu124`.
 
-A full run takes an area and a flood date:
+A full run takes an area and a flood date, and `--publish` puts the result in the dashboard:
 
 ```bash
 cd pipeline
-.venv/Scripts/python run.py --bbox 85.1,27.9,85.5,28.3 --event 2026-08-26 --out ../public/data
+.venv/Scripts/python run.py --bbox 85.1,27.9,85.5,28.3 --event 2026-08-26 --out out/trishuli --name "Trishuli corridor, Rasuwa" --publish
 ```
+
+### Any area, any date
+
+The system is built to be run on an area and date chosen on the day:
+
+1. Pick the bounding box as `west,south,east,north` in degrees and the flood date.
+2. Run the command above with them, a new `--out` folder and a `--name`. Without `--name` the area is named after its largest mapped settlement.
+3. Reload the dashboard. The new area opens first, and the selector in the header switches between every published area.
+
+Each published area lives in `public/data/<id>/` and is listed in `public/data/runs.json` (`publish.py`). The title, map view, statistics, before/after pictures, copilot answers, one-page situation report and flood-path terrain all follow the selected area. What stays tied to the Trishuli case study: the bundled demo data, six district labels on the map, and the wording of the Method and limitations page. `python publish.py <run folder> --name "..."` publishes a run made earlier.
+
+A first run on a new area downloads its scenes, elevation and OpenStreetMap snapshot: about 4.5 minutes for the first area; the second needed a retry because the OpenStreetMap service timed out. A re-run reuses the rasters and takes about a minute. Only two areas, both on the Trishuli, have been run so far, so a different valley or date is untested.
 
 It needs a free [Copernicus Data Space](https://dataspace.copernicus.eu) account. Set the S3 keys from its keys manager as `AWS_ACCESS_KEY_ID` and `AWS_SECRET_ACCESS_KEY` (only the needed window of each scene is read; on Windows, `pipeline/set_cdse_keys.ps1` prompts for them and stores them), or `CDSE_USER` and `CDSE_PASSWORD` (whole products are downloaded, about 1.3 GB each). Add `--model models/unet_kurosiwo.pt` to map water with the trained model instead of thresholds, and `--optical` to bring in Sentinel-2 where the sky was clear (S3 keys only).
 
@@ -62,6 +74,7 @@ It needs a free [Copernicus Data Space](https://dataspace.copernicus.eu) account
 | Damage | `damage.py`, `infrastructure.py` | Features inside water or debris zones; health facilities cut from the road network |
 | Cut-off settlements | `cutoff.py` | Settlements that could reach a hospital by road before the event and no longer can |
 | Flood path (bonus) | `floodpath.py` | Drainage path from any point on the DEM and the settlements along it; `--export-dem` writes the DEM the dashboard traces on |
+| Publishing | `publish.py` | Copies a run's dashboard files to `public/data/<id>/` and lists it in `runs.json` for the dashboard's area selector |
 | Validation | `validate.py` | Compares a run with extracted Copernicus EMS products, per reference area: flood extent (IoU, precision, recall), buildings, roads and bridges. For checking only: `python validate.py out/trishuli cache/reference_emsr927` |
 | Export | `export.py` | The files the dashboard reads |
 | Model | `fetch_kurosiwo.py`, `unet.py`, `train_model.py`, `evaluate_model.py` | Dataset sample, network, training and evaluation |
@@ -202,4 +215,4 @@ docs/           map library research
 - A scene-pair rule that accepts an almost complete image. For the second area it chose an image ten days after the flood over one two days after that covers 99% of the area.
 - A run on any area or date other than the Trishuli case study.
 - A language model behind the copilot: answers are templates filled from the computed figures.
-- Drawing/annotation tool, timeline animation, Shapefile export, live polling, offline tiles / PWA, deployment. PDF export uses the browser print dialog.
+- Drawing/annotation tool, timeline animation, Shapefile export, live polling, offline tiles / PWA, deployment. The one-page situation report (`/report`) is saved as PDF through the browser print dialog.

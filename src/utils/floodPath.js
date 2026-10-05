@@ -4,10 +4,11 @@
 // floor and climbs out of pits instead of stopping in them. It ends where the
 // path leaves the grid. This is a drainage line, not a flood model.
 import { length, lineString, nearestPointOnLine, point } from '@turf/turf'
-import { DATA_MODE, DATA_URL } from '../config/apiConfig'
+import { DATA_MODE } from '../config/apiConfig'
+import { runBase } from '../config/run'
 
 // A pipeline run carries its own DEM; otherwise the one bundled for the case-study area is used.
-const TERRAIN_URL = DATA_MODE === 'pipeline' ? DATA_URL : '/terrain'
+const terrainUrl = () => (DATA_MODE === 'pipeline' ? runBase() : '/terrain')
 const KM = { units: 'kilometers' }
 
 let terrainRequest = null
@@ -16,8 +17,8 @@ let terrainRequest = null
 export function loadTerrain() {
   terrainRequest ??= (async () => {
     try {
-      const meta = await fetch(`${TERRAIN_URL}/dem.json`)
-      const cells = await fetch(`${TERRAIN_URL}/dem.bin`)
+      const meta = await fetch(`${terrainUrl()}/dem.json`)
+      const cells = await fetch(`${terrainUrl()}/dem.bin`)
       if (!meta.ok || !cells.ok) return null
       const info = await meta.json()
       const heights = new Uint16Array(await cells.arrayBuffer())

@@ -277,3 +277,45 @@ def test_classification_on_the_floor_keeps_floods_and_drops_slope_speckle():
     # Without a floor mask the original rules still apply, and reject this water as not dark enough.
     old, _ = segment.classify(pre, post)
     assert (old[22:38, 43:47] != C.CLASS_WATER).all()
+
+
+def test_publish_copies_a_run_and_lists_it_newest_first(tmp_path):
+    import json
+
+    import publish
+
+    def make_run(folder, area):
+        folder.mkdir()
+        (folder / 'satellite.json').write_text(json.dumps({
+            'event': '2026-08-26', 'area': area, 'before': {'date': '2026-08-16'}, 'after': {'date': '2026-08-28'}}),
+            encoding='utf-8')
+        (folder / 'flood_zones.geojson').write_text('{}', encoding='utf-8')
+        (folder / 'before.png').write_bytes(b'png')
+        (folder / 'rasters').mkdir()
+        (folder / 'rasters' / 'pre_vv_db.tif').write_bytes(b'big')
+
+    target = tmp_path / 'data'
+    make_run(tmp_path / 'a', {'name': 'Bidur area', 'bbox': [84.9, 27.75, 85.25, 28.02]})
+    make_run(tmp_path / 'b', {'bbox': [85.1, 27.9, 85.5, 28.3]})
+    first = publish.publish(tmp_path / 'a', target=target)
+    second = publish.publish(tmp_path / 'b', 'Trishuli corridor, Rasuwa, Nepal', target=target)
+
+    assert first['id'] == 'bidur-area' and second['id'] == 'trishuli-corridor-rasuwa-nepal'
+    assert (target / 'bidur-area' / 'before.png').exists()
+    assert not (target / 'bidur-area' / 'rasters').exists()              # rasters are not published
+    published = json.loads((target / second['id'] / 'satellite.json').read_text(encoding='utf-8'))
+    assert published['area'] == {'bbox': [85.1, 27.9, 85.5, 28.3], 'name': 'Trishuli corridor, Rasuwa, Nepal'}
+    runs = json.loads((target / 'runs.json').read_text(encoding='utf-8'))
+    assert [r['id'] for r in runs] == [second['id'], first['id']]         # newest first
+    assert runs[0]['after'] == '2026-08-28' and runs[1]['bbox'] == [84.9, 27.75, 85.25, 28.02]
+    publish.publish(tmp_path / 'a', target=target)                        # publishing again moves it up, no duplicate
+    assert [r['id'] for r in json.loads((target / 'runs.json').read_text(encoding='utf-8'))] == [first['id'], second['id']]
+
+
+def test_default_area_name_is_the_settlement_with_most_buildings():
+    settlements = gpd.GeoDataFrame({'id': ['s1', 's2'], 'name': ['Dhunche', 'Bidur']},
+                                   geometry=[Point(85.3, 28.1), Point(85.16, 27.9)], crs='EPSG:4326')
+    buildings = gpd.GeoDataFrame({'settlement_id': ['s2', 's2', 's1']},
+                                 geometry=[Point(0, 0)] * 3, crs='EPSG:4326')
+    assert run.default_area_name(buildings, settlements) == 'Bidur area'
+    assert run.default_area_name(buildings.iloc[:0], settlements) is None

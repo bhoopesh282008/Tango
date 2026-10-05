@@ -338,9 +338,40 @@ li {
   }
 }
 
+/* The situation report is one sheet of A4 */
+@page {
+  size: A4;
+  margin: 10mm;
+}
+
 @media print {
   .no-print {
     display: none !important;
+  }
+  /* On the report page only the sheet itself is printed */
+  :root[data-page='report'] .app-header,
+  :root[data-page='report'] footer:not(.report-sheet footer) {
+    display: none;
+  }
+  :root[data-page='report'] main {
+    padding: 0;
+    max-width: none;
+  }
+  /* Paper is white whichever theme is on screen */
+  :root[data-page='report'][data-theme] {
+    --bg-primary: #ffffff;
+    --bg-secondary: #ffffff;
+    --surface-2: #f0f1f3;
+    --border: #c9ccd2;
+    --text-primary: #101216;
+    --text-secondary: #444a54;
+    --text-muted: #555b66;
+    --warning: #b88a00;
+    color-scheme: light;
+  }
+  .report-sheet {
+    border: 0;
+    padding: 0;
   }
   body {
     background: #ffffff;

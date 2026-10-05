@@ -88,9 +88,11 @@ function describeInfrastructure(item) {
 
 export default function FloodMap({ data, settlementRows, priority, confidence }) {
   const {
-    zoom, center, baseMap, visibleLayers, filters, measureMode, pathMode, focus,
+    zoom, center, viewSet, baseMap, visibleLayers, filters, measureMode, pathMode, focus,
     setMeasureMode, setPathMode, setFloodPath, setView, addMeasurePoint,
   } = useMapStore()
+  // [west, south, east, north] of the run on screen, when the run records it
+  const areaBox = data.satelliteData?.area?.bbox
   // A tool that takes over map clicks is active.
   const toolActive = !!measureMode || pathMode
   const darkMode = useUIStore((s) => s.darkMode)
@@ -258,7 +260,12 @@ export default function FloodMap({ data, settlementRows, priority, confidence })
         {mapStyle && (
         <Map
           ref={mapRef}
-          initialViewState={{ longitude: center.lng, latitude: center.lat, zoom }}
+          initialViewState={
+            // First showing: fit the area the run covers. After that: where the user left it.
+            areaBox && !viewSet
+              ? { bounds: [areaBox.slice(0, 2), areaBox.slice(2)], fitBoundsOptions: { padding: 24 } }
+              : { longitude: center.lng, latitude: center.lat, zoom }
+          }
           minZoom={MAP_DEFAULTS.minZoom}
           maxZoom={MAP_DEFAULTS.maxZoom}
           mapStyle={mapStyle}

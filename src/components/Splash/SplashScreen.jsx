@@ -151,7 +151,7 @@ export default function SplashScreen({ onReady }) {
 
         <p className="mt-6 text-[11px] leading-relaxed text-[#c4c8d4] [text-shadow:0_1px_2px_rgba(0,0,0,0.95),0_0_8px_rgba(0,0,0,0.9)] sm:mt-10">
           {imageryDate ? `${t.imagery}: ${formatDate(imageryDate)} · ` : ''}
-          {EVENT.location}
+          {data.satelliteData.area?.name ?? data.run?.name ?? EVENT.location}
           {USE_MOCK && <span className="font-semibold text-[#ffcc00]"> · {t.demo}</span>}
           <span className="block" lang="en">
             Earth imagery, star map and satellite model: NASA

@@ -87,7 +87,7 @@ const en = {
   'flood-extent': (s) => {
     const worst = [...s.settlementRows].sort((a, b) => b.damaged - a.damaged).slice(0, 3)
     return [
-      `Flood impact covers ${n(s.floodedAreaKm2, 1)} km² along the Trishuli corridor (Sentinel-1 change detection${period(s)}).`,
+      `Flood impact covers ${n(s.floodedAreaKm2, 1)} km² ${s.areaName ? `in ${s.areaName}` : 'along the Trishuli corridor'} (Sentinel-1 change detection${period(s)}).`,
       bullets([
         `Open water: ${n(s.areaByType.water, 1)} km²`,
         `Debris and sediment: ${n(s.areaByType.debris, 1)} km²`,
@@ -193,7 +193,7 @@ const np = {
   'flood-extent': (s) => {
     const worst = [...s.settlementRows].sort((a, b) => b.damaged - a.damaged).slice(0, 3)
     return [
-      `त्रिशूली करिडोरमा ${n(s.floodedAreaKm2, 1)} वर्ग कि.मी. क्षेत्र बाढीबाट प्रभावित छ (Sentinel-1 परिवर्तन विश्लेषण${period(s, dateNp)})।`,
+      `${s.areaName ? `${s.areaName} क्षेत्रमा` : 'त्रिशूली करिडोरमा'} ${n(s.floodedAreaKm2, 1)} वर्ग कि.मी. क्षेत्र बाढीबाट प्रभावित छ (Sentinel-1 परिवर्तन विश्लेषण${period(s, dateNp)})।`,
       bullets([
         `खुला पानी: ${n(s.areaByType.water, 1)} वर्ग कि.मी.`,
         `गेग्रान र थिग्रो: ${n(s.areaByType.debris, 1)} वर्ग कि.मी.`,

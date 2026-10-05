@@ -1,6 +1,7 @@
 import { Info, Moon, Sun } from 'lucide-react'
 import { Link } from 'react-router-dom'
 import { USE_MOCK } from '../../config/apiConfig'
+import { openRun } from '../../config/run'
 import { useDataStore } from '../../store/dataStore'
 import { useUIStore } from '../../store/uiStore'
 import { imageryDates } from '../../utils/calculations'
@@ -12,7 +13,11 @@ import ExportPanel from '../Tools/ExportPanel'
 export default function Header() {
   const darkMode = useUIStore((s) => s.darkMode)
   const toggleDarkMode = useUIStore((s) => s.toggleDarkMode)
-  const { before, after } = imageryDates(useDataStore((s) => s.satelliteData))
+  const satelliteData = useDataStore((s) => s.satelliteData)
+  const runs = useDataStore((s) => s.runs)
+  const run = useDataStore((s) => s.run)
+  const { before, after } = imageryDates(satelliteData)
+  const areaName = satelliteData.area?.name ?? run?.name ?? EVENT.location
 
   return (
     <header className="app-header sticky top-0 z-[1100] border-b border-line print:static">
@@ -26,7 +31,7 @@ export default function Header() {
               {APP.name} {APP.subtitle}
             </span>
             <span className="block truncate text-xs text-ink-soft">
-              {EVENT.location}
+              {areaName}
               {before && after && ` · ${formatDate(before)} to ${formatDate(after)}`}
             </span>
           </span>
@@ -44,6 +49,25 @@ export default function Header() {
         <div className="no-print ml-auto flex items-center gap-2">
           {after && (
             <span className="hidden text-xs text-ink-soft lg:inline">Imagery as of {formatDate(after)}</span>
+          )}
+          {runs.length > 1 && (
+            <>
+              <label htmlFor="area" className="sr-only">
+                Area
+              </label>
+              <select
+                id="area"
+                className="btn max-w-[11rem] pr-2 sm:max-w-[16rem]"
+                value={run?.id ?? ''}
+                onChange={(e) => openRun(e.target.value)}
+              >
+                {runs.map((r) => (
+                  <option key={r.id} value={r.id}>
+                    {r.name}
+                  </option>
+                ))}
+              </select>
+            </>
           )}
           <ExportPanel />
           <Link to="/about" className="btn w-10 px-0" aria-label="Method and limitations" title="Method and limitations">

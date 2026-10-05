@@ -5,6 +5,8 @@ import { DEFAULT_FILTERS } from '../utils/constants'
 export const useMapStore = create((set) => ({
   zoom: MAP_DEFAULTS.zoom,
   center: MAP_DEFAULTS.center,
+  // False until the map has been moved or fitted: it then opens on the data's own area
+  viewSet: false,
   baseMap: 'street',
   visibleLayers: {
     damage: true,
@@ -22,7 +24,7 @@ export const useMapStore = create((set) => ({
   pathMode: false, // flood-path tool: the next map click starts a trace
   floodPath: null, // { status } while working or failed, { line, lengthKm, settlements } when traced
 
-  setView: (center, zoom) => set({ center, zoom }),
+  setView: (center, zoom) => set({ center, zoom, viewSet: true }),
   setBaseMap: (baseMap) => set({ baseMap }),
   toggleLayer: (layerName) =>
     set((state) => ({

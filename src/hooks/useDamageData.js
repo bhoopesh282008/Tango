@@ -6,6 +6,7 @@ import {
   getRoads,
   getSatellite,
 } from '../services/damageService'
+import { loadRuns } from '../config/run'
 import { getSettlements } from '../services/settlementsService'
 import { useDataStore } from '../store/dataStore'
 import { computeStats } from '../utils/calculations'
@@ -24,6 +25,8 @@ export async function loadDamageData() {
   if (loading) return
   useDataStore.setState({ loading: true, error: null, loadedParts: {} })
   try {
+    // Which run to show has to be known before any of its files is asked for.
+    useDataStore.setState(await loadRuns())
     const entries = await Promise.all(
       Object.entries(DATA_PARTS).map(async ([part, load]) => {
         const value = await load()

@@ -234,6 +234,8 @@ export function computeStats({ floodZones, buildings, roads, settlements, infras
     priority: rankPriority(settlementRows, infrastructure),
 
     imagery: imageryDates(satelliteData),
+    // What the run calls its area; the demo dataset is the Trishuli case study
+    areaName: satelliteData?.area?.name ?? null,
     // How the run compared with a reference map, when that check was made; null otherwise
     validation: satelliteData?.validation ?? null,
 

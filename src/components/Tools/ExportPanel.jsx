@@ -1,11 +1,13 @@
 import { ChevronDown, Download, FileText, Map, Table } from 'lucide-react'
 import { useState } from 'react'
+import { useNavigate } from 'react-router-dom'
 import {
   combinedGeoJson,
   downloadBlob,
   settlementsCsv,
   statisticsCsv,
 } from '../../services/exportService'
+import { filePrefix } from '../../config/run'
 import { useDamageData } from '../../hooks/useDamageData'
 import { useUIStore } from '../../store/uiStore'
 import Spinner from '../Common/Spinner'
@@ -15,14 +17,15 @@ export default function ExportPanel() {
   const addToast = useUIStore((s) => s.addToast)
   const [open, setOpen] = useState(false)
   const [busy, setBusy] = useState(false)
+  const navigate = useNavigate()
 
   const options = [
     {
       id: 'pdf',
-      label: 'PDF report',
-      hint: 'Opens the print dialog; choose "Save as PDF"',
+      label: 'Situation report (one page)',
+      hint: 'English or Nepali; print it or save it as PDF',
       icon: FileText,
-      run: () => window.print(),
+      run: () => navigate('/report'),
       silent: true,
     },
     {
@@ -30,21 +33,21 @@ export default function ExportPanel() {
       label: 'Settlements (CSV)',
       hint: 'Population, road access, structures',
       icon: Table,
-      run: () => downloadBlob(settlementsCsv(stats), 'trishuli-settlements.csv', 'text/csv;charset=utf-8'),
+      run: () => downloadBlob(settlementsCsv(stats), `${filePrefix()}-settlements.csv`, 'text/csv;charset=utf-8'),
     },
     {
       id: 'statistics',
       label: 'Damage statistics (CSV)',
       hint: 'Headline metrics',
       icon: Table,
-      run: () => downloadBlob(statisticsCsv(stats), 'trishuli-statistics.csv', 'text/csv;charset=utf-8'),
+      run: () => downloadBlob(statisticsCsv(stats), `${filePrefix()}-statistics.csv`, 'text/csv;charset=utf-8'),
     },
     {
       id: 'geojson',
       label: 'Map layers (GeoJSON)',
       hint: 'Flood zones, roads, buildings, points',
       icon: Map,
-      run: () => downloadBlob(combinedGeoJson(data), 'trishuli-flood.geojson', 'application/geo+json'),
+      run: () => downloadBlob(combinedGeoJson(data), `${filePrefix()}-flood.geojson`, 'application/geo+json'),
     },
   ]
 

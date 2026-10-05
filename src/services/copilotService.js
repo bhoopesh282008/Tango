@@ -90,7 +90,8 @@ export async function generateReport(language, stats) {
   const note = LOCAL ? noteFor(language, stats) : null
   const t = templates[language] ?? templates.en
   const { before, after } = stats.imagery
-  const header = `${EVENT.name}: ${EVENT.location}` + (before && after ? `\n${formatDate(before)} → ${formatDate(after)}` : '')
+  const title = stats.areaName ? `Flood analysis: ${stats.areaName}` : `${EVENT.name}: ${EVENT.location}`
+  const header = title + (before && after ? `\n${formatDate(before)} → ${formatDate(after)}` : '')
   const body = sections
     .map((s) => `${s.title.toUpperCase()}\n${'-'.repeat(40)}\n${s.answer}`)
     .join('\n\n\n')

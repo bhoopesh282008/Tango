@@ -2,6 +2,9 @@ import { create } from 'zustand'
 
 export const useDataStore = create((set) => ({
   satelliteData: { before: null, after: null },
+  // Published pipeline runs, and the one on screen (see config/run.js)
+  runs: [],
+  run: null,
   floodZones: null,
   buildings: null,
   roads: null,

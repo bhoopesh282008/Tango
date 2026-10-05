@@ -26,6 +26,7 @@ import fetch_s1
 import floodpath
 import infrastructure
 import preprocess_s1 as P
+import publish
 import quicklook
 import segment
 import terrain
@@ -177,6 +178,17 @@ def describe_roads(roads, settlements=None):
     return roads
 
 
+def default_area_name(buildings, settlements):
+    """'Bidur area': named after the settlement with the most mapped buildings, or None."""
+    if not len(settlements) or 'settlement_id' not in buildings.columns:
+        return None
+    counts = buildings['settlement_id'].value_counts()
+    if not len(counts):
+        return None
+    name = settlements.set_index('id')['name'].get(counts.idxmax())
+    return f'{name} area' if isinstance(name, str) and name else None
+
+
 def hospitals_or_any(health):
     """Hospitals as destinations; any health facility where none is mapped."""
     health = health.copy()
@@ -199,6 +211,9 @@ def main():
     ap.add_argument('--optical', action='store_true',
                     help='add Sentinel-2: confirm radar detections and fill radar blind spots where the sky was clear')
     ap.add_argument('--out', default=str(C.OUT))
+    ap.add_argument('--name', help='what the dashboard calls this area; default: its largest mapped settlement')
+    ap.add_argument('--publish', action='store_true',
+                    help="copy the result to the dashboard's data folder (public/data) and list it there")
     args = ap.parse_args()
 
     scenes = {}
@@ -287,9 +302,11 @@ def main():
         detail = {'near': near, 'width_km': round(cols * cell / 1000, 1), 'height_km': round(rows * cell / 1000, 1)}
 
     settlement_rows = settlement_records(settlements, status)
+    area_name = args.name or default_area_name(buildings, settlements) or f'Area {args.bbox}'
     infra = infrastructure.build(osm['bridges'], osm['health'], roads, zones, settlements)
     export.export_all(args.out, zones, buildings, roads, settlement_rows, infra, {
         'event': args.event, 'method': method,
+        'area': {'name': area_name, 'bbox': [float(v) for v in args.bbox.split(',')]},
         'osm_snapshot': C.OSM_SNAPSHOT,
         'osm_source': sorted({v for k, v in fetch_osm.SOURCES.items() if v != 'unavailable'}),
         'before': {**(scenes.get('pre') or {}), **images['pre']},
@@ -300,6 +317,9 @@ def main():
     })
     # The DEM the dashboard's flood-path tool traces on
     floodpath.export_dem(args.out, [float(v) for v in args.bbox.split(',')])
+    if args.publish:
+        entry = publish.publish(args.out)
+        print(f"Published '{entry['name']}' as {entry['id']}. Reload the dashboard to see it.")
     print(json.dumps({
         'zones': len(zones),
         'flooded_km2': float(zones.loc[zones['type'].isin(['water', 'debris']), 'area_km2'].sum()),

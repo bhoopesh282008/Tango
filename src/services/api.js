@@ -1,4 +1,5 @@
-import { API_BASE_URL, DATA_URL } from '../config/apiConfig'
+import { API_BASE_URL } from '../config/apiConfig'
+import { runBase } from '../config/run'
 
 async function request(path, { params, base = API_BASE_URL, ...init } = {}) {
   const query = params ? `?${new URLSearchParams(params)}` : ''
@@ -12,7 +13,7 @@ async function request(path, { params, base = API_BASE_URL, ...init } = {}) {
 export const get = (path, params) => request(path, { params })
 
 // A file from a pipeline run
-export const getFile = (path) => request(path, { base: DATA_URL })
+export const getFile = (path) => request(path, { base: runBase() })
 
 export const post = (path, body) =>
   request(path, {
