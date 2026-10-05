@@ -15,6 +15,15 @@
   /* Text colour for use on a solid --critical background */
   --on-critical: #ffffff;
 
+  /* The same hues, dark enough to read as text on white and on the soft tints (4.5:1) */
+  --primary-text: #1565c0;
+  /* Solid blue behind white text (buttons, the user's chat bubble): 5.4:1, where --primary gave 3.2:1 */
+  --primary-fill: #1668c7;
+  --danger-text: #bf3f0b;
+  --critical-text: #c62828;
+  --success-text: #0b7a45;
+  --warning-text: #7a5d00;
+
   --primary-soft: #e8f3ff;
   --danger-soft: #fff0ea;
   --critical-soft: #fdecec;
@@ -58,6 +67,12 @@
   --warning: #ffcc00;
   --on-critical: #1a1a1a;
   --brand: #ff6b6b;
+  /* On navy the fill colours already read as text */
+  --primary-text: #5aaeff;
+  --danger-text: var(--danger);
+  --critical-text: var(--critical);
+  --success-text: #2fd98a;
+  --warning-text: var(--warning);
 
   --primary-soft: rgba(30, 144, 255, 0.18);
   --danger-soft: rgba(255, 136, 0, 0.15);
@@ -107,7 +122,7 @@ li {
   left: 12px;
   top: -48px;
   z-index: 2000;
-  padding: 8px 14px;
+  padding: 11px 16px;
   border-radius: 8px;
   background: var(--bg-primary);
   color: var(--text-primary);

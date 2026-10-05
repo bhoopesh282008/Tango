@@ -28,6 +28,17 @@ export default {
           muted: 'var(--text-muted)',
         },
       },
+      // text-primary, text-critical and so on use the readable text step, not the fill colour
+      backgroundColor: {
+        primary: { DEFAULT: 'var(--primary-fill)', soft: 'var(--primary-soft)' },
+      },
+      textColor: {
+        primary: { DEFAULT: 'var(--primary-text)', soft: 'var(--primary-soft)' },
+        danger: { DEFAULT: 'var(--danger-text)', soft: 'var(--danger-soft)' },
+        critical: { DEFAULT: 'var(--critical-text)', soft: 'var(--critical-soft)', on: 'var(--on-critical)' },
+        success: { DEFAULT: 'var(--success-text)', soft: 'var(--success-soft)' },
+        warning: { DEFAULT: 'var(--warning-text)', soft: 'var(--warning-soft)' },
+      },
       boxShadow: {
         sm: 'var(--shadow-sm)',
         md: 'var(--shadow-md)',

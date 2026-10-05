@@ -23,7 +23,7 @@ export default function Dashboard() {
     return (
       <div className="flex flex-col gap-4 pb-20" role="status" aria-label="Loading satellite analysis">
         <div className="skeleton h-64 sm:h-80" />
-        <div className="grid gap-3 sm:grid-cols-3">
+        <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
           <div className="skeleton h-24" />
           <div className="skeleton h-24" />
           <div className="skeleton h-24" />

@@ -15,7 +15,7 @@ const LIST_LIMIT = 8
 function useShowAll(count) {
   const [all, setAll] = useState(false)
   const toggle = count > LIST_LIMIT && (
-    <button type="button" className="no-print mt-1 text-xs font-medium underline" onClick={() => setAll(!all)} aria-expanded={all}>
+    <button type="button" className="no-print -ml-2 mt-1 inline-flex min-h-[40px] items-center rounded-lg px-2 text-xs font-medium underline transition hover:bg-surface-alt" onClick={() => setAll(!all)} aria-expanded={all}>
       {all ? `Show first ${LIST_LIMIT}` : `Show all ${count}`}
     </button>
   )
@@ -174,7 +174,7 @@ function SettlementsCard({ stats }) {
 
 export default function DamageAnalysis({ stats }) {
   return (
-    <section aria-label="Damage analysis" className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+    <section aria-label="Damage analysis" className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
       <ConfidenceCard stats={stats} />
       <InfrastructureCard stats={stats} />
       <SettlementsCard stats={stats} />

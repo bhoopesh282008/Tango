@@ -136,7 +136,7 @@ function Breakdown({ id, stats }) {
   if (id === 'area') {
     const types = Object.keys(DAMAGE_TYPES)
     return (
-      <div className="grid gap-4 sm:grid-cols-2">
+      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
         <div className="h-52">
           <Doughnut
             data={{
@@ -210,7 +210,7 @@ export default function StatisticsCards({ stats }) {
 
   return (
     <section aria-label="Key statistics" className="flex flex-col gap-3">
-      <div className="grid gap-3 sm:grid-cols-3">
+      <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
         {primary.map((card) => {
           const tone = TONES[card.tone]
           const isOpen = expanded === card.id
