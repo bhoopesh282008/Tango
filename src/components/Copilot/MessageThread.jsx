@@ -7,7 +7,7 @@ import AnswerBody from './AnswerBody'
 
 function Avatar({ icon: Icon, className }) {
   return (
-    <span className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-full ${className}`}>
+    <span className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-md ${className}`}>
       <Icon size={16} aria-hidden />
     </span>
   )
@@ -23,10 +23,10 @@ const arrive = {
 function UserMessage({ text }) {
   return (
     <motion.li {...arrive} className="flex justify-end gap-2">
-      <p className="max-w-[85%] rounded-xl rounded-tr-sm bg-primary px-4 py-2.5 text-sm text-white sm:max-w-[70%]">
+      <p className="max-w-[85%] rounded-lg border border-line bg-[var(--surface-2)] px-3.5 py-2 text-sm text-ink sm:max-w-[70%]">
         {text}
       </p>
-      <Avatar icon={User} className="bg-surface-alt text-ink-soft" />
+      <Avatar icon={User} className="border border-line bg-surface text-ink-soft" />
     </motion.li>
   )
 }
@@ -35,7 +35,7 @@ function AssistantMessage({ response }) {
   const lang = response.language === 'np' ? 'ne' : 'en'
   return (
     <motion.li {...arrive} className="flex gap-2">
-      <Avatar icon={Bot} className="bg-primary-soft text-primary" />
+      <Avatar icon={Bot} className="border border-line bg-surface text-ink-soft" />
       {response.notice ? (
         <p lang={lang} className="card max-w-[85%] rounded-tl-sm px-4 py-2.5 text-sm text-ink-soft sm:max-w-[70%]">
           {response.notice}
@@ -66,12 +66,9 @@ export default function MessageThread({ conversation, loading }) {
 
   if (conversation.length === 0 && !loading) {
     return (
-      <motion.div {...arrive} className="flex flex-col items-center px-4 py-12 text-center">
-        <span className="icon-chip h-16 w-16 rounded-2xl bg-primary-soft text-primary">
-          <Bot size={30} aria-hidden />
-        </span>
-        <h2 className="mt-5 text-2xl font-semibold tracking-tight">What would you like to know?</h2>
-        <p className="mt-2 max-w-md text-sm leading-relaxed text-ink-soft">
+      <motion.div {...arrive} className="px-1 pb-6 pt-10">
+        <h2 className="text-2xl font-semibold tracking-tight">What would you like to know?</h2>
+        <p className="mt-2 max-w-[60ch] text-sm leading-relaxed text-ink-soft">
           Ask about flood extent, damaged infrastructure, cut-off settlements or rescue priorities.
           Answers are assembled from the satellite analysis shown on the dashboard.
         </p>
@@ -90,7 +87,7 @@ export default function MessageThread({ conversation, loading }) {
       )}
       {loading && (
         <li className="flex items-center gap-2">
-          <Avatar icon={Bot} className="bg-primary-soft text-primary" />
+          <Avatar icon={Bot} className="border border-line bg-surface text-ink-soft" />
           <TypingDots label="Reading satellite analysis" />
         </li>
       )}

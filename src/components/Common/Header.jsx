@@ -18,11 +18,11 @@ export default function Header() {
     <header className="app-header sticky top-0 z-[1100] border-b border-line print:static">
       <div className="mx-auto flex max-w-7xl flex-wrap items-center gap-x-4 gap-y-2 px-3 py-2.5 sm:px-5 lg:px-6">
         <Link to="/" className="flex min-w-0 items-center gap-2.5">
-          <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-critical-soft">
+          <span className="flex h-10 w-10 shrink-0 items-center justify-center">
             <TangoIcon size={32} />
           </span>
           <span className="min-w-0">
-            <span className="block truncate text-base font-bold leading-tight tracking-wide text-brand sm:text-lg">
+            <span className="block truncate text-[15px] font-semibold leading-tight tracking-tight text-brand sm:text-base">
               {APP.name} {APP.subtitle}
             </span>
             <span className="block truncate text-xs text-ink-soft">

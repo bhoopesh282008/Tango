@@ -31,6 +31,7 @@ export function SettlementLayer({ settlements, priority = [], visible, darkBase 
     [settlements, priority],
   )
   const isHighlighted = ['==', ['get', 'id'], highlighted ?? '']
+  const isCutOff = ['==', ['get', 'connected'], false]
   const layout = { visibility: visible ? 'visible' : 'none' }
 
   return (
@@ -40,7 +41,11 @@ export function SettlementLayer({ settlements, priority = [], visible, darkBase 
         type="circle"
         layout={layout}
         paint={{
-          'circle-radius': ['case', isHighlighted, 13, 8],
+          'circle-radius': [
+            'interpolate', ['linear'], ['zoom'],
+            8, ['case', isHighlighted, 11, isCutOff, 7.5, 3.5],
+            13, ['case', isHighlighted, 13, isCutOff, 9, 6],
+          ],
           // Green connected, red cut off, grey when access is unknown
           'circle-color': [
             'case',
@@ -48,8 +53,8 @@ export function SettlementLayer({ settlements, priority = [], visible, darkBase 
             ['==', ['get', 'connected'], false], '#e03131',
             '#868e96',
           ],
-          'circle-stroke-color': '#ffffff',
-          'circle-stroke-width': ['case', isHighlighted, 3, 2],
+          'circle-stroke-color': darkBase ? '#0f1114' : '#ffffff',
+          'circle-stroke-width': ['case', isHighlighted, 3, isCutOff, 2, 1.5],
         }}
       />
       <Layer

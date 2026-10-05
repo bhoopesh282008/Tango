@@ -273,6 +273,8 @@ export default function FloodMap({ data, settlementRows, priority, confidence })
             setView({ lat: viewState.latitude, lng: viewState.longitude }, viewState.zoom)
           }
           onLoad={handleLoad}
+          // Collapsed to a button: the full credit line ran under the layer panel.
+          attributionControl={{ compact: true }}
         >
           <NavigationControl position="top-left" showCompass={false} />
           <ScaleControl position="bottom-right" />
@@ -283,7 +285,12 @@ export default function FloodMap({ data, settlementRows, priority, confidence })
               beforeId={FIRST_LABEL_LAYER}
               type="hillshade"
               layout={visibility(visibleLayers.elevation)}
-              paint={{ 'hillshade-exaggeration': 0.6 }}
+              paint={{
+                'hillshade-exaggeration': 0.55,
+                'hillshade-shadow-color': darkBase ? '#000000' : '#5b616b',
+                'hillshade-highlight-color': darkBase ? '#4a505b' : '#ffffff',
+                'hillshade-accent-color': darkBase ? '#101216' : '#8a909b',
+              }}
             />
           </Source>
 
@@ -310,7 +317,11 @@ export default function FloodMap({ data, settlementRows, priority, confidence })
               type="line"
               filter={['!', DAMAGED]}
               layout={{ ...visibility(visibleLayers.roads), 'line-cap': 'round' }}
-              paint={{ 'line-color': darkBase ? '#f5f5f5' : '#1a1a1a', 'line-width': 3 }}
+              paint={{
+                'line-color': darkBase ? '#8a909b' : '#59606b',
+                'line-opacity': 0.8,
+                'line-width': ['interpolate', ['linear'], ['zoom'], 8, 0.5, 11, 1, 14, 2.5],
+              }}
             />
             <Layer
               id="roads-damaged"
@@ -318,7 +329,11 @@ export default function FloodMap({ data, settlementRows, priority, confidence })
               type="line"
               filter={DAMAGED}
               layout={visibility(visibleLayers.roads)}
-              paint={{ 'line-color': '#e03131', 'line-width': 5, 'line-dasharray': [0.6, 1.2] }}
+              paint={{
+                'line-color': '#e03131',
+                'line-width': ['interpolate', ['linear'], ['zoom'], 8, 2.5, 14, 5],
+                'line-dasharray': [0.6, 1.2],
+              }}
             />
           </Source>
 

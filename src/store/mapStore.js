@@ -12,7 +12,7 @@ export const useMapStore = create((set) => ({
     roads: true,
     settlements: true,
     infrastructure: true,
-    elevation: false,
+    elevation: true,
   },
   filters: DEFAULT_FILTERS,
   highlightedSettlement: null,

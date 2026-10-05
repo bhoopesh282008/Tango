@@ -4,7 +4,6 @@ import { useMemo } from 'react'
 import { Layer, Source } from 'react-map-gl/maplibre'
 import { useMapStore } from '../../store/mapStore'
 import { formatNumber } from '../../utils/formatters'
-import { AnimatedNumber } from '../Common/Animated'
 
 // Blue: the path is where water would run.
 const COLOR = '#1e90ff'
@@ -86,7 +85,7 @@ export default function FloodPathTool() {
         {path?.line && (
           <>
             <p className="mt-1 text-2xl font-bold tracking-tight">
-              <AnimatedNumber text={formatNumber(path.lengthKm, 1)} /> <span className="text-sm font-medium text-ink-soft">km</span>
+              <span className="num">{formatNumber(path.lengthKm, 1)}</span> <span className="text-sm font-medium text-ink-soft">km</span>
             </p>
             <p className="text-xs text-ink-soft">to the edge of the mapped area</p>
             <h4 className="mt-2 text-xs font-semibold uppercase tracking-wide text-ink-soft">

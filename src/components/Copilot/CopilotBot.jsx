@@ -1,15 +1,17 @@
 import { Bot } from 'lucide-react'
 import { Link } from 'react-router-dom'
 
+// The way into the copilot from the dashboard: a labelled button, kept in reach while scrolling.
 export default function CopilotBot() {
   return (
     <Link
       to="/copilot"
-      title="Situation-Report Copilot"
-      aria-label="Open Situation-Report Copilot"
-      className="no-print fixed bottom-6 right-6 z-[999] flex h-14 w-14 items-center justify-center rounded-full bg-primary text-white shadow-[0_4px_12px_rgba(0,0,0,0.15)] transition-transform hover:scale-110"
+      className="btn no-print fixed bottom-5 right-5 z-[999] h-11 gap-2 border-[var(--border-strong)] px-4 shadow-md"
     >
-      <Bot size={28} aria-hidden />
+      <Bot size={17} aria-hidden />
+      <span>
+        Copilot<span className="sr-only">: open the situation-report copilot</span>
+      </span>
     </Link>
   )
 }

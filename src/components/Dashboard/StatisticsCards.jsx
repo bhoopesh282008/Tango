@@ -16,14 +16,14 @@ import { useUIStore } from '../../store/uiStore'
 import { DAMAGE_TYPES } from '../../utils/constants'
 import { formatNumber, formatPercent } from '../../utils/formatters'
 import { WORDING } from '../../utils/wording'
-import { AnimatedNumber, liftOnHover } from '../Common/Animated'
 
 ChartJS.register(ArcElement, BarElement, CategoryScale, LinearScale, Tooltip, Legend)
 
+// The status colour appears once per figure, as a small square beside its label.
 const TONES = {
-  blue: { border: 'border-l-primary', tint: 'bg-primary-soft', value: 'text-primary' },
-  red: { border: 'border-l-critical', tint: 'bg-critical-soft', value: 'text-critical' },
-  orange: { border: 'border-l-danger', tint: 'bg-danger-soft', value: 'text-danger' },
+  blue: 'bg-water',
+  red: 'bg-critical',
+  orange: 'bg-debris',
 }
 
 const CHART_ROWS = 10
@@ -207,49 +207,40 @@ function Breakdown({ id, stats }) {
 export default function StatisticsCards({ stats }) {
   const [expanded, setExpanded] = useState(null)
   const primary = primaryCards(stats)
+  const secondary = secondaryCards(stats)
   const active = primary.find((c) => c.id === expanded)
 
   return (
-    <section aria-label="Key statistics" className="flex flex-col gap-3">
-      <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
+    <section aria-label="Key statistics" className="card overflow-hidden">
+      <div className="grid grid-cols-1 divide-y divide-line sm:grid-cols-3 sm:divide-x sm:divide-y-0">
         {primary.map((card) => {
-          const tone = TONES[card.tone]
           const isOpen = expanded === card.id
           return (
-            <motion.button
+            <button
               key={card.id}
               type="button"
               onClick={() => setExpanded(isOpen ? null : card.id)}
               aria-expanded={isOpen}
-              {...liftOnHover}
-              className={`flex items-start gap-3.5 rounded-xl border border-l-[5px] border-line p-4 text-left shadow-sm transition-shadow duration-200 hover:shadow-md ${tone.border} ${tone.tint} ${
-                isOpen ? 'ring-2 ring-primary' : ''
+              className={`flex flex-col gap-2 px-5 py-4 text-left transition-colors duration-150 hover:bg-[var(--surface-2)] ${
+                isOpen ? 'bg-[var(--surface-2)]' : ''
               }`}
             >
-              <span className={`icon-chip ${tone.value}`}>
-                <card.icon size={22} aria-hidden />
+              <span className="flex items-center gap-2 text-[13px] font-medium text-ink-soft">
+                <span className={`h-2 w-2 shrink-0 rounded-[2px] ${TONES[card.tone]}`} aria-hidden />
+                <span className="min-w-0 flex-1">{card.label}</span>
+                <ChevronDown
+                  size={15}
+                  className={`no-print shrink-0 text-ink-muted transition-transform duration-200 ${isOpen ? 'rotate-180' : ''}`}
+                  aria-hidden
+                />
               </span>
-              <span className="min-w-0 flex-1">
-                <span className="flex flex-wrap items-baseline gap-x-1.5">
-                  <span className={`text-4xl font-bold leading-none tracking-tight ${tone.value}`}>
-                    <AnimatedNumber text={card.value} />
-                  </span>
-                  <span className="text-xs font-medium text-ink-soft">{card.unit}</span>
-                  {card.share && (
-                    <span className="rounded bg-surface px-1.5 py-0.5 text-xs font-semibold">{card.share}</span>
-                  )}
-                </span>
-                <span className="mt-0.5 block text-xs font-semibold uppercase tracking-wide text-ink">
-                  {card.label}
-                </span>
-                <span className="mt-0.5 block text-xs text-ink-soft">{card.detail}</span>
+              <span className="flex flex-wrap items-baseline gap-x-2">
+                <span className="num text-[34px] font-semibold leading-none text-ink">{card.value}</span>
+                <span className="text-xs text-ink-soft">{card.unit}</span>
+                {card.share && <span className="num text-xs text-ink-soft">{card.share}</span>}
               </span>
-              <ChevronDown
-                size={16}
-                className={`no-print shrink-0 text-ink-soft transition duration-200 ${isOpen ? 'rotate-180' : ''}`}
-                aria-hidden
-              />
-            </motion.button>
+              <span className="text-xs text-ink-muted">{card.detail}</span>
+            </button>
           )
         })}
       </div>
@@ -264,37 +255,29 @@ export default function StatisticsCards({ stats }) {
             exit={{ opacity: 0, height: 0 }}
             transition={{ duration: 0.2, ease: 'easeOut' }}
           >
-            <div className="card p-4">
-              <h3 className="mb-3 text-sm font-semibold">{active.label}: breakdown</h3>
+            <div className="border-t border-line px-5 py-4">
+              <h3 className="mb-3 text-[13px] font-medium text-ink-soft">{active.label}: breakdown</h3>
               <Breakdown id={active.id} stats={stats} />
             </div>
           </motion.div>
         )}
       </AnimatePresence>
 
-      <dl className="grid grid-cols-2 gap-3 lg:grid-cols-4">
-        {secondaryCards(stats).map((card) => {
-          const tone = TONES[card.tone]
-          return (
-            <div
-              key={card.id}
-              className={`flex items-center gap-3 rounded-xl border border-l-[5px] border-line px-3 py-2.5 shadow-sm ${tone.border} ${tone.tint}`}
-            >
-              <span className={`icon-chip h-9 w-9 rounded-lg ${tone.value}`}>
-                <card.icon size={18} aria-hidden />
-              </span>
-              <div className="flex min-w-0 flex-col-reverse">
-                <dt className="text-[11px] font-semibold uppercase tracking-wide text-ink">{card.label}</dt>
-                <dd className="text-xl font-bold leading-tight tracking-tight">
-                  <span className={tone.value}>
-                    <AnimatedNumber text={card.value} />
-                  </span>
-                  {card.unit && <span className="ml-1 text-xs font-medium text-ink-soft">{card.unit}</span>}
-                </dd>
-              </div>
-            </div>
-          )
-        })}
+      <dl
+        className="grid grid-cols-2 border-t border-line lg:grid-flow-col lg:auto-cols-fr lg:grid-cols-none lg:divide-x lg:divide-line"
+      >
+        {secondary.map((card) => (
+          <div key={card.id} className="flex flex-col-reverse gap-1 px-5 py-3">
+            <dt className="flex items-center gap-2 text-xs text-ink-soft">
+              <span className={`h-1.5 w-1.5 shrink-0 rounded-[2px] ${TONES[card.tone]}`} aria-hidden />
+              {card.label}
+            </dt>
+            <dd className="flex items-baseline gap-1.5">
+              <span className="num text-xl font-semibold leading-none text-ink">{card.value}</span>
+              {card.unit && <span className="text-xs text-ink-soft">{card.unit}</span>}
+            </dd>
+          </div>
+        ))}
       </dl>
     </section>
   )

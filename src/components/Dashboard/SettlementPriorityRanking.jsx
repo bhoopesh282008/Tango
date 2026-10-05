@@ -1,5 +1,4 @@
 import { CircleAlert, CircleCheck, MapPin, Siren, TriangleAlert } from 'lucide-react'
-import { motion } from 'motion/react'
 import { useState } from 'react'
 import { USE_MOCK } from '../../config/apiConfig'
 import { useMapStore } from '../../store/mapStore'
@@ -16,10 +15,10 @@ const FACTOR_LABELS = {
 }
 
 // Cards shown before "Show all"; a real run can have dozens of cut-off settlements.
-const CARD_LIMIT = 6
+const CARD_LIMIT = 8
 import { formatNumber, formatPercent } from '../../utils/formatters'
 import { WORDING } from '../../utils/wording'
-import { AnimatedNumber, MeterFill, riseIn } from '../Common/Animated'
+import { MeterFill } from '../Common/Animated'
 
 const SORTS = [
   { id: 'priority', label: 'Priority', compare: (a, b) => a.rank - b.rank },
@@ -46,6 +45,7 @@ const BAND_STYLE = {
     border: 'border-l-critical',
     tint: 'bg-critical-soft',
     fill: 'bg-critical',
+    text: 'text-critical',
     chip: 'bg-critical text-critical-on',
   },
   high: {
@@ -53,6 +53,7 @@ const BAND_STYLE = {
     border: 'border-l-danger',
     tint: 'bg-danger-soft',
     fill: 'bg-danger',
+    text: 'text-danger',
     chip: 'bg-danger text-[#1a1a1a]',
   },
   medium: {
@@ -60,6 +61,7 @@ const BAND_STYLE = {
     border: 'border-l-warning',
     tint: 'bg-warning-soft',
     fill: 'bg-warning',
+    text: 'text-warning',
     chip: 'bg-warning text-[#1a1a1a]',
   },
   low: {
@@ -67,120 +69,89 @@ const BAND_STYLE = {
     border: 'border-l-success',
     tint: 'bg-success-soft',
     fill: 'bg-success',
+    text: 'text-success',
     chip: 'bg-success text-[#1a1a1a]',
   },
 }
 
 function RiskSummary({ priority, buildings }) {
   return (
-    <ul className="mt-3 grid grid-cols-2 gap-3 lg:grid-cols-4">
-      {summarisePriority(priority).map((band) => {
-        const style = BAND_STYLE[band.id]
-        return (
-          <li
-            key={band.id}
-            className={`flex items-center gap-3 rounded-lg border-l-4 px-3 py-2.5 ${style.border} ${style.tint}`}
-          >
-            <style.icon size={22} className="shrink-0 text-ink" aria-hidden />
-            <span className="min-w-0">
-              <span className="block text-sm font-semibold">
-                {band.count} {band.label}
-              </span>
-              <span className="block text-xs text-ink-soft">
-                {buildings ? `${formatNumber(band.buildings)} buildings` : `${formatNumber(band.people)} people`}
-              </span>
-            </span>
-          </li>
-        )
-      })}
+    <ul className="mt-2 flex flex-wrap gap-x-6 gap-y-1 text-sm">
+      {summarisePriority(priority).map((band) => (
+        <li key={band.id} className="flex items-center gap-2">
+          <span className={`h-2 w-2 shrink-0 rounded-[2px] ${BAND_STYLE[band.id].fill}`} aria-hidden />
+          <span className="font-medium">
+            <span className="num">{band.count}</span> {band.label}
+          </span>
+          <span className="text-ink-soft">
+            {buildings ? `${formatNumber(band.buildings)} buildings` : `${formatNumber(band.people)} people`}
+          </span>
+        </li>
+      ))}
     </ul>
   )
 }
 
-function Metric({ label, children }) {
-  return (
-    // Value above its label visually; label first in the markup, as a definition list needs.
-    <div className="flex min-w-0 flex-col-reverse px-1 text-center">
-      <dt className="mt-0.5 text-[11px] uppercase tracking-wide text-ink-soft">{label}</dt>
-      <dd className="text-sm font-bold leading-tight text-ink">{children}</dd>
-    </div>
-  )
-}
+// One grid for the header and every row, so the columns line up. On phones a row is
+// rank, name, score and the map button, with the rest on a second line.
+const ROW =
+  'grid grid-cols-[1.75rem_minmax(0,1fr)_auto_2.5rem] items-center gap-x-3 gap-y-1 px-4 lg:grid-cols-[1.75rem_minmax(0,1.3fr)_10rem_6.5rem_5.5rem_minmax(0,1.6fr)_2.5rem] lg:gap-x-4'
 
-function PriorityCard({ settlement: s, buildings, hidden, index }) {
+function PriorityRow({ settlement: s, buildings, hidden }) {
   const focusSettlement = useMapStore((state) => state.focusSettlement)
   const band = PRIORITY_BANDS.find((b) => b.id === s.band)
   const style = BAND_STYLE[s.band]
   const access = s.access_difficulty != null ? ACCESS_LEVELS[s.access_difficulty - 1] : null
-  const issues = [
+  const notes = [
+    access && `Access: ${access.label}`,
     s.healthPostUnreachable && 'Health post unreachable',
     s.bridgeDestroyed && WORDING.bridgeIssue,
     s.water_source_cut && 'Water supply cut',
   ].filter(Boolean)
+  const size = buildings ? formatNumber(s.total) : s.population != null ? formatNumber(s.population) : 'No data'
+  const sizeUnit = buildings ? 'buildings' : s.population != null ? 'people' : ''
 
   return (
-    <motion.li
-      {...riseIn(index)}
-      className={`flex-col gap-3 rounded-xl border border-l-[6px] border-line p-4 shadow-sm transition-shadow duration-200 hover:shadow-md ${style.border} ${style.tint} ${
-        hidden ? 'hidden print:flex' : 'flex'
-      }`}
-    >
-      <div className="flex items-center gap-3">
-        <span
-          className={`flex h-11 w-11 shrink-0 items-center justify-center rounded-full text-sm font-bold ${style.chip}`}
-          aria-label={`Priority rank ${s.rank}`}
+    <li className={`${ROW} py-3 transition-colors duration-150 hover:bg-[var(--surface-2)] ${hidden ? 'hidden print:grid' : ''}`}>
+      <span className="num text-sm text-ink-muted" aria-label={`Priority rank ${s.rank}`}>
+        {s.rank}
+      </span>
+      <div className="min-w-0">
+        <h3 className="truncate text-sm font-semibold leading-tight">{s.name}</h3>
+        <p className={`mt-0.5 flex items-center gap-1.5 text-xs font-medium ${style.text}`}>
+          <style.icon size={12} aria-hidden /> {band.label}
+        </p>
+      </div>
+      <div className="flex items-center gap-2.5">
+        <span className="num w-7 text-right text-base font-semibold leading-none">{s.priority}</span>
+        <div
+          className="h-1 w-16 overflow-hidden rounded-full bg-[var(--surface-2)] lg:w-auto lg:flex-1"
+          role="meter"
+          aria-label="Rescue priority score"
+          aria-valuemin={0}
+          aria-valuemax={100}
+          aria-valuenow={s.priority}
         >
-          #{s.rank}
-        </span>
-        <div className="min-w-0 flex-1">
-          <h3 className="truncate text-base font-semibold leading-tight">{s.name}</h3>
-          <p className="mt-0.5 flex items-center gap-1 text-xs font-bold uppercase tracking-wide">
-            <style.icon size={13} aria-hidden /> {band.label}
-          </p>
-        </div>
-        <div className="shrink-0 text-right">
-          <div className="text-3xl font-bold leading-none tracking-tight">
-            <AnimatedNumber text={String(s.priority)} />
-          </div>
-          <div className="mt-0.5 text-[10px] uppercase tracking-wide text-ink-soft">of 100</div>
+          <MeterFill fraction={s.priority / 100} className={style.fill} />
         </div>
       </div>
-
-      <div
-        className="h-1.5 overflow-hidden rounded-full bg-surface"
-        role="meter"
-        aria-label="Rescue priority score"
-        aria-valuemin={0}
-        aria-valuemax={100}
-        aria-valuenow={s.priority}
+      <span className="num hidden text-sm lg:block">{size}</span>
+      <span className="num hidden text-sm lg:block">{formatPercent(s.damageRatio)}</span>
+      <span className="hidden min-w-0 text-xs leading-snug text-ink-soft lg:block">{notes.join(' · ')}</span>
+      <button
+        type="button"
+        className="btn no-print w-10 px-0"
+        onClick={() => focusSettlement(s)}
+        aria-label={`Show ${s.name} on map`}
+        title="Show on map"
       >
-        <MeterFill fraction={s.priority / 100} className={style.fill} />
-      </div>
-
-      <dl className="grid grid-cols-3 divide-x divide-line border-y border-line py-2">
-        {buildings ? (
-          <Metric label="Buildings">{formatNumber(s.total)}</Metric>
-        ) : (
-          <Metric label="People">{s.population != null ? formatNumber(s.population) : 'No data'}</Metric>
-        )}
-        <Metric label="Damaged">{formatPercent(s.damageRatio)}</Metric>
-        <Metric label="Access">{access?.label ?? 'No data'}</Metric>
-      </dl>
-
-      {issues.length > 0 && (
-        <ul className="flex flex-wrap gap-1.5" aria-label="Critical infrastructure issues">
-          {issues.map((issue) => (
-            <li key={issue} className="rounded bg-surface px-2 py-1 text-xs font-medium">
-              {issue}
-            </li>
-          ))}
-        </ul>
-      )}
-
-      <button type="button" className="btn no-print mt-auto w-full" onClick={() => focusSettlement(s)}>
-        <MapPin size={16} aria-hidden /> Show on map
+        <MapPin size={16} aria-hidden />
       </button>
-    </motion.li>
+      <p className="col-span-3 col-start-2 text-xs leading-snug text-ink-soft lg:hidden">
+        {size} {sizeUnit} · {formatPercent(s.damageRatio)} damaged
+        {notes.length > 0 && ` · ${notes.join(', ')}`}
+      </p>
+    </li>
   )
 }
 
@@ -226,17 +197,27 @@ export default function SettlementPriorityRanking({ stats }) {
 
       <RiskSummary priority={stats.priority} buildings={buildings} />
 
-      <ul className="mt-3 grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
-        {settlements.map((settlement, i) => (
-          <PriorityCard
-            key={settlement.id}
-            settlement={settlement}
-            buildings={buildings}
-            hidden={!showAll && i >= CARD_LIMIT}
-            index={i}
-          />
-        ))}
-      </ul>
+      <div className="card mt-3 overflow-hidden">
+        <div className={`${ROW} hidden border-b border-line py-2 text-xs font-medium text-ink-muted lg:grid`} aria-hidden>
+          <span>#</span>
+          <span>Settlement</span>
+          <span>Score</span>
+          <span>{buildings ? 'Buildings' : 'People'}</span>
+          <span>Damaged</span>
+          <span>Notes</span>
+          <span />
+        </div>
+        <ul className="divide-y divide-line">
+          {settlements.map((settlement, i) => (
+            <PriorityRow
+              key={settlement.id}
+              settlement={settlement}
+              buildings={buildings}
+              hidden={!showAll && i >= CARD_LIMIT}
+            />
+          ))}
+        </ul>
+      </div>
       {settlements.length > CARD_LIMIT && (
         <button type="button" className="btn no-print mt-3" onClick={() => setShowAll(!showAll)} aria-expanded={showAll}>
           {showAll ? `Show first ${CARD_LIMIT}` : `Show all ${settlements.length}`}

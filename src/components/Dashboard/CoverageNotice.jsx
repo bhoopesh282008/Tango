@@ -12,12 +12,12 @@ const range = ([low, high]) =>
 export default function CoverageNotice({ validation }) {
   if (USE_MOCK && !validation) return null
   return (
-    <div role="note" className="card flex items-start gap-3 border-warning bg-warning-soft p-3 text-sm text-ink">
+    <div role="note" className="card flex items-start gap-3 border-l-2 border-l-warning px-4 py-3 text-sm leading-relaxed text-ink-soft">
       <TriangleAlert size={18} className="mt-0.5 shrink-0 text-warning" aria-hidden />
       <p>
         {validation ? (
           <>
-            <strong>These figures are a lower bound.</strong> Checked against {validation.reference} in{' '}
+            <strong className="font-semibold text-ink">These figures are a lower bound.</strong> Checked against {validation.reference} in{' '}
             {validation.areas} {validation.areas === 1 ? 'area' : 'areas'}, this map found {range(validation.recall)} of
             the affected area
             {validation.building_recall != null &&
@@ -26,7 +26,7 @@ export default function CoverageNotice({ validation }) {
             the reference).
           </>
         ) : (
-          <strong>This map has not been checked against a reference.</strong>
+          <strong className="font-semibold text-ink">This map has not been checked against a reference.</strong>
         )}{' '}
         An area with nothing marked is not known to be safe.{' '}
         <Link to="/about" className="underline">

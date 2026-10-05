@@ -87,6 +87,37 @@
   color-scheme: dark;
 }
 
+/* Second pass: a neutral surface ladder with hairlines, after the structure in the
+   Linear analysis from awesome-design-md (canvas, surface steps, hairline borders,
+   hierarchy without shadow). The colours are this project's own: the status colours
+   keep their meaning and are the only colour on the page. */
+:root {
+  --bg-secondary: #f5f6f7; /* canvas */
+  --bg-primary: #ffffff; /* surface */
+  --surface-2: #eff0f2; /* hover and inset */
+  --border: #e2e4e8;
+  --border-strong: #cdd0d6;
+  --text-primary: #101216;
+  --text-secondary: #555b66;
+  --text-muted: #6a707b;
+  --shadow-sm: none;
+  --shadow-md: 0 4px 16px rgba(16, 18, 22, 0.08);
+  --shadow-lg: 0 12px 32px rgba(16, 18, 22, 0.14);
+}
+:root[data-theme='dark'] {
+  --bg-secondary: #08090b;
+  --bg-primary: #0f1114;
+  --surface-2: #171a1e;
+  --border: #23262c;
+  --border-strong: #363a42;
+  --text-primary: #f3f4f6;
+  --text-secondary: #a3a8b1;
+  --text-muted: #7f858f;
+  --shadow-sm: none;
+  --shadow-md: 0 6px 20px rgba(0, 0, 0, 0.5);
+  --shadow-lg: 0 16px 40px rgba(0, 0, 0, 0.6);
+}
+
 body {
   margin: 0;
   background: var(--bg-secondary);
@@ -96,6 +127,13 @@ body {
   font-variant-numeric: tabular-nums;
   -webkit-font-smoothing: antialiased;
   text-rendering: optimizeLegibility;
+}
+
+/* Figures: fixed-width digits so columns line up, slightly tightened.
+   (A mono face was tried and dropped: its full-width comma and point split "16,145" apart.) */
+.num {
+  font-variant-numeric: tabular-nums;
+  letter-spacing: -0.02em;
 }
 
 h1,
@@ -137,7 +175,7 @@ li {
 
 /* Placeholder blocks shaped like the content that is loading */
 .skeleton {
-  border-radius: 12px;
+  border-radius: 8px;
   background: linear-gradient(90deg, var(--border) 25%, var(--bg-primary) 50%, var(--border) 75%);
   background-size: 200% 100%;
   animation: skeleton-sweep 1.4s ease-in-out infinite;
@@ -159,10 +197,10 @@ li {
 
 @layer components {
   .card {
-    @apply rounded-xl border border-line bg-surface shadow-sm;
+    @apply rounded-lg border border-line bg-surface;
   }
   .btn {
-    @apply inline-flex min-h-[40px] items-center justify-center gap-2 rounded-lg border border-line bg-surface px-3 text-sm font-medium text-ink transition duration-150 hover:bg-surface-alt active:translate-y-px active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-50;
+    @apply inline-flex min-h-[40px] items-center justify-center gap-2 rounded-md border border-line bg-surface px-3 text-sm font-medium text-ink transition duration-150 hover:bg-surface-alt active:translate-y-px active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-50;
   }
   .btn-primary {
     @apply border-primary bg-primary text-white hover:bg-primary hover:brightness-110;
@@ -171,43 +209,18 @@ li {
     @apply border-primary bg-primary-soft;
   }
   .section-title {
-    @apply text-lg font-semibold tracking-tight text-ink;
+    @apply text-[15px] font-semibold tracking-tight text-ink;
   }
-  /* Panels floating over the map: the map shows faintly through them */
+  /* Panels floating over the map: a raised surface with a stronger hairline */
   .panel-glass {
-    background: color-mix(in srgb, var(--bg-primary) 88%, transparent);
-    backdrop-filter: blur(10px) saturate(140%);
-    -webkit-backdrop-filter: blur(10px) saturate(140%);
-  }
-  /* Icon in a tinted square, used on the stat cards */
-  .icon-chip {
-    @apply flex h-11 w-11 shrink-0 items-center justify-center rounded-xl;
-    background: color-mix(in srgb, var(--bg-primary) 70%, transparent);
-    box-shadow: inset 0 0 0 1px color-mix(in srgb, currentColor 18%, transparent);
+    border-color: var(--border-strong);
+    box-shadow: var(--shadow-md);
   }
 }
 
-/* Depth on the navy theme: a lit top edge on every card, and a faint lift of
-   the page behind the header so the top of the screen is not one flat colour. */
-:root[data-theme='dark'] .card {
-  background-image: linear-gradient(180deg, rgba(255, 255, 255, 0.03), rgba(255, 255, 255, 0) 48%);
-  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.06), var(--shadow-sm);
-}
-:root[data-theme='dark'] body {
-  background-image: radial-gradient(1100px 420px at 50% -120px, rgba(46, 46, 96, 0.55), transparent 72%);
-  background-repeat: no-repeat;
-}
-
-/* The header stays in view; the page shows faintly through it as it scrolls under */
+/* The header is the same surface as the cards, separated by its hairline */
 .app-header {
-  background: color-mix(in srgb, var(--bg-primary) 82%, transparent);
-  backdrop-filter: blur(14px) saturate(150%);
-  -webkit-backdrop-filter: blur(14px) saturate(150%);
-}
-@media print {
-  .app-header {
-    background: var(--bg-primary);
-  }
+  background: var(--bg-primary);
 }
 
 /* Infrastructure markers on the map */
@@ -217,8 +230,8 @@ li {
   justify-content: center;
   width: 22px;
   height: 22px;
-  border-radius: 5px;
-  border: 2px solid #ffffff;
+  border-radius: 4px;
+  border: 1.5px solid var(--bg-primary);
   background: #1f9d55;
   color: #ffffff;
   font-size: 11px;
