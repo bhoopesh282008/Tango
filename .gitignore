@@ -6,3 +6,6 @@ dist
 .claude/settings.local.json
 # Output of a pipeline run, copied here to be served
 public/data/
+
+# playwright-cli session files
+.playwright-cli/
