@@ -220,14 +220,14 @@ export default function StatisticsCards({ stats }) {
               type="button"
               onClick={() => setExpanded(isOpen ? null : card.id)}
               aria-expanded={isOpen}
-              className={`flex items-start gap-3 rounded-xl border border-l-[5px] border-line p-4 text-left shadow-sm transition duration-150 hover:-translate-y-0.5 hover:shadow-md ${tone.border} ${tone.tint} ${
+              className={`flex items-start gap-3 rounded-xl border border-l-[5px] border-line p-4 text-left shadow-sm transition duration-150 hover:-translate-y-0.5 hover:shadow-md active:translate-y-0 active:scale-[0.99] ${tone.border} ${tone.tint} ${
                 isOpen ? 'ring-2 ring-primary' : ''
               }`}
             >
               <card.icon size={28} className={`mt-1 shrink-0 ${tone.value}`} aria-hidden />
               <span className="min-w-0 flex-1">
                 <span className="flex flex-wrap items-baseline gap-x-1.5">
-                  <span className={`text-3xl font-bold leading-tight ${tone.value}`}>{card.value}</span>
+                  <span className={`text-3xl font-bold leading-tight tracking-tight ${tone.value}`}>{card.value}</span>
                   <span className="text-xs font-medium text-ink-soft">{card.unit}</span>
                   {card.share && (
                     <span className="rounded bg-surface px-1.5 py-0.5 text-xs font-semibold">{card.share}</span>

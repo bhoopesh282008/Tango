@@ -70,7 +70,7 @@ function Entries({ items }) {
       {items.map(([term, text]) => (
         <div key={term}>
           <dt className="font-semibold">{term}</dt>
-          <dd className="mt-0.5 text-ink-soft">{text}</dd>
+          <dd className="mt-0.5 max-w-[70ch] leading-relaxed text-ink-soft">{text}</dd>
         </div>
       ))}
     </dl>
@@ -81,7 +81,7 @@ export default function AboutPage() {
   return (
     <div className="mx-auto flex max-w-3xl flex-col gap-4 pb-10">
       <div>
-        <h1 className="text-xl font-bold">Method and limitations</h1>
+        <h1 className="text-2xl font-bold tracking-tight">Method and limitations</h1>
         <p className="mt-1 text-sm text-ink-soft">
           This is an educational prototype, not an operational tool. Every figure is an estimate from
           satellite data and must be confirmed on the ground.

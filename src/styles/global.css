@@ -28,17 +28,19 @@
   --no-change: #cccccc;
 
   /* Surfaces */
+  /* One cool gray family, tinted towards the navy of the dark theme */
   --bg-primary: #ffffff;
-  --bg-secondary: #f5f5f5;
-  --border: #e0e0e0;
-  --text-primary: #1a1a1a;
-  --text-secondary: #666666;
-  --text-muted: #999999;
+  --bg-secondary: #f3f5f8;
+  --border: #dde1e8;
+  --text-primary: #151a26;
+  --text-secondary: #5a6272;
+  --text-muted: #687083;
 
-  /* Shadow */
-  --shadow-sm: 0 1px 3px rgba(0, 0, 0, 0.1);
-  --shadow-md: 0 4px 8px rgba(0, 0, 0, 0.1);
-  --shadow-lg: 0 8px 16px rgba(0, 0, 0, 0.15);
+  /* Shadows carry the navy tint and fall from one light source, above */
+  --shadow-sm: 0 1px 2px rgba(21, 26, 60, 0.08), 0 1px 3px rgba(21, 26, 60, 0.06);
+  --shadow-md: 0 2px 4px rgba(21, 26, 60, 0.06), 0 6px 14px rgba(21, 26, 60, 0.1);
+  --shadow-lg: 0 4px 8px rgba(21, 26, 60, 0.08), 0 14px 30px rgba(21, 26, 60, 0.16);
+  --focus-ring: #1565c0;
 }
 
 :root[data-theme='dark'] {
@@ -46,9 +48,9 @@
   --bg-primary: #1a1a2e;
   --bg-secondary: #0f0f1e;
   --border: #2e2e48;
-  --text-primary: #ffffff;
-  --text-secondary: #c0c0c0;
-  --text-muted: #808080;
+  --text-primary: #f4f6fb;
+  --text-secondary: #b9bfd0;
+  --text-muted: #7f869c;
 
   /* Brighter severity colours hold their contrast on dark surfaces */
   --critical: #ff6b6b;
@@ -63,9 +65,10 @@
   --success-soft: rgba(0, 204, 102, 0.15);
   --warning-soft: rgba(255, 204, 0, 0.15);
 
-  --shadow-sm: 0 2px 8px rgba(0, 0, 0, 0.2);
-  --shadow-md: 0 4px 16px rgba(0, 0, 0, 0.3);
-  --shadow-lg: 0 8px 24px rgba(0, 0, 0, 0.4);
+  --shadow-sm: 0 1px 2px rgba(4, 4, 18, 0.4), 0 2px 8px rgba(4, 4, 18, 0.25);
+  --shadow-md: 0 2px 4px rgba(4, 4, 18, 0.4), 0 8px 18px rgba(4, 4, 18, 0.35);
+  --shadow-lg: 0 4px 8px rgba(4, 4, 18, 0.45), 0 16px 34px rgba(4, 4, 18, 0.45);
+  --focus-ring: #7ab8ff;
   color-scheme: dark;
 }
 
@@ -73,8 +76,70 @@ body {
   margin: 0;
   background: var(--bg-secondary);
   color: var(--text-primary);
-  font-family: system-ui, -apple-system, 'Segoe UI', Roboto, 'Noto Sans', 'Noto Sans Devanagari',
-    sans-serif;
+  font-family: 'Geist Variable', system-ui, -apple-system, 'Segoe UI', Roboto, 'Noto Sans',
+    'Noto Sans Devanagari', sans-serif;
+  font-variant-numeric: tabular-nums;
+  -webkit-font-smoothing: antialiased;
+  text-rendering: optimizeLegibility;
+}
+
+h1,
+h2,
+h3 {
+  letter-spacing: -0.012em;
+  text-wrap: balance;
+}
+p,
+dd,
+li {
+  text-wrap: pretty;
+}
+
+/* A visible ring for keyboard users on every control, in the theme's blue */
+:focus-visible {
+  outline: 2px solid var(--focus-ring);
+  outline-offset: 2px;
+}
+
+/* First stop for keyboard users: jump past the header */
+.skip-link {
+  position: absolute;
+  left: 12px;
+  top: -48px;
+  z-index: 2000;
+  padding: 8px 14px;
+  border-radius: 8px;
+  background: var(--bg-primary);
+  color: var(--text-primary);
+  border: 1px solid var(--border);
+  box-shadow: var(--shadow-md);
+  font-size: 14px;
+  font-weight: 600;
+}
+.skip-link:focus {
+  top: 12px;
+}
+
+/* Placeholder blocks shaped like the content that is loading */
+.skeleton {
+  border-radius: 12px;
+  background: linear-gradient(90deg, var(--border) 25%, var(--bg-primary) 50%, var(--border) 75%);
+  background-size: 200% 100%;
+  animation: skeleton-sweep 1.4s ease-in-out infinite;
+  opacity: 0.7;
+}
+@keyframes skeleton-sweep {
+  from {
+    background-position: 200% 0;
+  }
+  to {
+    background-position: -200% 0;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .skeleton {
+    animation: none;
+  }
 }
 
 @layer components {
@@ -82,7 +147,7 @@ body {
     @apply rounded-xl border border-line bg-surface shadow-sm;
   }
   .btn {
-    @apply inline-flex min-h-[40px] items-center justify-center gap-2 rounded-lg border border-line bg-surface px-3 text-sm font-medium text-ink transition hover:bg-surface-alt disabled:cursor-not-allowed disabled:opacity-50;
+    @apply inline-flex min-h-[40px] items-center justify-center gap-2 rounded-lg border border-line bg-surface px-3 text-sm font-medium text-ink transition duration-150 hover:bg-surface-alt active:translate-y-px active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-50;
   }
   .btn-primary {
     @apply border-primary bg-primary text-white hover:bg-primary hover:brightness-110;
@@ -91,7 +156,7 @@ body {
     @apply border-primary bg-primary-soft;
   }
   .section-title {
-    @apply text-base font-semibold text-ink;
+    @apply text-base font-semibold tracking-tight text-ink;
   }
 }
 

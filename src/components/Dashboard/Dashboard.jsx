@@ -21,8 +21,15 @@ export default function Dashboard() {
   }
   if (loading) {
     return (
-      <div className="flex justify-center py-24">
-        <Spinner label="Loading satellite analysis" size={24} />
+      <div className="flex flex-col gap-4 pb-20" role="status" aria-label="Loading satellite analysis">
+        <div className="skeleton h-64 sm:h-80" />
+        <div className="grid gap-3 sm:grid-cols-3">
+          <div className="skeleton h-24" />
+          <div className="skeleton h-24" />
+          <div className="skeleton h-24" />
+        </div>
+        <div className="skeleton h-40" />
+        <span className="sr-only">Loading satellite analysis…</span>
       </div>
     )
   }
