@@ -2,7 +2,8 @@ import { Bot, User } from 'lucide-react'
 import { motion } from 'motion/react'
 import { useEffect, useRef } from 'react'
 import { formatPercent } from '../../utils/formatters'
-import Spinner from '../Common/Spinner'
+import { TypingDots } from '../Common/Animated'
+import AnswerBody from './AnswerBody'
 
 function Avatar({ icon: Icon, className }) {
   return (
@@ -44,7 +45,7 @@ function AssistantMessage({ response }) {
           {response.title && (
             <h2 className="border-b border-line px-4 py-2.5 text-sm font-semibold">{response.title}</h2>
           )}
-          <div className="whitespace-pre-wrap px-4 py-3 text-[15px] leading-relaxed">{response.answer}</div>
+          <AnswerBody text={response.answer} />
           <footer className="border-t border-line px-4 py-2 text-xs text-ink-soft" lang="en">
             Source: {response.dataSource}
             {response.confidence != null && ` · Model confidence ${formatPercent(response.confidence)}`}
@@ -65,16 +66,16 @@ export default function MessageThread({ conversation, loading }) {
 
   if (conversation.length === 0 && !loading) {
     return (
-      <div className="flex flex-col items-center px-4 py-10 text-center">
-        <span className="flex h-16 w-16 items-center justify-center rounded-full bg-primary-soft text-primary">
-          <Bot size={32} aria-hidden />
+      <motion.div {...arrive} className="flex flex-col items-center px-4 py-12 text-center">
+        <span className="icon-chip h-16 w-16 rounded-2xl bg-primary-soft text-primary">
+          <Bot size={30} aria-hidden />
         </span>
-        <h2 className="mt-4 text-lg font-semibold">What would you like to know?</h2>
-        <p className="mt-1 max-w-md text-sm text-ink-soft">
+        <h2 className="mt-5 text-2xl font-semibold tracking-tight">What would you like to know?</h2>
+        <p className="mt-2 max-w-md text-sm leading-relaxed text-ink-soft">
           Ask about flood extent, damaged infrastructure, cut-off settlements or rescue priorities.
           Answers are assembled from the satellite analysis shown on the dashboard.
         </p>
-      </div>
+      </motion.div>
     )
   }
 
@@ -90,7 +91,7 @@ export default function MessageThread({ conversation, loading }) {
       {loading && (
         <li className="flex items-center gap-2">
           <Avatar icon={Bot} className="bg-primary-soft text-primary" />
-          <Spinner label="Reading satellite analysis" />
+          <TypingDots label="Reading satellite analysis" />
         </li>
       )}
       <li ref={end} aria-hidden />

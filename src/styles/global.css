@@ -171,7 +171,42 @@ li {
     @apply border-primary bg-primary-soft;
   }
   .section-title {
-    @apply text-base font-semibold tracking-tight text-ink;
+    @apply text-lg font-semibold tracking-tight text-ink;
+  }
+  /* Panels floating over the map: the map shows faintly through them */
+  .panel-glass {
+    background: color-mix(in srgb, var(--bg-primary) 88%, transparent);
+    backdrop-filter: blur(10px) saturate(140%);
+    -webkit-backdrop-filter: blur(10px) saturate(140%);
+  }
+  /* Icon in a tinted square, used on the stat cards */
+  .icon-chip {
+    @apply flex h-11 w-11 shrink-0 items-center justify-center rounded-xl;
+    background: color-mix(in srgb, var(--bg-primary) 70%, transparent);
+    box-shadow: inset 0 0 0 1px color-mix(in srgb, currentColor 18%, transparent);
+  }
+}
+
+/* Depth on the navy theme: a lit top edge on every card, and a faint lift of
+   the page behind the header so the top of the screen is not one flat colour. */
+:root[data-theme='dark'] .card {
+  background-image: linear-gradient(180deg, rgba(255, 255, 255, 0.03), rgba(255, 255, 255, 0) 48%);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.06), var(--shadow-sm);
+}
+:root[data-theme='dark'] body {
+  background-image: radial-gradient(1100px 420px at 50% -120px, rgba(46, 46, 96, 0.55), transparent 72%);
+  background-repeat: no-repeat;
+}
+
+/* The header stays in view; the page shows faintly through it as it scrolls under */
+.app-header {
+  background: color-mix(in srgb, var(--bg-primary) 82%, transparent);
+  backdrop-filter: blur(14px) saturate(150%);
+  -webkit-backdrop-filter: blur(14px) saturate(150%);
+}
+@media print {
+  .app-header {
+    background: var(--bg-primary);
   }
 }
 

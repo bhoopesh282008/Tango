@@ -3,6 +3,7 @@ import { useMapStore } from '../../store/mapStore'
 import { DAMAGE_TYPES } from '../../utils/constants'
 import { formatNumber, formatPeople, formatPercent } from '../../utils/formatters'
 import { WORDING } from '../../utils/wording'
+import { MeterFill } from '../Common/Animated'
 
 const ACCESS = {
   cutOff: { order: 0, label: 'Cut off', className: 'bg-critical-soft text-critical' },
@@ -65,10 +66,7 @@ function ConfidenceCard({ stats }) {
                 aria-valuemax={100}
                 aria-valuenow={Math.round(confidence.mean * 100)}
               >
-                <div
-                  className="h-full rounded-full"
-                  style={{ width: `${confidence.mean * 100}%`, background: meta.color }}
-                />
+                <MeterFill fraction={confidence.mean} style={{ background: meta.color }} />
               </div>
               <p className="mt-1 text-xs text-ink-soft">
                 {formatNumber(stats.areaByType[type], 1)} km²

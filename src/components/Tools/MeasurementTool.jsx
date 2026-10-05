@@ -84,7 +84,7 @@ export default function MeasurementTool() {
   }
 
   return (
-    <div className="card w-64 p-3 text-sm shadow-lg">
+    <div className="card panel-glass w-64 p-3 text-sm shadow-lg">
       <div className="flex items-center gap-2">
         <div className="flex flex-1">
           {['distance', 'area'].map((mode, i) => (

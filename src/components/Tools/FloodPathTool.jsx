@@ -1,8 +1,10 @@
 import { X } from 'lucide-react'
+import { motion } from 'motion/react'
 import { useMemo } from 'react'
 import { Layer, Source } from 'react-map-gl/maplibre'
 import { useMapStore } from '../../store/mapStore'
 import { formatNumber } from '../../utils/formatters'
+import { AnimatedNumber } from '../Common/Animated'
 
 // Blue: the path is where water would run.
 const COLOR = '#1e90ff'
@@ -59,7 +61,12 @@ export default function FloodPathTool() {
   if (!pathMode) return null
 
   return (
-    <div className="card max-h-[60%] w-72 overflow-y-auto p-3 text-sm shadow-lg">
+    <motion.div
+      initial={{ opacity: 0, y: 8 }}
+      animate={{ opacity: 1, y: 0 }}
+      transition={{ duration: 0.2, ease: 'easeOut' }}
+      className="card panel-glass max-h-[60%] w-72 overflow-y-auto p-3 text-sm shadow-lg"
+    >
       <div className="flex items-center gap-2">
         <h3 className="flex-1 font-semibold">Flood path</h3>
         <button type="button" className="btn w-10 px-0" onClick={() => setPathMode(false)} aria-label="Close flood path tool">
@@ -78,7 +85,9 @@ export default function FloodPathTool() {
         )}
         {path?.line && (
           <>
-            <p className="mt-1 text-lg font-semibold">{formatNumber(path.lengthKm, 1)} km</p>
+            <p className="mt-1 text-2xl font-bold tracking-tight">
+              <AnimatedNumber text={formatNumber(path.lengthKm, 1)} /> <span className="text-sm font-medium text-ink-soft">km</span>
+            </p>
             <p className="text-xs text-ink-soft">to the edge of the mapped area</p>
             <h4 className="mt-2 text-xs font-semibold uppercase tracking-wide text-ink-soft">
               Settlements within 500 m ({path.settlements.length})
@@ -103,6 +112,6 @@ export default function FloodPathTool() {
         A drainage line from the Copernicus DEM (30 m). It shows direction only, not depth, width,
         timing or how far a flood would reach.
       </p>
-    </div>
+    </motion.div>
   )
 }

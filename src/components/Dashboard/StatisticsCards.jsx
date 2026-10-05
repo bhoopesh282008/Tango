@@ -16,6 +16,7 @@ import { useUIStore } from '../../store/uiStore'
 import { DAMAGE_TYPES } from '../../utils/constants'
 import { formatNumber, formatPercent } from '../../utils/formatters'
 import { WORDING } from '../../utils/wording'
+import { AnimatedNumber, liftOnHover } from '../Common/Animated'
 
 ChartJS.register(ArcElement, BarElement, CategoryScale, LinearScale, Tooltip, Legend)
 
@@ -215,19 +216,24 @@ export default function StatisticsCards({ stats }) {
           const tone = TONES[card.tone]
           const isOpen = expanded === card.id
           return (
-            <button
+            <motion.button
               key={card.id}
               type="button"
               onClick={() => setExpanded(isOpen ? null : card.id)}
               aria-expanded={isOpen}
-              className={`flex items-start gap-3 rounded-xl border border-l-[5px] border-line p-4 text-left shadow-sm transition duration-150 hover:-translate-y-0.5 hover:shadow-md active:translate-y-0 active:scale-[0.99] ${tone.border} ${tone.tint} ${
+              {...liftOnHover}
+              className={`flex items-start gap-3.5 rounded-xl border border-l-[5px] border-line p-4 text-left shadow-sm transition-shadow duration-200 hover:shadow-md ${tone.border} ${tone.tint} ${
                 isOpen ? 'ring-2 ring-primary' : ''
               }`}
             >
-              <card.icon size={28} className={`mt-1 shrink-0 ${tone.value}`} aria-hidden />
+              <span className={`icon-chip ${tone.value}`}>
+                <card.icon size={22} aria-hidden />
+              </span>
               <span className="min-w-0 flex-1">
                 <span className="flex flex-wrap items-baseline gap-x-1.5">
-                  <span className={`text-3xl font-bold leading-tight tracking-tight ${tone.value}`}>{card.value}</span>
+                  <span className={`text-4xl font-bold leading-none tracking-tight ${tone.value}`}>
+                    <AnimatedNumber text={card.value} />
+                  </span>
                   <span className="text-xs font-medium text-ink-soft">{card.unit}</span>
                   {card.share && (
                     <span className="rounded bg-surface px-1.5 py-0.5 text-xs font-semibold">{card.share}</span>
@@ -240,10 +246,10 @@ export default function StatisticsCards({ stats }) {
               </span>
               <ChevronDown
                 size={16}
-                className={`no-print shrink-0 text-ink-soft transition ${isOpen ? 'rotate-180' : ''}`}
+                className={`no-print shrink-0 text-ink-soft transition duration-200 ${isOpen ? 'rotate-180' : ''}`}
                 aria-hidden
               />
-            </button>
+            </motion.button>
           )
         })}
       </div>
@@ -274,11 +280,15 @@ export default function StatisticsCards({ stats }) {
               key={card.id}
               className={`flex items-center gap-3 rounded-xl border border-l-[5px] border-line px-3 py-2.5 shadow-sm ${tone.border} ${tone.tint}`}
             >
-              <card.icon size={22} className={`shrink-0 ${tone.value}`} aria-hidden />
+              <span className={`icon-chip h-9 w-9 rounded-lg ${tone.value}`}>
+                <card.icon size={18} aria-hidden />
+              </span>
               <div className="flex min-w-0 flex-col-reverse">
                 <dt className="text-[11px] font-semibold uppercase tracking-wide text-ink">{card.label}</dt>
-                <dd className="text-lg font-bold leading-tight">
-                  <span className={tone.value}>{card.value}</span>
+                <dd className="text-xl font-bold leading-tight tracking-tight">
+                  <span className={tone.value}>
+                    <AnimatedNumber text={card.value} />
+                  </span>
                   {card.unit && <span className="ml-1 text-xs font-medium text-ink-soft">{card.unit}</span>}
                 </dd>
               </div>

@@ -1,4 +1,5 @@
 import { CircleAlert, CircleCheck, MapPin, Siren, TriangleAlert } from 'lucide-react'
+import { motion } from 'motion/react'
 import { useState } from 'react'
 import { USE_MOCK } from '../../config/apiConfig'
 import { useMapStore } from '../../store/mapStore'
@@ -18,6 +19,7 @@ const FACTOR_LABELS = {
 const CARD_LIMIT = 6
 import { formatNumber, formatPercent } from '../../utils/formatters'
 import { WORDING } from '../../utils/wording'
+import { AnimatedNumber, MeterFill, riseIn } from '../Common/Animated'
 
 const SORTS = [
   { id: 'priority', label: 'Priority', compare: (a, b) => a.rank - b.rank },
@@ -105,7 +107,7 @@ function Metric({ label, children }) {
   )
 }
 
-function PriorityCard({ settlement: s, buildings, hidden }) {
+function PriorityCard({ settlement: s, buildings, hidden, index }) {
   const focusSettlement = useMapStore((state) => state.focusSettlement)
   const band = PRIORITY_BANDS.find((b) => b.id === s.band)
   const style = BAND_STYLE[s.band]
@@ -117,8 +119,9 @@ function PriorityCard({ settlement: s, buildings, hidden }) {
   ].filter(Boolean)
 
   return (
-    <li
-      className={`flex-col gap-3 rounded-xl border border-l-[6px] border-line p-4 shadow-sm ${style.border} ${style.tint} ${
+    <motion.li
+      {...riseIn(index)}
+      className={`flex-col gap-3 rounded-xl border border-l-[6px] border-line p-4 shadow-sm transition-shadow duration-200 hover:shadow-md ${style.border} ${style.tint} ${
         hidden ? 'hidden print:flex' : 'flex'
       }`}
     >
@@ -136,7 +139,9 @@ function PriorityCard({ settlement: s, buildings, hidden }) {
           </p>
         </div>
         <div className="shrink-0 text-right">
-          <div className="text-2xl font-bold leading-none">{s.priority}</div>
+          <div className="text-3xl font-bold leading-none tracking-tight">
+            <AnimatedNumber text={String(s.priority)} />
+          </div>
           <div className="mt-0.5 text-[10px] uppercase tracking-wide text-ink-soft">of 100</div>
         </div>
       </div>
@@ -149,7 +154,7 @@ function PriorityCard({ settlement: s, buildings, hidden }) {
         aria-valuemax={100}
         aria-valuenow={s.priority}
       >
-        <div className={`h-full rounded-full ${style.fill}`} style={{ width: `${s.priority}%` }} />
+        <MeterFill fraction={s.priority / 100} className={style.fill} />
       </div>
 
       <dl className="grid grid-cols-3 divide-x divide-line border-y border-line py-2">
@@ -175,7 +180,7 @@ function PriorityCard({ settlement: s, buildings, hidden }) {
       <button type="button" className="btn no-print mt-auto w-full" onClick={() => focusSettlement(s)}>
         <MapPin size={16} aria-hidden /> Show on map
       </button>
-    </li>
+    </motion.li>
   )
 }
 
@@ -228,6 +233,7 @@ export default function SettlementPriorityRanking({ stats }) {
             settlement={settlement}
             buildings={buildings}
             hidden={!showAll && i >= CARD_LIMIT}
+            index={i}
           />
         ))}
       </ul>

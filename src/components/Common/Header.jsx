@@ -15,7 +15,7 @@ export default function Header() {
   const { before, after } = imageryDates(useDataStore((s) => s.satelliteData))
 
   return (
-    <header className="sticky top-0 z-[1100] border-b border-line bg-surface print:static">
+    <header className="app-header sticky top-0 z-[1100] border-b border-line print:static">
       <div className="mx-auto flex max-w-7xl flex-wrap items-center gap-x-4 gap-y-2 px-3 py-2.5 sm:px-5 lg:px-6">
         <Link to="/" className="flex min-w-0 items-center gap-2.5">
           <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-critical-soft">
