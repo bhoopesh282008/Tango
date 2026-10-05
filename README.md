@@ -23,7 +23,7 @@ What the system cannot do is listed in the app at `/about` (Method and limitatio
 ```bash
 npm install
 npm run dev      # http://localhost:5173
-npm run test     # 59 tests
+npm run test     # 60 tests
 npm run build
 ```
 
@@ -34,7 +34,7 @@ Python 3.11 to 3.13 (the geospatial packages have no wheels for 3.14 yet). From 
 ```bash
 py -3.13 -m venv pipeline/.venv
 pipeline/.venv/Scripts/python -m pip install -r pipeline/requirements.txt
-pipeline/.venv/Scripts/python -m pytest pipeline/tests     # 61 tests
+pipeline/.venv/Scripts/python -m pytest pipeline/tests     # 62 tests
 ```
 
 For GPU training install PyTorch from its own index first: `pip install torch --index-url https://download.pytorch.org/whl/cu124`.

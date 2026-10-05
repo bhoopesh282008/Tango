@@ -40,6 +40,7 @@ export default function Dashboard() {
         <SatelliteViewer
           before={data.satelliteData.before}
           after={data.satelliteData.after}
+          detail={data.satelliteData.detail}
           comparisonValue={comparisonBlend}
           onComparisonChange={setComparisonBlend}
         />

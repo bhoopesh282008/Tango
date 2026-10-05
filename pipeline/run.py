@@ -262,6 +262,8 @@ def main():
             images['pre']['optical_url'], images['post']['optical_url'] = 'before_optical.png', 'after_optical.png'
             method += ' + Sentinel-2 (confirms detections, fills radar blind spots)'
     zones = segment.vectorise(classes, conf, transform, crs)
+    # A full-resolution close-up of where the most flood was mapped, for the before/after viewer.
+    detail_window = quicklook.detail_pngs(pre, post, np.isin(classes, (C.CLASS_WATER, C.CLASS_DEBRIS)), out)
 
     roads = damage.flag_damaged(osm['roads'], zones)
     buildings = damage.flag_damaged(osm['buildings'], zones)
@@ -273,6 +275,17 @@ def main():
     roads = describe_roads(roads, settlements)
     roads['flooded_km'] = damage.flooded_length_km(roads, zones)
 
+    detail = None
+    if detail_window:
+        row, col, rows, cols = detail_window
+        images['pre']['detail_url'], images['post']['detail_url'] = 'before_detail.png', 'after_detail.png'
+        # Named after the settlement nearest its centre, so the viewer can say where it is.
+        centre = Point(*(transform * (col + cols / 2, row + rows / 2)))
+        near = None
+        if len(settlements):
+            near = settlements.loc[settlements.to_crs(crs).distance(centre).idxmin(), 'name']
+        detail = {'near': near, 'width_km': round(cols * cell / 1000, 1), 'height_km': round(rows * cell / 1000, 1)}
+
     settlement_rows = settlement_records(settlements, status)
     infra = infrastructure.build(osm['bridges'], osm['health'], roads, zones, settlements)
     export.export_all(args.out, zones, buildings, roads, settlement_rows, infra, {
@@ -282,6 +295,7 @@ def main():
         'before': {**(scenes.get('pre') or {}), **images['pre']},
         'after': {**(scenes.get('post') or {}), **images['post']},
         'optical': optical,
+        'detail': detail,
         'valley_floor': {'drainage': drainage_source, 'share_of_area': round(float(floor.mean()), 3)},
     })
     # The DEM the dashboard's flood-path tool traces on

@@ -128,7 +128,7 @@ function ScenesWithoutImagery({ before, after }) {
   )
 }
 
-export default function SatelliteViewer({ before, after, comparisonValue, onComparisonChange }) {
+export default function SatelliteViewer({ before, after, detail, comparisonValue, onComparisonChange }) {
   const [zoom, setZoom] = useState(1)
   // Width over height of the real picture, once it has loaded. The stage takes this shape,
   // so the slider runs across the picture and not across empty space beside it.
@@ -140,7 +140,13 @@ export default function SatelliteViewer({ before, after, comparisonValue, onComp
   const [sensor, setSensor] = useState('s1')
   const placeholder = !before?.url || !after?.url
   const hasOptical = !!(before?.optical_url && after?.optical_url)
-  const urlOf = (scene) => (sensor === 's2' && hasOptical ? scene?.optical_url : scene?.url)
+  // A run can add a full-resolution close-up of where it mapped the most flood. It opens
+  // first: across the whole area the two radar pictures are hard to tell apart.
+  const hasDetail = !!(before?.detail_url && after?.detail_url)
+  const [view, setView] = useState('detail')
+  const optical = sensor === 's2' && hasOptical
+  const closeUp = hasDetail && view === 'detail' && !optical
+  const urlOf = (scene) => (optical ? scene?.optical_url : closeUp ? scene?.detail_url : scene?.url)
 
   const lookAt = (event) => {
     if (zoom === 1 || event.pointerType !== 'mouse') return
@@ -168,6 +174,27 @@ export default function SatelliteViewer({ before, after, comparisonValue, onComp
       <div className="flex flex-wrap items-center gap-2 px-3 py-2.5 sm:px-4">
         <h2 className="section-title mr-auto">Satellite comparison</h2>
         <div className="no-print flex flex-wrap items-center gap-2">
+          {hasDetail && !optical && (
+            <div className="flex" role="group" aria-label="Picture extent">
+              {[
+                ['detail', 'Flood area'],
+                ['whole', 'Whole area'],
+              ].map(([id, label], i) => (
+                <button
+                  key={id}
+                  type="button"
+                  onClick={() => {
+                    setView(id)
+                    setZoom(1)
+                  }}
+                  aria-pressed={view === id}
+                  className={`btn ${i === 0 ? 'rounded-r-none' : '-ml-px rounded-l-none'} ${view === id ? 'btn-active' : ''}`}
+                >
+                  {label}
+                </button>
+              ))}
+            </div>
+          )}
           <label className="sr-only" htmlFor="sensor">
             Imagery layer
           </label>
@@ -278,6 +305,10 @@ export default function SatelliteViewer({ before, after, comparisonValue, onComp
           : after.sensor
             ? `${after.sensor}${after.resolution ? `, ${after.resolution} resolution` : ''}.`
             : 'Radar backscatter: water dark, rough ground bright.'}{' '}
+        {closeUp &&
+          `Close-up at full resolution: the ${detail?.width_km ?? ''} × ${detail?.height_km ?? ''} km where the map found the most flood${
+            detail?.near ? `, near ${detail.near}` : ''
+          }. `}
         Drag to compare.{!placeholder && ' Zoom in, then move the pointer over the picture to look around.'}
         {placeholder && ' Placeholder rendering: no satellite scene is loaded in demo mode.'}
       </p>

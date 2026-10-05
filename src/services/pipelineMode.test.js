@@ -27,7 +27,7 @@ test('loads the six datasets from the data folder', async () => {
   for (const [part, load] of Object.entries(DATA_PARTS)) loaded[part] = await load()
 
   expect(fetch.mock.calls.map(([url]) => url).sort()).toEqual(Object.keys(FILES).sort())
-  expect(loaded.satelliteData).toEqual({ before: { date: '2026-08-24' }, after: null, validation: null })
+  expect(loaded.satelliteData).toEqual({ before: { date: '2026-08-24' }, after: null, validation: null, detail: null })
   expect(loaded.settlements[0]).toMatchObject({ population: null, connected: null })
   expect(loaded.infrastructure).toEqual([])
 })

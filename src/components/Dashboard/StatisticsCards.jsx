@@ -120,7 +120,7 @@ function barChart(labels, values, color, textColor, gridColor) {
         plugins: { legend: { display: false } },
         scales: {
           x: { ticks: { color: textColor }, grid: { color: gridColor } },
-          y: { ticks: { color: textColor }, grid: { display: false } },
+          y: { ticks: { color: textColor, autoSkip: false }, grid: { display: false } },
         },
       }}
     />
@@ -130,8 +130,8 @@ function barChart(labels, values, color, textColor, gridColor) {
 function Breakdown({ id, stats }) {
   // Chart.js draws on canvas, so theme colours are passed in rather than inherited.
   const darkMode = useUIStore((s) => s.darkMode)
-  const textColor = darkMode ? '#c0c0c0' : '#666666'
-  const gridColor = darkMode ? '#2e2e48' : '#e0e0e0'
+  const textColor = darkMode ? '#a3a8b1' : '#555b66'
+  const gridColor = darkMode ? '#23262c' : '#e2e4e8'
   const barColor = darkMode ? '#ff6b6b' : '#e03131'
 
   if (id === 'area') {

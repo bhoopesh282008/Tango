@@ -12,15 +12,26 @@ const demo = () => import('../data/mockData')
 const inDataFolder = (url) => (url && !/^(https?:)?\//.test(url) ? `${DATA_URL}/${url}` : url)
 function sceneWithUrls(scene) {
   if (!scene) return null
-  return { ...scene, url: inDataFolder(scene.url), optical_url: inDataFolder(scene.optical_url) }
+  return {
+    ...scene,
+    url: inDataFolder(scene.url),
+    optical_url: inDataFolder(scene.optical_url),
+    detail_url: inDataFolder(scene.detail_url),
+  }
 }
 
 export async function getSatellite() {
   if (USE_MOCK) return mock((await demo()).satellite)
   if (PIPELINE) {
     // A run from existing rasters records no scenes, so either side may be missing.
-    const { before, after, validation } = await getFile(PIPELINE_FILES.satellite)
-    return { before: sceneWithUrls(before), after: sceneWithUrls(after), validation: validation ?? null }
+    const { before, after, validation, detail } = await getFile(PIPELINE_FILES.satellite)
+    return {
+      before: sceneWithUrls(before),
+      after: sceneWithUrls(after),
+      validation: validation ?? null,
+      // Where the close-up pictures are, when the run made them
+      detail: detail ?? null,
+    }
   }
   const [before, after] = await Promise.all([
     get(ENDPOINTS.satelliteBefore, { date: EVENT.beforeDate }),

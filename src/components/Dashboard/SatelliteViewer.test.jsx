@@ -28,6 +28,23 @@ test('offers the optical pictures only when both exist, and switches to them', (
   expect(screen.getByText(/cloud is left blank/)).toBeInTheDocument()
 })
 
+test('opens on the close-up of the flood area when a run provides one, and can show the whole area', () => {
+  render(
+    <SatelliteViewer
+      before={scene('before', { detail_url: '/data/before_detail.png' })}
+      after={scene('after', { detail_url: '/data/after_detail.png' })}
+      detail={{ near: 'Betrawati', width_km: 8, height_km: 8 }}
+      comparisonValue={50}
+      onComparisonChange={() => {}}
+    />,
+  )
+  expect(screen.getByAltText('Satellite image after the flood')).toHaveAttribute('src', '/data/after_detail.png')
+  expect(screen.getByText(/8 × 8 km where the map found the most flood, near Betrawati/)).toBeInTheDocument()
+  fireEvent.click(screen.getByRole('button', { name: 'Whole area' }))
+  expect(screen.getByAltText('Satellite image before the flood')).toHaveAttribute('src', '/data/before.png')
+  expect(screen.queryByText(/where the map found the most flood/)).not.toBeInTheDocument()
+})
+
 test('demo mode without pictures keeps the labelled placeholder', () => {
   show({ date: '2026-08-23', sensor: 'Sentinel-1 GRD (VV)', resolution: '10 m', url: null },
     { date: '2026-08-28', sensor: 'Sentinel-1 GRD (VV)', resolution: '10 m', url: null })

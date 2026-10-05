@@ -9,6 +9,8 @@ import numpy as np
 import rasterio
 
 MAX_SIDE = 1600
+# The close-up: this many cells on a side, at the grid's own resolution (8 km at 10 m).
+DETAIL_SIDE = 800
 RADAR_RANGE_DB = (-25.0, 0.0)
 OPTICAL_MAX_REFLECTANCE = 0.4
 
@@ -40,9 +42,39 @@ def write_png(path, bands):
             dst.write(band, i)
 
 
-def radar_png(db, path):
+def densest_window(mask, side=DETAIL_SIDE):
+    """(row, col, rows, cols, count): the side x side window holding the most True cells.
+
+    The window is clipped to the array, and the first such window wins a tie.
+    """
+    rows, cols = min(side, mask.shape[0]), min(side, mask.shape[1])
+    table = np.pad(mask.astype('int64').cumsum(0).cumsum(1), ((1, 0), (1, 0)))
+    sums = table[rows:, cols:] - table[:-rows, cols:] - table[rows:, :-cols] + table[:-rows, :-cols]
+    row, col = np.unravel_index(np.argmax(sums), sums.shape)
+    return int(row), int(col), rows, cols, int(sums[row, col])
+
+
+def detail_pngs(pre_db, post_db, flood, out, side=DETAIL_SIDE):
+    """Before and after close-ups of where the map found the most flood, unshrunk.
+
+    The whole-area pictures are shrunk about three times, which leaves a river
+    change tens of metres wide a pixel or two across. `flood` is the mask of
+    water and debris cells. Returns the window (row, col, rows, cols), or None
+    when nothing was mapped. Both pictures use the same fixed dB range, so a
+    difference between them is a difference in the scenes.
+    """
+    row, col, rows, cols, count = densest_window(flood, side)
+    if count == 0:
+        return None
+    window = (slice(row, row + rows), slice(col, col + cols))
+    radar_png(pre_db[window], out / 'before_detail.png', max_side=None)
+    radar_png(post_db[window], out / 'after_detail.png', max_side=None)
+    return row, col, rows, cols
+
+
+def radar_png(db, path, max_side=MAX_SIDE):
     """Greyscale backscatter, dark water to bright rough ground."""
-    small = shrink(db)
+    small = shrink(db, max_side) if max_side else db
     grey = scale(small, *RADAR_RANGE_DB)
     write_png(path, [grey, np.where(np.isfinite(small), 255, 0).astype('uint8')])
     return grey.shape

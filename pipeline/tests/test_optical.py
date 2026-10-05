@@ -129,6 +129,26 @@ def test_composites_are_cached_and_reused(tmp_path, monkeypatch):
     assert len(calls) == 2                                           # other passes: read again
 
 
+def test_detail_pictures_frame_the_densest_flood_at_full_resolution(tmp_path):
+    flood = np.zeros((60, 80), bool)
+    flood[5:8, 5:8] = True          # a small patch
+    flood[40:50, 60:70] = True      # the large one
+    row, col, rows, cols, count = quicklook.densest_window(flood, side=20)
+    assert (rows, cols, count) == (20, 20, 100)
+    assert row <= 40 and row + 20 >= 50 and col <= 60 and col + 20 >= 70   # the large patch is inside
+    assert quicklook.densest_window(np.zeros((10, 30), bool), side=20)[2:] == (10, 20, 0)   # clipped to the array
+
+    pre = np.full((60, 80), -8.0, 'float32')
+    post = pre.copy()
+    post[40:50, 60:70] = -20.0
+    assert quicklook.detail_pngs(pre, post, flood, tmp_path, side=20) == (row, col, 20, 20)
+    with rasterio.open(tmp_path / 'before_detail.png') as a, rasterio.open(tmp_path / 'after_detail.png') as b:
+        before, after = a.read(1), b.read(1)
+    assert before.shape == after.shape == (20, 20)                         # not shrunk
+    assert (after < before).sum() == 100                                   # the darkening is visible, same stretch
+    assert quicklook.detail_pngs(pre, post, np.zeros_like(flood), tmp_path) is None
+
+
 def test_acquisitions_group_tiles_and_drop_partial_passes():
     def tile(when, west, east):
         return SimpleNamespace(properties={'datetime': when}, geometry={
