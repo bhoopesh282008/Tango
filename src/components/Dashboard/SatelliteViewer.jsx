@@ -5,6 +5,8 @@ import { downloadBlob } from '../../services/exportService'
 import { useUIStore } from '../../store/uiStore'
 import { formatDate } from '../../utils/formatters'
 
+const MAX_ZOOM = 8
+
 const RIVER = 'M 620 -10 C 600 60, 560 90, 540 150 S 430 220, 380 260 S 240 320, 150 380'
 const VILLAGES = [
   [598, 40], [560, 108], [520, 168], [452, 214], [395, 238], [330, 292], [250, 318], [640, 150], [300, 180],
@@ -71,14 +73,17 @@ function SarScene({ flooded, uid, svgRef }) {
   )
 }
 
-function Scene({ image, url, flooded, zoom, svgRef }) {
+function Scene({ url, flooded, zoom, origin, svgRef, onShape }) {
   return (
-    <div className="h-full w-full" style={{ transform: `scale(${zoom})` }}>
+    <div
+      className="h-full w-full"
+      style={{ transform: `scale(${zoom})`, transformOrigin: `${origin.x}% ${origin.y}%` }}
+    >
       {url ? (
         <img
           src={url}
           alt={flooded ? 'Satellite image after the flood' : 'Satellite image before the flood'}
-          loading="lazy"
+          onLoad={(e) => onShape?.(e.currentTarget.naturalWidth / e.currentTarget.naturalHeight)}
           // The whole area is shown uncropped; no-data pixels are transparent over black.
           className="h-full w-full object-contain"
         />
@@ -125,12 +130,26 @@ function ScenesWithoutImagery({ before, after }) {
 
 export default function SatelliteViewer({ before, after, comparisonValue, onComparisonChange }) {
   const [zoom, setZoom] = useState(1)
+  // Width over height of the real picture, once it has loaded. The stage takes this shape,
+  // so the slider runs across the picture and not across empty space beside it.
+  const [shape, setShape] = useState(null)
+  // The point the zoom holds still, as a percentage of the stage. It follows the mouse.
+  const [origin, setOrigin] = useState({ x: 50, y: 50 })
   const afterSvg = useRef(null)
   const addToast = useUIStore((s) => s.addToast)
   const [sensor, setSensor] = useState('s1')
   const placeholder = !before?.url || !after?.url
   const hasOptical = !!(before?.optical_url && after?.optical_url)
   const urlOf = (scene) => (sensor === 's2' && hasOptical ? scene?.optical_url : scene?.url)
+
+  const lookAt = (event) => {
+    if (zoom === 1 || event.pointerType !== 'mouse') return
+    const box = event.currentTarget.getBoundingClientRect()
+    setOrigin({
+      x: Math.max(0, Math.min(100, ((event.clientX - box.left) / box.width) * 100)),
+      y: Math.max(0, Math.min(100, ((event.clientY - box.top) / box.height) * 100)),
+    })
+  }
 
   if (placeholder && !USE_MOCK) return <ScenesWithoutImagery before={before} after={after} />
 
@@ -165,7 +184,7 @@ export default function SatelliteViewer({ before, after, comparisonValue, onComp
             <button
               type="button"
               className="btn w-10 rounded-r-none px-0"
-              onClick={() => setZoom((z) => Math.max(1, z - 0.5))}
+              onClick={() => setZoom((z) => Math.max(1, z / 2))}
               disabled={zoom <= 1}
               aria-label="Zoom out"
             >
@@ -183,8 +202,8 @@ export default function SatelliteViewer({ before, after, comparisonValue, onComp
             <button
               type="button"
               className="btn -ml-px w-10 rounded-l-none px-0"
-              onClick={() => setZoom((z) => Math.min(3, z + 0.5))}
-              disabled={zoom >= 3}
+              onClick={() => setZoom((z) => Math.min(MAX_ZOOM, z * 2))}
+              disabled={zoom >= MAX_ZOOM}
               aria-label="Zoom in"
             >
               <ZoomIn size={16} />
@@ -196,12 +215,28 @@ export default function SatelliteViewer({ before, after, comparisonValue, onComp
         </div>
       </div>
 
-      <div className="relative h-[220px] select-none overflow-hidden bg-black sm:h-[320px] lg:h-[360px]">
+      <div className="flex justify-center border-y border-line bg-[var(--surface-2)]">
+      <div
+        className={`relative select-none overflow-hidden bg-black ${
+          placeholder
+            ? 'h-[220px] w-full sm:h-[320px] lg:h-[360px]'
+            : shape
+              ? ''
+              : 'h-[62vh] max-h-[560px] w-full'
+        }`}
+        // As tall as the screen allows, or as wide as the card: whichever is reached first.
+        style={
+          !placeholder && shape
+            ? { aspectRatio: shape, width: `min(100%, calc(min(62vh, 560px) * ${shape}))` }
+            : undefined
+        }
+        onPointerMove={lookAt}
+      >
         <div className="absolute inset-0">
-          <Scene image={after} url={urlOf(after)} flooded zoom={zoom} svgRef={afterSvg} />
+          <Scene url={urlOf(after)} flooded zoom={zoom} origin={origin} svgRef={afterSvg} onShape={setShape} />
         </div>
         <div className="absolute inset-0" style={{ clipPath: `inset(0 ${100 - comparisonValue}% 0 0)` }}>
-          <Scene image={before} url={urlOf(before)} flooded={false} zoom={zoom} />
+          <Scene url={urlOf(before)} flooded={false} zoom={zoom} origin={origin} />
         </div>
 
         <span className="absolute left-2 top-2 rounded bg-black/70 px-2 py-1 text-xs font-medium text-white">
@@ -229,6 +264,12 @@ export default function SatelliteViewer({ before, after, comparisonValue, onComp
           aria-label="Before and after comparison"
           className="absolute inset-0 h-full w-full cursor-ew-resize opacity-0"
         />
+        {zoom > 1 && (
+          <span className="num pointer-events-none absolute bottom-2 left-2 rounded bg-black/70 px-2 py-1 text-xs font-medium text-white">
+            {zoom}×
+          </span>
+        )}
+      </div>
       </div>
 
       <p className="px-3 py-2 text-xs text-ink-soft sm:px-4">
@@ -237,7 +278,7 @@ export default function SatelliteViewer({ before, after, comparisonValue, onComp
           : after.sensor
             ? `${after.sensor}${after.resolution ? `, ${after.resolution} resolution` : ''}.`
             : 'Radar backscatter: water dark, rough ground bright.'}{' '}
-        Drag to compare.
+        Drag to compare.{!placeholder && ' Zoom in, then move the pointer over the picture to look around.'}
         {placeholder && ' Placeholder rendering: no satellite scene is loaded in demo mode.'}
       </p>
     </section>
