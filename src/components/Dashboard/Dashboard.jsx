@@ -1,6 +1,7 @@
 import { lazy, Suspense, useState } from 'react'
 import { useDamageData } from '../../hooks/useDamageData'
 import ErrorPage from '../../pages/ErrorPage'
+import Reveal from '../Common/Reveal'
 import Spinner from '../Common/Spinner'
 import CoverageNotice from './CoverageNotice'
 import DamageAnalysis from './DamageAnalysis'
@@ -28,15 +29,21 @@ export default function Dashboard() {
 
   return (
     <div className="flex flex-col gap-4 pb-20">
-      <SatelliteViewer
-        before={data.satelliteData.before}
-        after={data.satelliteData.after}
-        comparisonValue={comparisonBlend}
-        onComparisonChange={setComparisonBlend}
-      />
+      <Reveal>
+        <SatelliteViewer
+          before={data.satelliteData.before}
+          after={data.satelliteData.after}
+          comparisonValue={comparisonBlend}
+          onComparisonChange={setComparisonBlend}
+        />
+      </Reveal>
       <CoverageNotice validation={stats.validation} />
-      <StatisticsCards stats={stats} />
-      <SettlementPriorityRanking stats={stats} />
+      <Reveal order={2}>
+        <StatisticsCards stats={stats} />
+      </Reveal>
+      <Reveal order={3}>
+        <SettlementPriorityRanking stats={stats} />
+      </Reveal>
       <Suspense
         fallback={
           <div className="card flex h-[60vh] min-h-[360px] items-center justify-center lg:h-[560px]">
@@ -51,7 +58,9 @@ export default function Dashboard() {
           confidence={stats.meanConfidence}
         />
       </Suspense>
-      <DamageAnalysis stats={stats} />
+      <Reveal>
+        <DamageAnalysis stats={stats} />
+      </Reveal>
     </div>
   )
 }

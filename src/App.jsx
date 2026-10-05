@@ -1,3 +1,4 @@
+import { MotionConfig } from 'motion/react'
 import { lazy, Suspense, useEffect, useState } from 'react'
 import { Navigate, Route, Routes } from 'react-router-dom'
 import Spinner from './components/Common/Spinner'
@@ -44,16 +45,19 @@ export default function App() {
   }
 
   return (
-    <MainLayout>
-      <Suspense fallback={<Spinner label="Loading" />}>
-        <Routes>
-          <Route path="/" element={<DashboardPage />} />
-          <Route path="/copilot" element={<CopilotPage />} />
-          <Route path="/about" element={<AboutPage />} />
-          <Route path="/404" element={<ErrorPage />} />
-          <Route path="*" element={<Navigate to="/" replace />} />
-        </Routes>
-      </Suspense>
-    </MainLayout>
+    // "user": with the system's reduce-motion setting on, movement is dropped and only fades remain.
+    <MotionConfig reducedMotion="user">
+      <MainLayout>
+        <Suspense fallback={<Spinner label="Loading" />}>
+          <Routes>
+            <Route path="/" element={<DashboardPage />} />
+            <Route path="/copilot" element={<CopilotPage />} />
+            <Route path="/about" element={<AboutPage />} />
+            <Route path="/404" element={<ErrorPage />} />
+            <Route path="*" element={<Navigate to="/" replace />} />
+          </Routes>
+        </Suspense>
+      </MainLayout>
+    </MotionConfig>
   )
 }

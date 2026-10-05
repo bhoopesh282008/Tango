@@ -8,6 +8,7 @@ import {
   Tooltip,
 } from 'chart.js'
 import { Bridge, Building2, ChevronDown, Droplets, Hospital, Route, Users, Zap } from 'lucide-react'
+import { AnimatePresence, motion } from 'motion/react'
 import { useState } from 'react'
 import { Bar, Doughnut } from 'react-chartjs-2'
 import { USE_MOCK } from '../../config/apiConfig'
@@ -247,12 +248,23 @@ export default function StatisticsCards({ stats }) {
         })}
       </div>
 
-      {active && (
-        <div className="card p-4">
-          <h3 className="mb-3 text-sm font-semibold">{active.label}: breakdown</h3>
-          <Breakdown id={active.id} stats={stats} />
-        </div>
-      )}
+      <AnimatePresence initial={false} mode="wait">
+        {active && (
+          <motion.div
+            key={active.id}
+            className="overflow-hidden"
+            initial={{ opacity: 0, height: 0 }}
+            animate={{ opacity: 1, height: 'auto' }}
+            exit={{ opacity: 0, height: 0 }}
+            transition={{ duration: 0.2, ease: 'easeOut' }}
+          >
+            <div className="card p-4">
+              <h3 className="mb-3 text-sm font-semibold">{active.label}: breakdown</h3>
+              <Breakdown id={active.id} stats={stats} />
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
 
       <dl className="grid grid-cols-2 gap-3 lg:grid-cols-4">
         {secondaryCards(stats).map((card) => {

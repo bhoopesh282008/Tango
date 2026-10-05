@@ -1,4 +1,5 @@
 import { Bot, User } from 'lucide-react'
+import { motion } from 'motion/react'
 import { useEffect, useRef } from 'react'
 import { formatPercent } from '../../utils/formatters'
 import Spinner from '../Common/Spinner'
@@ -11,21 +12,28 @@ function Avatar({ icon: Icon, className }) {
   )
 }
 
+// A message easing in as it joins the thread
+const arrive = {
+  initial: { opacity: 0, y: 8 },
+  animate: { opacity: 1, y: 0 },
+  transition: { duration: 0.25, ease: 'easeOut' },
+}
+
 function UserMessage({ text }) {
   return (
-    <li className="flex justify-end gap-2">
+    <motion.li {...arrive} className="flex justify-end gap-2">
       <p className="max-w-[85%] rounded-xl rounded-tr-sm bg-primary px-4 py-2.5 text-sm text-white sm:max-w-[70%]">
         {text}
       </p>
       <Avatar icon={User} className="bg-surface-alt text-ink-soft" />
-    </li>
+    </motion.li>
   )
 }
 
 function AssistantMessage({ response }) {
   const lang = response.language === 'np' ? 'ne' : 'en'
   return (
-    <li className="flex gap-2">
+    <motion.li {...arrive} className="flex gap-2">
       <Avatar icon={Bot} className="bg-primary-soft text-primary" />
       {response.notice ? (
         <p lang={lang} className="card max-w-[85%] rounded-tl-sm px-4 py-2.5 text-sm text-ink-soft sm:max-w-[70%]">
@@ -43,7 +51,7 @@ function AssistantMessage({ response }) {
           </footer>
         </article>
       )}
-    </li>
+    </motion.li>
   )
 }
 
