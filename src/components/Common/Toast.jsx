@@ -2,17 +2,23 @@ import { CheckCircle2, CircleAlert, X } from 'lucide-react'
 import { useEffect } from 'react'
 import { useUIStore } from '../../store/uiStore'
 
+// An error is worth reading twice; a confirmation is not.
+const SHOWN_FOR = { success: 3500, error: 8000 }
+
 function Toast({ toast }) {
   const removeToast = useUIStore((s) => s.removeToast)
 
   useEffect(() => {
-    const timer = setTimeout(() => removeToast(toast.id), 3500)
+    const timer = setTimeout(() => removeToast(toast.id), SHOWN_FOR[toast.type] ?? SHOWN_FOR.success)
     return () => clearTimeout(timer)
-  }, [toast.id, removeToast])
+  }, [toast.id, toast.type, removeToast])
 
   const isError = toast.type === 'error'
   return (
-    <div className="card flex items-center gap-2 px-3 py-2 text-sm shadow-lg" role="status">
+    <div
+      className="card flex items-center gap-2 py-2 pl-3 pr-1.5 text-sm shadow-lg"
+      role={isError ? 'alert' : 'status'}
+    >
       {isError ? (
         <CircleAlert size={18} className="shrink-0 text-critical" aria-hidden />
       ) : (
@@ -23,9 +29,9 @@ function Toast({ toast }) {
         type="button"
         onClick={() => removeToast(toast.id)}
         aria-label="Dismiss"
-        className="ml-1 p-1 text-ink-soft"
+        className="-my-1.5 ml-1 flex h-10 w-10 shrink-0 items-center justify-center rounded-md text-ink-soft hover:bg-surface-alt"
       >
-        <X size={14} />
+        <X size={14} aria-hidden />
       </button>
     </div>
   )

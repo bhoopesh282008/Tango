@@ -34,23 +34,16 @@ export default function Dashboard() {
     )
   }
 
+  // The order follows what a reader needs first: how much (and how far to trust it), where,
+  // who to reach first, then the pictures the map was made from. The figures used to sit
+  // below a 560 px satellite picture, out of sight on a laptop screen.
   return (
     <div className="flex flex-col gap-4 pb-20">
-      <Reveal>
-        <SatelliteViewer
-          before={data.satelliteData.before}
-          after={data.satelliteData.after}
-          detail={data.satelliteData.detail}
-          comparisonValue={comparisonBlend}
-          onComparisonChange={setComparisonBlend}
-        />
-      </Reveal>
+      {/* The page's title for screen readers; sighted readers get it from the header. */}
+      <h1 className="sr-only">Flood damage dashboard{stats.areaName ? `: ${stats.areaName}` : ''}</h1>
       <CoverageNotice validation={stats.validation} />
-      <Reveal order={2}>
+      <Reveal>
         <StatisticsCards stats={stats} />
-      </Reveal>
-      <Reveal order={3}>
-        <SettlementPriorityRanking stats={stats} />
       </Reveal>
       <Suspense
         fallback={
@@ -66,6 +59,18 @@ export default function Dashboard() {
           confidence={stats.meanConfidence}
         />
       </Suspense>
+      <Reveal>
+        <SettlementPriorityRanking stats={stats} />
+      </Reveal>
+      <Reveal>
+        <SatelliteViewer
+          before={data.satelliteData.before}
+          after={data.satelliteData.after}
+          detail={data.satelliteData.detail}
+          comparisonValue={comparisonBlend}
+          onComparisonChange={setComparisonBlend}
+        />
+      </Reveal>
       <Reveal>
         <DamageAnalysis stats={stats} />
       </Reveal>

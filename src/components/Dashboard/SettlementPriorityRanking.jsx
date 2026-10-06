@@ -4,6 +4,9 @@ import { USE_MOCK } from '../../config/apiConfig'
 import { useMapStore } from '../../store/mapStore'
 import { FACTOR_WEIGHTS, summarisePriority } from '../../utils/calculations'
 import { ACCESS_LEVELS, PRIORITY_BANDS, PRIORITY_WEIGHTS } from '../../utils/constants'
+import { formatNumber, formatPercent } from '../../utils/formatters'
+import { WORDING } from '../../utils/wording'
+import { MeterFill } from '../Common/Animated'
 
 const FACTOR_LABELS = {
   population: 'population',
@@ -16,9 +19,6 @@ const FACTOR_LABELS = {
 
 // Cards shown before "Show all"; a real run can have dozens of cut-off settlements.
 const CARD_LIMIT = 8
-import { formatNumber, formatPercent } from '../../utils/formatters'
-import { WORDING } from '../../utils/wording'
-import { MeterFill } from '../Common/Animated'
 
 const SORTS = [
   { id: 'priority', label: 'Priority', compare: (a, b) => a.rank - b.rank },

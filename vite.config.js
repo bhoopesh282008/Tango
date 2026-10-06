@@ -6,6 +6,8 @@ export default defineConfig({
   // MapLibre's worker is an ES module
   worker: { format: 'es' },
   test: {
+    // Unit tests only; the browser tests in e2e/ are Playwright's
+    include: ['src/**/*.test.{js,jsx}'],
     environment: 'jsdom',
     globals: true,
     setupFiles: './src/test/setup.js',

@@ -134,6 +134,18 @@ export default function FloodMap({ data, settlementRows, priority, confidence })
     mapRef.current?.resize()
   }, [expanded])
 
+  // Escape backs out one level: the open panel first, then full screen.
+  useEffect(() => {
+    if (!expanded && !panel) return undefined
+    const onKeyDown = (event) => {
+      if (event.key !== 'Escape' || event.defaultPrevented) return
+      if (panel) setPanel(null)
+      else setExpanded(false)
+    }
+    window.addEventListener('keydown', onKeyDown)
+    return () => window.removeEventListener('keydown', onKeyDown)
+  }, [expanded, panel])
+
   const shownZones = useMemo(
     () => filterZones(data.floodZones.features, filters).length,
     [data.floodZones, filters],
@@ -215,7 +227,7 @@ export default function FloodMap({ data, settlementRows, priority, confidence })
       ref={sectionRef}
       className={
         expanded
-          ? 'fixed inset-0 z-[1200] flex flex-col bg-surface'
+          ? 'fixed inset-0 z-[1200] flex flex-col overscroll-contain bg-surface'
           : 'card flex flex-col overflow-hidden'
       }
     >
@@ -388,11 +400,16 @@ export default function FloodMap({ data, settlementRows, priority, confidence })
             initial={{ opacity: 0, y: 8 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.2, ease: 'easeOut' }}
-            className="no-print card panel-glass absolute inset-x-0 bottom-0 z-10 max-h-[70%] overflow-y-auto rounded-b-none p-3 shadow-lg sm:inset-x-auto sm:bottom-auto sm:right-3 sm:top-3 sm:max-h-[calc(100%-1.5rem)] sm:w-72 sm:rounded-b-xl"
+            className="no-print card panel-glass absolute inset-x-0 bottom-0 z-10 max-h-[70%] overflow-y-auto overscroll-contain rounded-b-none p-3 shadow-lg sm:inset-x-auto sm:bottom-auto sm:right-3 sm:top-3 sm:max-h-[calc(100%-1.5rem)] sm:w-72 sm:rounded-b-xl"
           >
             <div className="mb-1 flex items-center justify-between">
               <h3 className="text-sm font-semibold">{panel === 'layers' ? 'Map layers' : 'Filter damage zones'}</h3>
-              <button type="button" className="p-2 text-ink-soft" onClick={() => setPanel(null)} aria-label="Close panel">
+              <button
+                type="button"
+                className="-mr-2 flex h-10 w-10 items-center justify-center rounded-md text-ink-soft hover:bg-surface-alt"
+                onClick={() => setPanel(null)}
+                aria-label="Close panel"
+              >
                 <X size={16} />
               </button>
             </div>
@@ -404,12 +421,22 @@ export default function FloodMap({ data, settlementRows, priority, confidence })
           <MeasurementTool />
           <FloodPathTool />
           {coordinate && !toolActive && (
-            <div className="card panel-glass flex items-center gap-1 py-1 pl-3 pr-1 text-sm shadow-md">
-              <span className="font-mono">{formatLatLng(coordinate)}</span>
-              <button type="button" className="p-2 text-ink-soft" onClick={copyCoordinate} aria-label="Copy coordinates">
+            <div className="card panel-glass flex items-center gap-0.5 pl-3 pr-1 text-sm shadow-md">
+              <span className="num mr-1">{formatLatLng(coordinate)}</span>
+              <button
+                type="button"
+                className="flex h-10 w-10 items-center justify-center rounded-md text-ink-soft hover:bg-surface-alt"
+                onClick={copyCoordinate}
+                aria-label="Copy coordinates"
+              >
                 <Copy size={14} />
               </button>
-              <button type="button" className="p-2 text-ink-soft" onClick={() => setCoordinate(null)} aria-label="Dismiss coordinates">
+              <button
+                type="button"
+                className="flex h-10 w-10 items-center justify-center rounded-md text-ink-soft hover:bg-surface-alt"
+                onClick={() => setCoordinate(null)}
+                aria-label="Dismiss coordinates"
+              >
                 <X size={14} />
               </button>
             </div>
@@ -417,7 +444,7 @@ export default function FloodMap({ data, settlementRows, priority, confidence })
         </div>
       </div>
 
-      <ul className="flex flex-wrap gap-x-4 gap-y-1.5 border-t border-line px-3 py-2.5 text-xs text-ink-soft sm:px-4">
+      <ul aria-label="Map legend" className="flex flex-wrap gap-x-4 gap-y-1.5 border-t border-line px-3 py-2.5 text-xs text-ink-soft sm:px-4">
         <li className="flex items-center gap-1.5"><span className="h-3 w-3 rounded-sm bg-water" /> Water</li>
         <li className="flex items-center gap-1.5"><span className="h-3 w-3 rounded-sm bg-debris" /> Debris</li>
         <li className="flex items-center gap-1.5"><span className="h-3 w-3 rounded-sm bg-uncertain" /> Uncertain</li>

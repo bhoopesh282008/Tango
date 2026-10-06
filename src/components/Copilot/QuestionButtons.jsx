@@ -8,8 +8,15 @@ const ICONS = {
   priority: Siren,
 }
 
+// A button that has focus and then becomes `disabled` drops keyboard focus to the page, so
+// while an answer is being prepared these stay focusable and simply ignore presses.
+const paused = 'aria-disabled:cursor-not-allowed aria-disabled:opacity-50'
+
 // A list of the four questions before the conversation starts, compact buttons once it is under way.
 export default function QuestionButtons({ language, disabled, compact, onAsk }) {
+  const ask = (id) => {
+    if (!disabled) onAsk(id)
+  }
   if (compact) {
     return (
       <div className="flex flex-wrap gap-2">
@@ -19,9 +26,9 @@ export default function QuestionButtons({ language, disabled, compact, onAsk }) 
             <button
               key={question.id}
               type="button"
-              disabled={disabled}
-              onClick={() => onAsk(question.id)}
-              className="btn text-xs"
+              aria-disabled={disabled}
+              onClick={() => ask(question.id)}
+              className={`btn text-xs ${paused}`}
             >
               <Icon size={14} className="text-ink-soft" aria-hidden /> {question[language] ?? question.en}
             </button>
@@ -38,10 +45,10 @@ export default function QuestionButtons({ language, disabled, compact, onAsk }) 
           <button
             key={question.id}
             type="button"
-            disabled={disabled}
-            onClick={() => onAsk(question.id)}
+            aria-disabled={disabled}
+            onClick={() => ask(question.id)}
             // Hairlines between the four cells of the 2 x 2 grid
-            className={`group flex min-h-[56px] items-center gap-3 px-4 text-left text-sm font-medium transition-colors hover:bg-[var(--surface-2)] disabled:opacity-50 ${
+            className={`group flex min-h-[56px] items-center gap-3 px-4 text-left text-sm font-medium transition-colors hover:bg-[var(--surface-2)] ${paused} ${
               index % 2 === 0 ? 'sm:border-r sm:border-line' : ''
             } ${index < 2 ? 'sm:border-b sm:border-line' : ''}`}
           >

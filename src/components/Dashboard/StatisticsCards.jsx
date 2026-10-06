@@ -110,11 +110,27 @@ function secondaryCards(stats) {
   ]
 }
 
-function barChart(labels, values, color, textColor, gridColor) {
+// Chart.js animates regardless of the system setting, so ask it not to.
+const motionOptions = () =>
+  typeof window !== 'undefined' && window.matchMedia?.('(prefers-reduced-motion: reduce)').matches
+    ? { animation: false }
+    : {}
+
+// A canvas is a picture to a screen reader: say what it shows, with its largest values.
+const describe = (caption, labels, values, unit = '') =>
+  `${caption}. ${labels
+    .slice(0, 5)
+    .map((label, i) => `${label} ${formatNumber(values[i], unit ? 1 : 0)}${unit}`)
+    .join(', ')}.`
+
+function barChart(labels, values, color, textColor, gridColor, caption) {
   return (
     <Bar
+      role="img"
+      aria-label={describe(caption, labels, values)}
       data={{ labels, datasets: [{ data: values, backgroundColor: color, borderRadius: 4 }] }}
       options={{
+        ...motionOptions(),
         indexAxis: 'y',
         maintainAspectRatio: false,
         plugins: { legend: { display: false } },
@@ -140,6 +156,13 @@ function Breakdown({ id, stats }) {
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
         <div className="h-52">
           <Doughnut
+            role="img"
+            aria-label={describe(
+              'Flooded area by type',
+              types.map((t) => DAMAGE_TYPES[t].label),
+              types.map((t) => stats.areaByType[t]),
+              ' km²',
+            )}
             data={{
               labels: types.map((t) => DAMAGE_TYPES[t].label),
               datasets: [
@@ -151,6 +174,7 @@ function Breakdown({ id, stats }) {
               ],
             }}
             options={{
+              ...motionOptions(),
               maintainAspectRatio: false,
               plugins: { legend: { position: 'bottom', labels: { color: textColor } } },
             }}
@@ -177,7 +201,14 @@ function Breakdown({ id, stats }) {
     return (
       <div>
         <div className="h-72">
-          {barChart(rows.map((r) => r.name), rows.map((r) => r.damaged), barColor, textColor, gridColor)}
+          {barChart(
+            rows.map((r) => r.name),
+            rows.map((r) => r.damaged),
+            barColor,
+            textColor,
+            gridColor,
+            'Damaged structures per settlement, largest first',
+          )}
         </div>
         <p className="mt-2 text-xs text-ink-soft">
           Damaged structures per settlement.{rest(stats.settlementRows)}
@@ -192,7 +223,14 @@ function Breakdown({ id, stats }) {
   return (
     <div>
       <div className="h-52">
-        {barChart(rows.map((s) => s.name), rows.map(size), barColor, textColor, gridColor)}
+        {barChart(
+          rows.map((s) => s.name),
+          rows.map(size),
+          barColor,
+          textColor,
+          gridColor,
+          buildings ? 'Mapped buildings in cut-off settlements, largest first' : 'Residents of cut-off settlements, largest first',
+        )}
       </div>
       <p className="mt-2 text-xs text-ink-soft">
         {buildings
@@ -221,6 +259,7 @@ export default function StatisticsCards({ stats }) {
               type="button"
               onClick={() => setExpanded(isOpen ? null : card.id)}
               aria-expanded={isOpen}
+              aria-controls="stat-breakdown"
               className={`flex flex-col gap-2 px-5 py-4 text-left transition-colors duration-150 hover:bg-[var(--surface-2)] ${
                 isOpen ? 'bg-[var(--surface-2)]' : ''
               }`}
@@ -249,6 +288,7 @@ export default function StatisticsCards({ stats }) {
         {active && (
           <motion.div
             key={active.id}
+            id="stat-breakdown"
             className="overflow-hidden"
             initial={{ opacity: 0, height: 0 }}
             animate={{ opacity: 1, height: 'auto' }}

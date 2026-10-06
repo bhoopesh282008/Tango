@@ -9,3 +9,7 @@ public/data/
 
 # playwright-cli session files
 .playwright-cli/
+
+# @playwright/test output
+test-results/
+playwright-report/

@@ -131,7 +131,9 @@ export default function SplashScreen({ onReady }) {
           {ready && (
             <button
               type="button"
-              autoFocus
+              // Straight to the one button with a keyboard or mouse; not on a phone, where focus
+              // alone can pull the page around.
+              autoFocus={!!window.matchMedia?.('(pointer: fine)').matches}
               onClick={onReady}
               className="h-12 w-full rounded-md bg-[#ff6b6b] px-10 text-[15px] font-bold text-[#1a1a1a] shadow-[0_6px_18px_rgba(3,3,10,0.55)] transition duration-150 hover:-translate-y-0.5 hover:brightness-105 active:translate-y-0 active:scale-[0.98] sm:w-auto"
             >

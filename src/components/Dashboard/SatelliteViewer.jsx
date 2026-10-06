@@ -82,6 +82,7 @@ function Scene({ url, flooded, zoom, origin, svgRef, onShape }) {
       {url ? (
         <img
           src={url}
+          decoding="async"
           alt={flooded ? 'Satellite image after the flood' : 'Satellite image before the flood'}
           onLoad={(e) => onShape?.(e.currentTarget.naturalWidth / e.currentTarget.naturalHeight)}
           // The whole area is shown uncropped; no-data pixels are transparent over black.
@@ -203,9 +204,6 @@ export default function SatelliteViewer({ before, after, detail, comparisonValue
             <option value="s2" disabled={!hasOptical}>
               {hasOptical ? 'Sentinel-2 optical (false colour)' : 'Sentinel-2 optical (not available)'}
             </option>
-            <option value="thermal" disabled>
-              Thermal (not available)
-            </option>
           </select>
           <div className="flex">
             <button
@@ -244,7 +242,7 @@ export default function SatelliteViewer({ before, after, detail, comparisonValue
 
       <div className="flex justify-center border-y border-line bg-[var(--surface-2)]">
       <div
-        className={`relative select-none overflow-hidden bg-black ${
+        className={`compare-stage relative select-none overflow-hidden bg-black ${
           placeholder
             ? 'h-[220px] w-full sm:h-[320px] lg:h-[360px]'
             : shape
@@ -289,7 +287,9 @@ export default function SatelliteViewer({ before, after, detail, comparisonValue
           value={comparisonValue}
           onChange={(e) => onComparisonChange(Number(e.target.value))}
           aria-label="Before and after comparison"
-          className="absolute inset-0 h-full w-full cursor-ew-resize opacity-0"
+          aria-valuetext={`${comparisonValue}% before, ${100 - comparisonValue}% after`}
+          // Sideways drags move the slider; vertical ones still scroll the page.
+          className="absolute inset-0 h-full w-full cursor-ew-resize touch-pan-y opacity-0"
         />
         {zoom > 1 && (
           <span className="num pointer-events-none absolute bottom-2 left-2 rounded bg-black/70 px-2 py-1 text-xs font-medium text-white">

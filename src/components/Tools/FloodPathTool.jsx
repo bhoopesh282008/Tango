@@ -64,12 +64,12 @@ export default function FloodPathTool() {
       initial={{ opacity: 0, y: 8 }}
       animate={{ opacity: 1, y: 0 }}
       transition={{ duration: 0.2, ease: 'easeOut' }}
-      className="card panel-glass max-h-[60%] w-72 overflow-y-auto p-3 text-sm shadow-lg"
+      className="card panel-glass max-h-[60%] w-72 overflow-y-auto overscroll-contain p-3 text-sm shadow-lg"
     >
       <div className="flex items-center gap-2">
         <h3 className="flex-1 font-semibold">Flood path</h3>
         <button type="button" className="btn w-10 px-0" onClick={() => setPathMode(false)} aria-label="Close flood path tool">
-          <X size={16} />
+          <X size={16} aria-hidden />
         </button>
       </div>
 

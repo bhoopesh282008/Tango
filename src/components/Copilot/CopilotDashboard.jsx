@@ -1,5 +1,5 @@
 import { ArrowLeft, Copy, Download, FileText, SendHorizontal, Trash2 } from 'lucide-react'
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { useCopilot } from '../../hooks/useCopilot'
 import { useDamageData } from '../../hooks/useDamageData'
@@ -9,14 +9,22 @@ import MessageThread from './MessageThread'
 import QuestionButtons from './QuestionButtons'
 
 const PLACEHOLDER = {
-  en: 'Ask about extent, infrastructure, cut-off settlements or priorities',
-  np: 'क्षेत्र, पूर्वाधार, सम्पर्कविहीन बस्ती वा प्राथमिकताबारे सोध्नुहोस्',
+  en: 'Ask about extent, infrastructure, cut-off settlements or priorities…',
+  np: 'क्षेत्र, पूर्वाधार, सम्पर्कविहीन बस्ती वा प्राथमिकताबारे सोध्नुहोस्…',
 }
 
 export default function CopilotDashboard() {
   const { stats, error, reload } = useDamageData()
   const copilot = useCopilot(stats)
   const [input, setInput] = useState('')
+  // Clearing throws the whole conversation away, so the first press asks and the second does it.
+  const [confirmClear, setConfirmClear] = useState(false)
+
+  useEffect(() => {
+    if (!confirmClear) return undefined
+    const timer = setTimeout(() => setConfirmClear(false), 4000)
+    return () => clearTimeout(timer)
+  }, [confirmClear])
 
   if (error) {
     return <ErrorPage title="Could not load flood data" message={error} onRetry={reload} />
@@ -45,8 +53,17 @@ export default function CopilotDashboard() {
         <div className="no-print flex items-center gap-2">
           <LanguageToggle language={copilot.language} onChange={copilot.setLanguage} />
           {started && (
-            <button type="button" className="btn w-10 px-0" onClick={copilot.clear} aria-label="Clear conversation">
-              <Trash2 size={16} />
+            <button
+              type="button"
+              className={`btn ${confirmClear ? 'border-critical text-critical' : 'w-10 px-0'}`}
+              onClick={() => {
+                if (confirmClear) copilot.clear()
+                setConfirmClear(!confirmClear)
+              }}
+              aria-label={confirmClear ? 'Confirm: clear conversation' : 'Clear conversation'}
+            >
+              <Trash2 size={16} aria-hidden />
+              {confirmClear && 'Clear all?'}
             </button>
           )}
         </div>
@@ -64,7 +81,9 @@ export default function CopilotDashboard() {
           </label>
           <input
             id="copilot-input"
+            name="question"
             type="text"
+            enterKeyHint="send"
             value={input}
             onChange={(e) => setInput(e.target.value)}
             placeholder={PLACEHOLDER[copilot.language] ?? PLACEHOLDER.en}

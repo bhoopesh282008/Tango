@@ -49,5 +49,6 @@ export const useMapStore = create((set) => ({
     })),
   setFloodPath: (floodPath) => set({ floodPath }),
   addMeasurePoint: (p) => set((state) => ({ measurePoints: [...state.measurePoints, p] })),
+  undoMeasurePoint: () => set((state) => ({ measurePoints: state.measurePoints.slice(0, -1) })),
   clearMeasure: () => set({ measurePoints: [] }),
 }))

@@ -154,6 +154,43 @@ li {
   outline-offset: 2px;
 }
 
+/* <main> takes focus after a page change so reading starts at the new content. It is not a
+   control and nobody tabs to it, so it gets no ring (every real control keeps its own). */
+main[tabindex='-1']:focus,
+main[tabindex='-1']:focus-visible {
+  outline: none;
+}
+
+/* The header is sticky: a focused or scrolled-to element must not end up under it */
+html {
+  scroll-padding-top: 5rem;
+}
+
+/* No double-tap zoom delay on controls. The pressed state replaces the browser's tap flash. */
+a,
+button,
+input,
+select,
+label,
+summary,
+[role='button'] {
+  touch-action: manipulation;
+  -webkit-tap-highlight-color: transparent;
+}
+
+/* The before/after slider is an invisible range input laid over the picture, so the
+   stage itself shows the keyboard focus. An outline would be painted under the picture's
+   own layers, so the ring is an overlay drawn on top, inside the edge (the card clips outside). */
+.compare-stage:has(input:focus-visible)::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  box-shadow:
+    inset 0 0 0 3px var(--focus-ring),
+    inset 0 0 0 5px rgba(255, 255, 255, 0.85);
+}
+
 /* First stop for keyboard users: jump past the header */
 .skip-link {
   position: absolute;

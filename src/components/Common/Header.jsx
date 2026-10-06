@@ -27,7 +27,7 @@ export default function Header() {
             <TangoIcon size={32} />
           </span>
           <span className="min-w-0">
-            <span className="block truncate text-[15px] font-semibold leading-tight tracking-tight text-brand sm:text-base">
+            <span translate="no" className="block truncate text-[15px] font-semibold leading-tight tracking-tight text-brand sm:text-base">
               {APP.name} {APP.subtitle}
             </span>
             <span className="block truncate text-xs text-ink-soft">

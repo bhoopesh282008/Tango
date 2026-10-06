@@ -28,6 +28,9 @@ export default function App() {
 
   useEffect(() => {
     document.documentElement.dataset.theme = darkMode ? 'dark' : 'light'
+    // The browser's own chrome (address bar on phones) follows the page background.
+    const background = getComputedStyle(document.documentElement).getPropertyValue('--bg-secondary').trim()
+    if (background) document.querySelector('meta[name="theme-color"]')?.setAttribute('content', background)
   }, [darkMode])
 
   if (!entered) {

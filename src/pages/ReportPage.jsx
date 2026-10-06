@@ -274,6 +274,14 @@ export default function ReportPage() {
           {top.length === 0 ? (
             <p>{t.none}</p>
           ) : (
+            // Seven columns need more than a phone is wide: the table scrolls inside its own box
+            // there (focusable, so the keyboard can scroll it) and prints at full width.
+            <div
+              role="region"
+              aria-label={t.priority}
+              tabIndex={0}
+              className="overflow-x-auto print:overflow-visible"
+            >
             <table className="w-full border-collapse text-left text-xs">
               <thead>
                 <tr className="text-[10px] uppercase tracking-wide text-ink-soft">
@@ -304,6 +312,7 @@ export default function ReportPage() {
                 ))}
               </tbody>
             </table>
+            </div>
           )}
           {stats.priority.length > top.length && (
             <p className="text-xs text-ink-soft">{t.more(stats.priority.length - top.length)}</p>

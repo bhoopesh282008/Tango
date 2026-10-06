@@ -23,7 +23,7 @@ What the system cannot do is listed in the app at `/about` (Method and limitatio
 ```bash
 npm install
 npm run dev      # http://localhost:5173
-npm run test     # 64 tests
+npm run test     # 72 tests
 npm run build
 ```
 

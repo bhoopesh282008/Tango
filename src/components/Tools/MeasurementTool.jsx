@@ -1,4 +1,4 @@
-import { Copy, Trash2, X } from 'lucide-react'
+import { Copy, Trash2, Undo2, X } from 'lucide-react'
 import { useMemo } from 'react'
 import { Layer, Source } from 'react-map-gl/maplibre'
 import { useMapStore } from '../../store/mapStore'
@@ -67,7 +67,7 @@ export function MeasurementLayer() {
 
 // Rendered over the map: mode switch and the measured value.
 export default function MeasurementTool() {
-  const { measureMode, measurePoints, setMeasureMode, clearMeasure } = useMapStore()
+  const { measureMode, measurePoints, setMeasureMode, undoMeasurePoint, clearMeasure } = useMapStore()
   const addToast = useUIStore((s) => s.addToast)
   if (!measureMode) return null
 
@@ -92,6 +92,7 @@ export default function MeasurementTool() {
               key={mode}
               type="button"
               onClick={() => setMeasureMode(mode)}
+              aria-pressed={measureMode === mode}
               className={`btn flex-1 capitalize ${i === 0 ? 'rounded-r-none' : '-ml-px rounded-l-none'} ${
                 measureMode === mode ? 'btn-active' : ''
               }`}
@@ -101,7 +102,7 @@ export default function MeasurementTool() {
           ))}
         </div>
         <button type="button" className="btn w-10 px-0" onClick={() => setMeasureMode(null)} aria-label="Stop measuring">
-          <X size={16} />
+          <X size={16} aria-hidden />
         </button>
       </div>
 
@@ -116,10 +117,14 @@ export default function MeasurementTool() {
       )}
 
       <div className="mt-2 flex gap-2">
-        <button type="button" className="btn flex-1" onClick={copy} disabled={!ready}>
+        <button type="button" className="btn flex-1 px-2" onClick={copy} disabled={!ready}>
           <Copy size={14} aria-hidden /> Copy
         </button>
-        <button type="button" className="btn flex-1" onClick={clearMeasure} disabled={measurePoints.length === 0}>
+        {/* A mis-placed point is the usual slip; Clear would throw away the rest as well. */}
+        <button type="button" className="btn flex-1 px-2" onClick={undoMeasurePoint} disabled={measurePoints.length === 0}>
+          <Undo2 size={14} aria-hidden /> Undo
+        </button>
+        <button type="button" className="btn flex-1 px-2" onClick={clearMeasure} disabled={measurePoints.length === 0}>
           <Trash2 size={14} aria-hidden /> Clear
         </button>
       </div>
