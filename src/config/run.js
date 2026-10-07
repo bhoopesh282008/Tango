@@ -5,6 +5,7 @@
 // the `area` query parameter, then by this browser session's last choice, then
 // the newest. A data folder holding a single run and no list still works: its
 // files are read from the folder itself.
+import { fetchData } from '../services/http'
 import { DATA_MODE, DATA_URL } from './apiConfig'
 
 const CHOICE_KEY = 'tango-area'
@@ -35,15 +36,14 @@ export function loadRuns() {
   if (DATA_MODE !== 'pipeline') return Promise.resolve({ runs, run: current })
   listRequest ??= (async () => {
     try {
-      const response = await fetch(`${DATA_URL}/runs.json`)
-      const list = response.ok ? await response.json() : []
+      const list = await fetchData(`${DATA_URL}/runs.json`, { label: 'the list of runs', timeout: 15_000, retries: 1 })
       if (Array.isArray(list) && list.length) {
         const wanted = new URLSearchParams(window.location.search).get('area') ?? remembered()
         runs = list
         current = list.find((run) => run.id === wanted) ?? list[0]
       }
     } catch {
-      // No list, or not JSON: a folder with a single run.
+      // No list, not JSON, or the server could not be reached: a folder with a single run.
     }
     return { runs, run: current }
   })()

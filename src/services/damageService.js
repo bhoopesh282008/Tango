@@ -3,6 +3,7 @@ import { runBase } from '../config/run'
 import { EVENT_BBOX } from '../config/mapConfig'
 import { EVENT } from '../utils/constants'
 import { get, getFile, mock } from './api'
+import { featureCollection, list, record } from './guards'
 
 const PIPELINE = DATA_MODE === 'pipeline'
 
@@ -25,7 +26,10 @@ export async function getSatellite() {
   if (USE_MOCK) return mock((await demo()).satellite)
   if (PIPELINE) {
     // A run from existing rasters records no scenes, so either side may be missing.
-    const { before, after, validation, detail, area, event } = await getFile(PIPELINE_FILES.satellite)
+    const { before, after, validation, detail, area, event } = record(
+      await getFile(PIPELINE_FILES.satellite),
+      'The satellite scene record',
+    )
     return {
       // The flood date the run was asked about
       event: event ?? null,
@@ -48,27 +52,33 @@ export async function getSatellite() {
 // FeatureCollection of polygons with { id, name, type, confidence, area_km2 }
 export async function getFloodZones() {
   if (USE_MOCK) return mock((await demo()).floodZones)
-  if (PIPELINE) return getFile(PIPELINE_FILES.floodZones)
-  return (await get(ENDPOINTS.damageAnalysis, bbox)).geojson
+  const zones = PIPELINE ? await getFile(PIPELINE_FILES.floodZones) : (await get(ENDPOINTS.damageAnalysis, bbox)).geojson
+  return featureCollection(zones, 'The flood zones layer', ['type', 'area_km2', 'confidence'])
 }
 
 // FeatureCollection of footprints with { settlement_id, damaged }
 export async function getBuildings() {
   if (USE_MOCK) return mock((await demo()).buildings)
-  if (PIPELINE) return getFile(PIPELINE_FILES.buildings)
-  return get(ENDPOINTS.buildings, bbox)
+  const buildings = PIPELINE ? await getFile(PIPELINE_FILES.buildings) : await get(ENDPOINTS.buildings, bbox)
+  return featureCollection(buildings, 'The buildings layer', ['settlement_id', 'damaged'])
 }
 
 // FeatureCollection of lines with { name, damaged, length_km }
 export async function getRoads() {
   if (USE_MOCK) return mock((await demo()).roads)
-  if (PIPELINE) return getFile(PIPELINE_FILES.roads)
-  return get(ENDPOINTS.roads, bbox)
+  const roads = PIPELINE ? await getFile(PIPELINE_FILES.roads) : await get(ENDPOINTS.roads, bbox)
+  return featureCollection(roads, 'The roads layer', ['damaged', 'length_km'])
 }
 
 // Array of { id, type, name, lat, lng, status, length_km? }
+// Optional: a run without the file simply did not assess infrastructure. The dashboard then says
+// so ("not assessed") instead of showing zeros that would read as "none damaged".
 export async function getInfrastructure() {
   if (USE_MOCK) return mock((await demo()).infrastructure)
-  if (PIPELINE) return getFile(PIPELINE_FILES.infrastructure)
-  return get(ENDPOINTS.infrastructure)
+  const infrastructure = PIPELINE ? await getFile(PIPELINE_FILES.infrastructure, { optional: true }) : await get(ENDPOINTS.infrastructure)
+  if (infrastructure === null) {
+    console.warn('This run has no infrastructure.json; bridges, health posts and power lines are shown as not assessed.')
+    return []
+  }
+  return list(infrastructure, 'The infrastructure layer', ['type', 'status'])
 }

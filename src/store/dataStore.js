@@ -10,13 +10,15 @@ export const useDataStore = create((set) => ({
   roads: null,
   settlements: [],
   infrastructure: [],
+  // Every figure derived from the layers above, worked out once when they arrive
+  stats: null,
   loaded: false,
   // Which datasets have arrived so far, for the splash screen's progress
   loadedParts: {},
   loading: false,
   error: null,
 
-  setData: (data) => set({ ...data, loaded: true, loading: false, error: null }),
+  setData: (data, stats) => set({ ...data, stats, loaded: true, loading: false, error: null }),
   markLoaded: (part) => set((state) => ({ loadedParts: { ...state.loadedParts, [part]: true } })),
   setLoading: (loading) => set({ loading }),
   setError: (error) => set({ error, loading: false }),

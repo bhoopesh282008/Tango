@@ -6,6 +6,7 @@
 import { length, lineString, nearestPointOnLine, point } from '@turf/turf'
 import { DATA_MODE } from '../config/apiConfig'
 import { runBase } from '../config/run'
+import { fetchData } from '../services/http'
 
 // A pipeline run carries its own DEM; otherwise the one bundled for the case-study area is used.
 const terrainUrl = () => (DATA_MODE === 'pipeline' ? runBase() : '/terrain')
@@ -17,13 +18,18 @@ let terrainRequest = null
 export function loadTerrain() {
   terrainRequest ??= (async () => {
     try {
-      const meta = await fetch(`${terrainUrl()}/dem.json`)
-      const cells = await fetch(`${terrainUrl()}/dem.bin`)
-      if (!meta.ok || !cells.ok) return null
-      const info = await meta.json()
-      const heights = new Uint16Array(await cells.arrayBuffer())
+      const [info, cells] = await Promise.all([
+        fetchData(`${terrainUrl()}/dem.json`, { label: 'the elevation grid description', timeout: 20_000, retries: 1 }),
+        fetchData(`${terrainUrl()}/dem.bin`, {
+          label: 'the elevation grid',
+          retries: 1,
+          read: (response) => response.arrayBuffer(),
+        }),
+      ])
+      const heights = new Uint16Array(cells)
       return heights.length === info.width * info.height ? { ...info, heights } : null
     } catch {
+      // No DEM for this run, or it could not be fetched: the tool says so instead of tracing.
       return null
     }
   })()

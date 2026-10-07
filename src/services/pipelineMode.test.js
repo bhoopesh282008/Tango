@@ -6,7 +6,8 @@ vi.mock('../config/apiConfig', async (original) => ({
   USE_MOCK: false,
 }))
 
-import { DATA_PARTS } from '../hooks/useDamageData'
+import { DATA_PARTS, loadDamageData } from '../hooks/useDamageData'
+import { useDataStore } from '../store/dataStore'
 
 const FILES = {
   '/data/satellite.json': { event: '2026-08-26', before: { date: '2026-08-24' }, after: null },
@@ -47,4 +48,62 @@ test('picture names in satellite.json are resolved against the data folder', asy
 test('a missing file is an error, not a silent fall back to demo data', async () => {
   vi.stubGlobal('fetch', vi.fn(async () => ({ ok: false, status: 404 })))
   await expect(DATA_PARTS.floodZones()).rejects.toThrow('404')
+  // and it says which file
+  await expect(DATA_PARTS.buildings()).rejects.toThrow('the buildings layer')
+})
+
+test('a run without infrastructure.json is "not assessed", not a failed dashboard', async () => {
+  vi.spyOn(console, 'warn').mockImplementation(() => {})
+  vi.stubGlobal('fetch', vi.fn(async () => ({ ok: false, status: 404 })))
+  expect(await DATA_PARTS.infrastructure()).toEqual([])
+})
+
+test('but a server error on infrastructure.json is still an error', async () => {
+  vi.stubGlobal('fetch', vi.fn(async () => ({ ok: false, status: 400 })))
+  await expect(DATA_PARTS.infrastructure()).rejects.toThrow('400')
+})
+
+test('a layer in the wrong format is rejected with the file named', async () => {
+  vi.stubGlobal('fetch', vi.fn(async () => ({ ok: true, status: 200, json: async () => ({ not: 'a layer' }) })))
+  await expect(DATA_PARTS.floodZones()).rejects.toThrow(/The flood zones layer is not in the expected format/)
+  await expect(DATA_PARTS.settlements()).rejects.toThrow(/The settlements list is not in the expected format/)
+})
+
+const serve = (files) =>
+  vi.fn(async (url) => ({ ok: url in files, status: url in files ? 200 : 404, json: async () => files[url] }))
+const resetStore = () => useDataStore.setState({ loaded: false, loading: false, error: null, stats: null, loadedParts: {} })
+
+describe('loading the whole run', () => {
+  beforeEach(resetStore)
+
+  test('the figures are worked out once, with the data', async () => {
+    vi.stubGlobal('fetch', serve(FILES))
+    await loadDamageData()
+    const { loaded, error, stats } = useDataStore.getState()
+    expect(error).toBeNull()
+    expect(loaded).toBe(true)
+    expect(stats).toMatchObject({ floodedAreaKm2: 0, infrastructureAssessed: false })
+  })
+
+  test('a record the analysis cannot read fails the load with a message, and a retry can recover', async () => {
+    const zone = { type: 'Feature', geometry: null, properties: { type: 'water', area_km2: 1, confidence: 0.5 } }
+    // The first feature is fine (so the shape check passes); a later one has no properties.
+    const damaged = { ...FILES, '/data/flood_zones.geojson': { type: 'FeatureCollection', features: [zone, { type: 'Feature', properties: null }] } }
+    vi.stubGlobal('fetch', serve(damaged))
+    await loadDamageData()
+    expect(useDataStore.getState().loaded).toBe(false)
+    expect(useDataStore.getState().error).toMatch(/could not be analysed/)
+
+    vi.stubGlobal('fetch', serve(FILES))
+    await loadDamageData()
+    expect(useDataStore.getState().error).toBeNull()
+    expect(useDataStore.getState().loaded).toBe(true)
+  })
+
+  test('a file with no usable content fails the load with the file named', async () => {
+    // Served successfully, but the body is empty (undefined), so it is not a feature collection
+    vi.stubGlobal('fetch', serve({ ...FILES, '/data/roads.geojson': undefined }))
+    await loadDamageData()
+    expect(useDataStore.getState().error).toMatch(/The roads layer is not in the expected format/)
+  })
 })

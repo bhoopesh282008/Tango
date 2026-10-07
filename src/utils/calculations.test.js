@@ -247,7 +247,8 @@ describe('loadMapStyle', () => {
     const fetch = vi.fn().mockResolvedValue({ ok: true, json: async () => fetched })
     vi.stubGlobal('fetch', fetch)
     const style = await loadMapStyle('street', true)
-    expect(fetch).toHaveBeenCalledWith(expect.stringMatching(/styles\/dark$/))
+    // The second argument carries the abort signal that enforces the request's deadline
+    expect(fetch).toHaveBeenCalledWith(expect.stringMatching(/styles\/dark$/), expect.objectContaining({ signal: expect.anything() }))
     expect(layerIds(style)).toContain('water')
     expect(layerIds(style)).not.toContain('place_village')
     expect(layerIds(style)).toContain('label-village')

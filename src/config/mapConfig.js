@@ -1,3 +1,5 @@
+import { fetchData } from '../services/http'
+
 // MapLibre zoom levels are one lower than Leaflet's for the same scale.
 export const MAP_DEFAULTS = {
   center: { lat: 28.125, lng: 85.29 },
@@ -243,9 +245,10 @@ export async function loadMapStyle(baseMap, dark) {
   const key = dark ? 'dark' : 'liberty'
   if (!streetStyles.has(key)) {
     try {
-      const response = await fetch(`${OPENFREEMAP}/styles/${key}`)
-      if (!response.ok) throw new Error(`Style request failed (${response.status})`)
-      streetStyles.set(key, withLabels(await response.json(), dark))
+      // A short deadline: this runs before the map can draw anything, and a host that never
+      // answers would otherwise leave the "Loading map" spinner up for ever.
+      const style = await fetchData(`${OPENFREEMAP}/styles/${key}`, { label: 'the street map style', timeout: 6_000, retries: 0 })
+      streetStyles.set(key, withLabels(style, dark))
     } catch {
       return plainStyle(dark)
     }

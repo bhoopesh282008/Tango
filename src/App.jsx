@@ -1,6 +1,7 @@
 import { MotionConfig } from 'motion/react'
 import { lazy, Suspense, useEffect, useState } from 'react'
-import { Navigate, Route, Routes } from 'react-router-dom'
+import { Navigate, Route, Routes, useLocation } from 'react-router-dom'
+import ErrorBoundary from './components/Common/ErrorBoundary'
 import Spinner from './components/Common/Spinner'
 import MainLayout from './components/Layout/MainLayout'
 import SplashScreen from './components/Splash/SplashScreen'
@@ -20,6 +21,13 @@ function hasEntered() {
   } catch {
     return false
   }
+}
+
+// A page that fails to render shows a message in its place, with the header still usable, and
+// the error is cleared when the reader goes to another page.
+function RouteBoundary({ children }) {
+  const { pathname } = useLocation()
+  return <ErrorBoundary resetKey={pathname}>{children}</ErrorBoundary>
 }
 
 export default function App() {
@@ -52,16 +60,18 @@ export default function App() {
     // "user": with the system's reduce-motion setting on, movement is dropped and only fades remain.
     <MotionConfig reducedMotion="user">
       <MainLayout>
-        <Suspense fallback={<Spinner label="Loading" />}>
-          <Routes>
-            <Route path="/" element={<DashboardPage />} />
-            <Route path="/copilot" element={<CopilotPage />} />
-            <Route path="/about" element={<AboutPage />} />
-            <Route path="/report" element={<ReportPage />} />
-            <Route path="/404" element={<ErrorPage />} />
-            <Route path="*" element={<Navigate to="/" replace />} />
-          </Routes>
-        </Suspense>
+        <RouteBoundary>
+          <Suspense fallback={<Spinner label="Loading" />}>
+            <Routes>
+              <Route path="/" element={<DashboardPage />} />
+              <Route path="/copilot" element={<CopilotPage />} />
+              <Route path="/about" element={<AboutPage />} />
+              <Route path="/report" element={<ReportPage />} />
+              <Route path="/404" element={<ErrorPage />} />
+              <Route path="*" element={<Navigate to="/" replace />} />
+            </Routes>
+          </Suspense>
+        </RouteBoundary>
       </MainLayout>
     </MotionConfig>
   )
