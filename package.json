@@ -1,12 +1,17 @@
 {
-  "name": "flood-rescue-frontend",
+  "name": "tango-flood-response",
+  "description": "TANGO: flood damage and rescue priorities from Sentinel-1 radar, for the Space Track challenge",
   "private": true,
   "version": "0.1.0",
   "type": "module",
+  "engines": {
+    "node": ">=20"
+  },
   "scripts": {
     "dev": "vite",
     "build": "vite build",
     "preview": "vite preview",
+    "lint": "eslint .",
     "test": "vitest run",
     "test:watch": "vitest",
     "test:a11y": "playwright test"
@@ -28,11 +33,17 @@
     "zustand": "^4.5.7"
   },
   "devDependencies": {
+    "@eslint/js": "^9.39.5",
     "@playwright/cli": "^0.1.22",
     "@testing-library/jest-dom": "^7.0.1",
     "@testing-library/react": "^14.3.1",
     "@vitejs/plugin-react": "^4.7.0",
     "autoprefixer": "^10.6.1",
+    "eslint": "^9.39.5",
+    "eslint-plugin-jsx-a11y": "^6.10.2",
+    "eslint-plugin-react": "^7.37.5",
+    "eslint-plugin-react-hooks": "^7.1.1",
+    "globals": "^17.13.0",
     "jsdom": "^29.1.1",
     "postcss": "^8.5.28",
     "tailwindcss": "^3.4.19",

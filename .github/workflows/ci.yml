@@ -1,0 +1,75 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+# This checks the code. It does not deploy: the run data the dashboard shows (public/data) is
+# not in git, so a build made here has no data. Deploy with `npm run deploy:pages` (README).
+jobs:
+  web:
+    name: Dashboard (lint, test, build)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+      - run: npm ci
+      - run: npm run lint
+      - run: npm test
+      # Built the way the Pages deploy builds it, so a path that only works at "/" fails here.
+      - run: npm run build
+        env:
+          VITE_BASE: /Tango/
+
+  pipeline:
+    name: Pipeline (pytest)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.13'
+          cache: pip
+          cache-dependency-path: pipeline/requirements.txt
+      # The CPU build of PyTorch: the default wheel carries CUDA and is several GB.
+      - run: pip install torch --index-url https://download.pytorch.org/whl/cpu
+      - run: pip install -r pipeline/requirements.txt
+      - run: python -m pytest pipeline/tests
+
+  a11y:
+    name: Accessibility (axe)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+      - run: npm ci
+      # The test needs @playwright/test and @axe-core/playwright in package.json; until they are
+      # added the job passes without running anything, and says so.
+      - name: Are the accessibility packages installed?
+        id: packages
+        run: |
+          if grep -q '"@playwright/test"' package.json && grep -q '"@axe-core/playwright"' package.json; then
+            echo "present=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "present=false" >> "$GITHUB_OUTPUT"
+            echo "::notice::Accessibility packages are not in package.json; skipping."
+          fi
+      - if: steps.packages.outputs.present == 'true'
+        run: npx playwright install --with-deps chromium
+      # Runs on the bundled demo data (no run data in CI)
+      - if: steps.packages.outputs.present == 'true'
+        run: npm run test:a11y

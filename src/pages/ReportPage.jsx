@@ -279,6 +279,7 @@ export default function ReportPage() {
             <div
               role="region"
               aria-label={t.priority}
+              // eslint-disable-next-line jsx-a11y/no-noninteractive-tabindex -- a scrollable region must be focusable so the keyboard can scroll it
               tabIndex={0}
               className="overflow-x-auto print:overflow-visible"
             >

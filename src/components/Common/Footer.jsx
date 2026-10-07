@@ -1,6 +1,8 @@
 import { Link } from 'react-router-dom'
 import { USE_MOCK } from '../../config/apiConfig'
+import { BUILD } from '../../config/build'
 import { ATTRIBUTION } from '../../utils/constants'
+import { formatDate } from '../../utils/formatters'
 
 export default function Footer() {
   return (
@@ -21,6 +23,9 @@ export default function Footer() {
             illustrative.
           </p>
         )}
+        <p className="num mt-1 text-ink-muted" data-testid="build">
+          <span translate="no">TANGO</span> {BUILD.version} · {BUILD.commit} · built {formatDate(BUILD.built)}
+        </p>
       </div>
     </footer>
   )
