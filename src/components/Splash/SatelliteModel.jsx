@@ -12,11 +12,12 @@ import {
 } from 'three'
 import { DRACOLoader } from 'three/examples/jsm/loaders/DRACOLoader.js'
 import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader.js'
+import { asset } from '../../config/assets'
 
 // NASA's Jason-1 model (github.com/nasa/NASA-3D-Resources): a gold body with a solar wing
 // on each side. The Draco decoder in public/draco is there for compressed models.
-const MODEL_URL = '/models/jason1.glb'
-const DRACO_PATH = '/draco/'
+const MODEL_URL = asset('models/jason1.glb')
+const DRACO_PATH = asset('draco/')
 // The satellite rocks gently about this pose, so both wings stay in view.
 // At y = ±90° the wings spread left and right with their faces to the viewer.
 const POSE = { x: 0.3, y: -1.9, z: 0.1 }

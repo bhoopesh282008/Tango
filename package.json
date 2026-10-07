@@ -14,7 +14,8 @@
     "lint": "eslint .",
     "test": "vitest run",
     "test:watch": "vitest",
-    "test:a11y": "playwright test"
+    "test:a11y": "playwright test",
+    "deploy:pages": "node scripts/deploy-pages.mjs"
   },
   "dependencies": {
     "@fontsource-variable/geist": "^5.3.0",

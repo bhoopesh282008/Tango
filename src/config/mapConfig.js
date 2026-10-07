@@ -38,11 +38,13 @@ const DISTRICT_SOURCE = {
 }
 
 // Latin name with the local-script name after it, as the OpenFreeMap styles do.
+// A feature with no name at all (a peak mapped with only its height) gets '' rather than
+// null, which MapLibre would report as a style error on every load.
 const nameField = (separator) => [
   'case',
   ['has', 'name:nonlatin'],
-  ['concat', ['get', 'name:latin'], separator, ['get', 'name:nonlatin']],
-  ['coalesce', ['get', 'name_en'], ['get', 'name']],
+  ['concat', ['coalesce', ['get', 'name:latin'], ''], separator, ['get', 'name:nonlatin']],
+  ['coalesce', ['get', 'name_en'], ['get', 'name'], ''],
 ]
 const placeClass = (...classes) => ['in', ['get', 'class'], ['literal', classes]]
 const isPoint = ['==', ['geometry-type'], 'Point']

@@ -1,4 +1,5 @@
 import { lazy, Suspense, useEffect, useState } from 'react'
+import { asset } from '../../config/assets'
 
 // The Earth and the satellite each need a 3D library and their own assets,
 // so they load after the splash text is on screen.
@@ -6,7 +7,7 @@ const SplashGlobe = lazy(() => import('./SplashGlobe'))
 const SatelliteModel = lazy(() => import('./SatelliteModel'))
 
 // NASA's Tycho star map (github.com/nasa/NASA-3D-Resources): the real sky, Milky Way included.
-const STAR_MAP = '/images/starmap.webp'
+const STAR_MAP = asset('images/starmap.webp')
 
 // On slow or metered connections only the star map is shown, so nothing delays the data.
 // The 3D parts also need WebGL2, which some older devices lack.

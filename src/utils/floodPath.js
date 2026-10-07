@@ -5,11 +5,12 @@
 // path leaves the grid. This is a drainage line, not a flood model.
 import { length, lineString, nearestPointOnLine, point } from '@turf/turf'
 import { DATA_MODE } from '../config/apiConfig'
+import { asset } from '../config/assets'
 import { runBase } from '../config/run'
 import { fetchData } from '../services/http'
 
 // A pipeline run carries its own DEM; otherwise the one bundled for the case-study area is used.
-const terrainUrl = () => (DATA_MODE === 'pipeline' ? runBase() : '/terrain')
+const terrainUrl = () => (DATA_MODE === 'pipeline' ? runBase() : asset('terrain'))
 const KM = { units: 'kilometers' }
 
 let terrainRequest = null
