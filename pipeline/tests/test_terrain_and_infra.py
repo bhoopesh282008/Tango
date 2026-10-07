@@ -289,7 +289,9 @@ def test_publish_copies_a_run_and_lists_it_newest_first(tmp_path):
         (folder / 'satellite.json').write_text(json.dumps({
             'event': '2026-08-26', 'area': area, 'before': {'date': '2026-08-16'}, 'after': {'date': '2026-08-28'}}),
             encoding='utf-8')
-        (folder / 'flood_zones.geojson').write_text('{}', encoding='utf-8')
+        for name in publish.REQUIRED:       # a run must be complete to be published (see test_publish.py)
+            if name != 'satellite.json':
+                (folder / name).write_text('{}', encoding='utf-8')
         (folder / 'before.png').write_bytes(b'png')
         (folder / 'rasters').mkdir()
         (folder / 'rasters' / 'pre_vv_db.tif').write_bytes(b'big')

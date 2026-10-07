@@ -8,6 +8,8 @@
 """
 import argparse
 import json
+import sys
+import time
 from pathlib import Path
 
 import geopandas as gpd
@@ -25,11 +27,27 @@ import fetch_osm
 import fetch_s1
 import floodpath
 import infrastructure
+import preflight
 import preprocess_s1 as P
 import publish
 import quicklook
 import segment
 import terrain
+
+
+class Progress:
+    """Numbered, timed step lines, so a run of many minutes can be seen to be moving."""
+
+    def __init__(self, total):
+        self.total, self.count, self.started = total, 0, time.monotonic()
+
+    def step(self, text):
+        self.count += 1
+        print(f'[{self.count}/{self.total}  {self.elapsed()}] {text}', flush=True)
+
+    def elapsed(self):
+        seconds = int(time.monotonic() - self.started)
+        return f'{seconds // 60}:{seconds % 60:02d}'
 
 
 def read_db(path):
@@ -44,14 +62,17 @@ def write_raster(path, array, crs, transform):
         dst.write(array.astype('float32'), 1)
 
 
-def prepare_pair(bbox, event, out, res=10.0, pols=('vv',)):
+def prepare_pair(bbox, event, out, res=10.0, pols=('vv',), search_days=20, say=print):
     """Raw GRD scenes -> co-registered dB rasters. Returns paths and scene metadata.
 
     paths are keyed 'pre', 'post' (VV), 'pre_vh', 'post_vh' when VH is asked for, and 'slope'.
     """
     out = Path(out)
     out.mkdir(parents=True, exist_ok=True)
-    before, after = fetch_s1.find_pair(bbox, event)
+    before, after = fetch_s1.find_pair(bbox, event, search_days=search_days)
+    say(f"  Pair: {before.properties['datetime'][:10]} to {after.properties['datetime'][:10]}, "
+        f"track {before.properties.get('sat:relative_orbit')} {before.properties.get('sat:orbit_state')}, "
+        f"{(fetch_s1._day(after) - fetch_s1.date.fromisoformat(str(event))).days} days after the event")
     crs, xs, ys = P.make_grid([float(v) for v in bbox.split(',')], res)
     transform = fetch_dem.grid_transform(xs, ys)
     height = fetch_dem.fetch(crs, xs, ys)
@@ -68,6 +89,7 @@ def prepare_pair(bbox, event, out, res=10.0, pols=('vv',)):
             paths[key] = out / f'{label}_{pol}_db.tif'
             if paths[key].exists() and saved.get(label, {}).get('id') == item.id:
                 continue
+            say(f'  Reading the {label} scene ({pol.upper()}) and correcting it for terrain; this is the slow part')
             scene = download.get_scene(item, pol)
             ann = P.parse_annotation(scene.product_xml)
             if geo is None:     # both polarisations share one viewing geometry
@@ -210,28 +232,49 @@ def main():
     ap.add_argument('--model', help='trained U-Net checkpoint; without it the threshold baseline is used')
     ap.add_argument('--optical', action='store_true',
                     help='add Sentinel-2: confirm radar detections and fill radar blind spots where the sky was clear')
+    ap.add_argument('--search-days', type=int, default=20,
+                    help='how many days either side of the event to look for Sentinel-1 scenes (default 20)')
     ap.add_argument('--out', default=str(C.OUT))
     ap.add_argument('--name', help='what the dashboard calls this area; default: its largest mapped settlement')
     ap.add_argument('--publish', action='store_true',
                     help="copy the result to the dashboard's data folder (public/data) and list it there")
     args = ap.parse_args()
 
+    have_rasters = bool(args.pre and args.post)
+    progress = Progress(7 + int(args.optical))
+    progress.step('Checking the area, the date, the credentials and the output folder')
+    try:
+        for warning in preflight.check(args.bbox, args.event, args.out,
+                                       need_scenes=not have_rasters, optical=args.optical):
+            print(f'  Warning: {warning}', flush=True)
+    except preflight.PreflightError as error:
+        print(error, file=sys.stderr)
+        sys.exit(2)
+    # Only mapping made before the event may be used (see config.osm_snapshot_for)
+    snapshot = C.osm_snapshot_for(args.event)
+
     scenes = {}
-    if not (args.pre and args.post):
+    if not have_rasters:
         if args.model and not Path(args.model).exists():
             ap.error(f'model file not found: {args.model}')
+        progress.step(f'Finding the Sentinel-1 pair around {args.event} and reading the scenes')
         paths, scenes = prepare_pair(args.bbox, args.event, Path(args.out) / 'rasters',
-                                     pols=('vv', 'vh') if args.model else ('vv',))
+                                     pols=('vv', 'vh') if args.model else ('vv',),
+                                     search_days=args.search_days)
         args.pre, args.post, args.slope = str(paths['pre']), str(paths['post']), str(paths['slope'])
     elif args.model:
         ap.error('--model needs the VH rasters too, so it cannot be combined with --pre/--post')
+    else:
+        progress.step('Using the rasters given (--pre and --post)')
 
     pre, transform, crs = read_db(args.pre)
     post, _, _ = read_db(args.post)
     slope = read_db(args.slope)[0] if args.slope else None
 
     # Where a flood can be: ground within a few tens of metres above the nearest drainage line.
-    osm = fetch_osm.fetch_all(args.bbox)
+    progress.step(f'OpenStreetMap as of {snapshot}: buildings, roads, bridges, health facilities, places, rivers')
+    osm = fetch_osm.fetch_all(args.bbox, snapshot)
+    progress.step('Elevation, and where the valley floor is')
     cell = abs(transform.a)
     xs = transform.c + transform.a * (np.arange(pre.shape[1]) + 0.5)
     ys = transform.f + transform.e * (np.arange(pre.shape[0]) + 0.5)
@@ -242,6 +285,7 @@ def main():
         rivers = rivers[rivers['waterway'] == 'river']
     floor, drainage_source = terrain.valley_floor(height, cell, rivers, transform, crs)
 
+    progress.step('Mapping flood' + (' with the trained model' if args.model else ' from the radar change'))
     if args.model:
         import predict   # imported here so the baseline runs without PyTorch installed
         model, device = predict.load_model(args.model)
@@ -262,6 +306,7 @@ def main():
 
     optical = None
     if args.optical:
+        progress.step('Sentinel-2: confirming detections and filling radar blind spots (reads two sets of scenes; slow)')
         import fetch_s2   # imported here so a radar-only run does not need it
         before, after, optical = fetch_s2.looks_around(args.bbox, args.event, crs, transform, pre.shape,
                                                        cache=out / 'rasters')
@@ -280,6 +325,7 @@ def main():
     # A full-resolution close-up of where the most flood was mapped, for the before/after viewer.
     detail_window = quicklook.detail_pngs(pre, post, np.isin(classes, (C.CLASS_WATER, C.CLASS_DEBRIS)), out)
 
+    progress.step('Damage to buildings, roads and bridges, and which settlements are cut off')
     roads = damage.flag_damaged(osm['roads'], zones)
     buildings = damage.flag_damaged(osm['buildings'], zones)
     settlements = settlements_from_places(osm['places'])
@@ -304,10 +350,11 @@ def main():
     settlement_rows = settlement_records(settlements, status)
     area_name = args.name or default_area_name(buildings, settlements) or f'Area {args.bbox}'
     infra = infrastructure.build(osm['bridges'], osm['health'], roads, zones, settlements)
+    progress.step('Writing the dashboard files')
     export.export_all(args.out, zones, buildings, roads, settlement_rows, infra, {
         'event': args.event, 'method': method,
         'area': {'name': area_name, 'bbox': [float(v) for v in args.bbox.split(',')]},
-        'osm_snapshot': C.OSM_SNAPSHOT,
+        'osm_snapshot': snapshot,
         'osm_source': sorted({v for k, v in fetch_osm.SOURCES.items() if v != 'unavailable'}),
         'before': {**(scenes.get('pre') or {}), **images['pre']},
         'after': {**(scenes.get('post') or {}), **images['post']},
@@ -320,6 +367,9 @@ def main():
     if args.publish:
         entry = publish.publish(args.out)
         print(f"Published '{entry['name']}' as {entry['id']}. Reload the dashboard to see it.")
+    print(f'\nDone in {progress.elapsed()}. Output: {args.out}', flush=True)
+    if not args.publish:
+        print(f'To show it in the dashboard: python publish.py {args.out} --name "<what to call this area>"', flush=True)
     print(json.dumps({
         'zones': len(zones),
         'flooded_km2': float(zones.loc[zones['type'].isin(['water', 'debris']), 'area_km2'].sum()),
