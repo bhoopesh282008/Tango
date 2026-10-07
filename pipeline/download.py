@@ -34,11 +34,20 @@ def _have_s3_keys():
 
 
 def s3_env():
-    """GDAL settings for reading Copernicus Data Space objects; needs the S3 keys."""
+    """GDAL settings for reading Copernicus Data Space objects; needs the S3 keys.
+
+    Reading a scene is thousands of small range requests over many minutes, so a few of them
+    failing on the way is normal. GDAL is told to repeat a failed request (with a pause) and to
+    give up on one that stalls, instead of ending the whole run at the first hiccup.
+    """
     if not _have_s3_keys():
         raise RuntimeError('This step needs the Copernicus Data Space S3 keys '
                            '(AWS_ACCESS_KEY_ID and AWS_SECRET_ACCESS_KEY).')
-    return {'AWS_S3_ENDPOINT': S3_ENDPOINT, 'AWS_VIRTUAL_HOSTING': 'FALSE', 'AWS_HTTPS': 'YES'}
+    return {
+        'AWS_S3_ENDPOINT': S3_ENDPOINT, 'AWS_VIRTUAL_HOSTING': 'FALSE', 'AWS_HTTPS': 'YES',
+        'GDAL_HTTP_MAX_RETRY': '6', 'GDAL_HTTP_RETRY_DELAY': '2',
+        'GDAL_HTTP_CONNECTTIMEOUT': '20', 'GDAL_HTTP_TIMEOUT': '90',
+    }
 
 
 def vsis3(href):
@@ -56,8 +65,12 @@ def _s3_text(client, href, cache):
 
 def _scene_s3(item, pol):
     import boto3
+    from botocore.config import Config
 
-    client = boto3.client('s3', endpoint_url=f'https://{S3_ENDPOINT}', region_name='default')
+    # The scene's small XML files; the same repeat-and-give-up-on-a-stall rule as for the image itself.
+    client = boto3.client('s3', endpoint_url=f'https://{S3_ENDPOINT}', region_name='default',
+                          config=Config(retries={'max_attempts': 8, 'mode': 'standard'},
+                                        connect_timeout=20, read_timeout=60))
     folder = C.CACHE / 's1' / item.id
     text = {
         kind: _s3_text(client, item.assets[f'schema-{kind}-{pol}'].href, folder / f'{kind}-{pol}.xml')

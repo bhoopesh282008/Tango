@@ -1,5 +1,6 @@
 """Thresholds and constants shared by the pipeline."""
 import os
+from datetime import date, timedelta
 from pathlib import Path
 
 ROOT = Path(__file__).parent
@@ -13,6 +14,19 @@ CDSE_PASSWORD = os.environ.get('CDSE_PASSWORD')
 OHSOME_URL = 'https://api.ohsome.org/v1'
 # Latest pre-event snapshot allowed by the brief (event: 26 Aug 2026).
 OSM_SNAPSHOT = '2026-07-27'
+OSM_LEAD_DAYS = 30   # the case study's snapshot is its event minus this
+
+
+def osm_snapshot_for(event):
+    """The OpenStreetMap snapshot a run for `event` (a date or 'YYYY-MM-DD') may use.
+
+    Only mapping done before the event can be used: later mapping can show the damage itself.
+    For the case study, and any later event, that is the brief's snapshot. For an earlier event
+    it is the same distance before it (30 days), so the rule never lets a snapshot reach past
+    the event it is for.
+    """
+    day = event if isinstance(event, date) else date.fromisoformat(event)
+    return min(date.fromisoformat(OSM_SNAPSHOT), day - timedelta(days=OSM_LEAD_DAYS)).isoformat()
 
 # Sentinel-1 backscatter thresholds, dB (VV).
 WATER_MAX_DB = -18.0       # open water is a specular reflector
