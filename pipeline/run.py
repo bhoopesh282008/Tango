@@ -381,4 +381,9 @@ def main():
 
 
 if __name__ == '__main__':
-    main()
+    try:
+        main()
+    except RuntimeError as error:
+        # The pipeline's own, deliberate errors say what to do; a stack trace would only hide it.
+        print(f'\nStopped: {error}', file=sys.stderr)
+        sys.exit(1)

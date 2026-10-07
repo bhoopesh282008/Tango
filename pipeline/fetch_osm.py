@@ -80,21 +80,40 @@ def overpass_to_geojson(elements, areas):
     return {'type': 'FeatureCollection', 'features': features}
 
 
-def _overpass(name, bbox, snapshot):
+# The public Overpass server sheds load (429, 502, 503, 504) and now and then is down for minutes.
+# Each wait below is the pause before the next try: about seven minutes in all.
+OVERPASS_WAITS = (20, 60, 120, 240)
+
+
+class OverpassBusy(RuntimeError):
+    """The Overpass service did not answer, after patient retries."""
+
+
+def _overpass(name, bbox, snapshot, waits=OVERPASS_WAITS, say=print):
     west, south, east, north = bbox.split(',')
     statements, areas = OVERPASS[name]
     box = f'{south},{west},{north},{east}'
     query = (f'[out:json][timeout:300][date:"{snapshot}T00:00:00Z"];('
              + ''.join(s.format(b=box) for s in statements) + ');out geom;')
-    # The public server sheds load with 429 / 504; wait and try again a few times.
-    for wait in (15, 30, 60, None):
-        response = requests.post(OVERPASS_URL, data={'data': query}, timeout=360,
-                                 headers={'User-Agent': 'tango-flood-pipeline (educational prototype)'})
-        if response.status_code not in (429, 502, 503, 504) or wait is None:
-            break
-        time.sleep(wait)
-    response.raise_for_status()
-    return overpass_to_geojson(response.json()['elements'], areas)
+    failure = None
+    for attempt in range(len(waits) + 1):
+        try:
+            response = requests.post(OVERPASS_URL, data={'data': query}, timeout=360,
+                                     headers={'User-Agent': 'tango-flood-pipeline (educational prototype)'})
+            if response.status_code not in (429, 502, 503, 504):
+                response.raise_for_status()      # any other error (a bad query, say) is final
+                return overpass_to_geojson(response.json()['elements'], areas)
+            failure = f'HTTP {response.status_code}'
+        except (requests.ConnectionError, requests.Timeout) as error:
+            failure = type(error).__name__
+        if attempt < len(waits):
+            say(f'  Overpass ({name}): {failure}, the free service is busy. '
+                f'Waiting {waits[attempt]} s, then trying again ({attempt + 2} of {len(waits) + 1})', flush=True)
+            time.sleep(waits[attempt])
+    raise OverpassBusy(
+        f'The OpenStreetMap Overpass service did not answer for the {name} layer ({failure}) after '
+        f'{len(waits) + 1} tries over about {sum(waits) // 60} minutes. Layers already fetched are cached and '
+        f'the satellite scenes are saved, so run the same command again to continue from here.')
 
 
 def _read(path):
@@ -136,7 +155,7 @@ def fetch_all(bbox, snapshot=C.OSM_SNAPSHOT):
     for name in FILTERS:
         try:
             layers[name] = fetch_layer(name, bbox, snapshot)
-        except requests.RequestException:
+        except (requests.RequestException, OverpassBusy):
             if name not in OPTIONAL:
                 raise
             layers[name], SOURCES[name] = None, 'unavailable'
