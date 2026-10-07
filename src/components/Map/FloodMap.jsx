@@ -99,6 +99,16 @@ export default function FloodMap({ data, settlementRows, priority, confidence })
   const addToast = useUIStore((s) => s.addToast)
   const [panel, setPanel] = useState(null) // 'layers' | 'filters' | null
   const [expanded, setExpanded] = useState(false)
+  // Below the large breakpoint the map sits in the middle of a scrolling page. On a phone a map
+  // that takes every swipe leaves no way to scroll past it, so there it takes two fingers.
+  const [inPage, setInPage] = useState(() => !!window.matchMedia?.('(max-width: 1024px)').matches)
+  useEffect(() => {
+    const query = window.matchMedia?.('(max-width: 1024px)')
+    if (!query) return undefined
+    const update = () => setInPage(query.matches)
+    query.addEventListener('change', update)
+    return () => query.removeEventListener('change', update)
+  }, [])
   const [coordinate, setCoordinate] = useState(null)
   const [popup, setPopup] = useState(null)
   const [hovering, setHovering] = useState(false)
@@ -228,24 +238,25 @@ export default function FloodMap({ data, settlementRows, priority, confidence })
       className={
         expanded
           ? 'fixed inset-0 z-[1200] flex flex-col overscroll-contain bg-surface'
-          : 'card flex flex-col overflow-hidden'
+          : 'flex h-full flex-col bg-surface'
       }
     >
-      <div className="flex flex-wrap items-center gap-2 px-3 py-2.5 sm:px-4">
+      {/* A slim toolbar, not a card header: the map is the surface, these are its controls */}
+      <div className="flex flex-wrap items-center gap-x-2 border-b border-line px-3 py-1 sm:px-4">
         <h2 className="section-title mr-auto">
           Flood damage map{' '}
-          <span className="text-xs font-normal text-ink-soft">
+          <span className="num text-xs font-normal text-ink-soft">
             {shownZones} of {data.floodZones.features.length} zones shown
           </span>
         </h2>
-        <div className="no-print flex gap-2">
+        <div className="no-print flex gap-0.5">
           {tools.map((tool) => (
             <button
               key={tool.id}
               type="button"
               onClick={tool.onClick}
               aria-pressed={tool.active}
-              className={`btn ${tool.active ? 'btn-active' : ''}`}
+              className="btn-quiet"
             >
               <tool.icon size={16} aria-hidden />
               <span className="sr-only sm:not-sr-only">{tool.label}</span>
@@ -253,7 +264,7 @@ export default function FloodMap({ data, settlementRows, priority, confidence })
           ))}
           <button
             type="button"
-            className="btn w-10 px-0"
+            className="btn-quiet w-10 px-0"
             onClick={() => setExpanded((v) => !v)}
             aria-label={expanded ? 'Exit full screen map' : 'Full screen map'}
           >
@@ -263,7 +274,7 @@ export default function FloodMap({ data, settlementRows, priority, confidence })
       </div>
 
       {/* isolate keeps the map's internal z-indexes from covering the page header */}
-      <div className={`relative isolate ${expanded ? 'flex-1' : 'h-[60vh] min-h-[360px] lg:h-[560px]'}`}>
+      <div className="relative isolate min-h-0 flex-1">
         {!mapStyle && (
           <div className="flex h-full items-center justify-center">
             <Spinner label="Loading map" />
@@ -278,6 +289,7 @@ export default function FloodMap({ data, settlementRows, priority, confidence })
               ? { bounds: [areaBox.slice(0, 2), areaBox.slice(2)], fitBoundsOptions: { padding: 24 } }
               : { longitude: center.lng, latitude: center.lat, zoom }
           }
+          cooperativeGestures={inPage && !expanded}
           minZoom={MAP_DEFAULTS.minZoom}
           maxZoom={MAP_DEFAULTS.maxZoom}
           mapStyle={mapStyle}
@@ -444,7 +456,7 @@ export default function FloodMap({ data, settlementRows, priority, confidence })
         </div>
       </div>
 
-      <ul aria-label="Map legend" className="flex flex-wrap gap-x-4 gap-y-1.5 border-t border-line px-3 py-2.5 text-xs text-ink-soft sm:px-4">
+      <ul aria-label="Map legend" className="flex flex-wrap gap-x-4 gap-y-1 border-t border-line px-3 py-2 text-xs text-ink-soft sm:px-4">
         <li className="flex items-center gap-1.5"><span className="h-3 w-3 rounded-sm bg-water" /> Water</li>
         <li className="flex items-center gap-1.5"><span className="h-3 w-3 rounded-sm bg-debris" /> Debris</li>
         <li className="flex items-center gap-1.5"><span className="h-3 w-3 rounded-sm bg-uncertain" /> Uncertain</li>

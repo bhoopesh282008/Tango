@@ -6,13 +6,11 @@ import Spinner from '../Common/Spinner'
 // The map library is the largest dependency, so it loads after the figures are on screen.
 const FloodMap = lazy(() => import('./FloodMap'))
 
-const CARD_HEIGHT = 'h-[60vh] min-h-[360px] lg:h-[560px]'
-
 // Stands in where the map should be. The figures, ranking and report do not depend on it.
 function MapUnavailable({ reason, error, onRetry }) {
   return (
-    <section className="card p-4" aria-labelledby="map-unavailable">
-      <h2 id="map-unavailable" className="section-title">
+    <section className="flex h-full flex-col justify-center p-6" aria-labelledby="map-unavailable">
+      <h2 id="map-unavailable" className="section-title text-center">
         Flood damage map
       </h2>
       <Failure
@@ -38,7 +36,7 @@ export default function MapBoundary(props) {
     <ErrorBoundary fallback={({ error, reset }) => <MapUnavailable reason="error" error={error} onRetry={reset} />}>
       <Suspense
         fallback={
-          <div className={`card flex items-center justify-center ${CARD_HEIGHT}`}>
+          <div className="flex h-full items-center justify-center">
             <Spinner label="Loading map" />
           </div>
         }

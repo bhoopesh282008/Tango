@@ -6,8 +6,8 @@ import { formatDate } from '../../utils/formatters'
 
 export default function Footer() {
   return (
-    <footer className="border-t border-line bg-surface">
-      <div className="mx-auto max-w-7xl px-3 py-3 text-xs text-ink-soft sm:px-5 lg:px-6">
+    <footer className="border-t border-line">
+      <div className="mx-auto grid max-w-[110rem] gap-x-12 gap-y-3 px-3 py-6 text-xs leading-relaxed text-ink-soft sm:px-5 lg:grid-cols-2">
         <p>
           Flood extent from Sentinel-1 change detection; buildings and roads from OpenStreetMap
           (ODbL). Figures are satellite estimates from an educational prototype and must be
@@ -16,14 +16,14 @@ export default function Footer() {
             Method and limitations
           </Link>
         </p>
-        <p className="mt-1">{ATTRIBUTION.join(' ')}</p>
+        <p>{ATTRIBUTION.join(' ')}</p>
         {USE_MOCK && (
-          <p className="mt-1">
+          <p className="lg:col-span-2">
             Running on bundled demo data: no backend is configured, so all figures and imagery are
             illustrative.
           </p>
         )}
-        <p className="num mt-1 text-ink-muted" data-testid="build">
+        <p className="num text-ink-muted lg:col-span-2" data-testid="build">
           <span translate="no">TANGO</span> {BUILD.version} · {BUILD.commit} · built {formatDate(BUILD.built)}
         </p>
       </div>

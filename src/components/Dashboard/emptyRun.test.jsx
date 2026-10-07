@@ -2,10 +2,10 @@ import { render, screen } from '@testing-library/react'
 import { MemoryRouter } from 'react-router-dom'
 import * as demo from '../../data/mockData'
 import { computeStats } from '../../utils/calculations'
-import DamageAnalysis from './DamageAnalysis'
+import Evidence from './Evidence'
 import NoFloodNotice from './NoFloodNotice'
 import SettlementPriorityRanking from './SettlementPriorityRanking'
-import StatisticsCards from './StatisticsCards'
+import Situation from './Situation'
 
 // A judge can pick an area and a date where nothing flooded. The run is then empty, and
 // every part of the dashboard has to cope with that without NaN, a crash or a blank space.
@@ -46,24 +46,28 @@ test('statistics for a run that found nothing are zeros, not NaN', () => {
 test.each([
   ['no data at all', nothing],
   ['settlements but nobody cut off', allConnected],
-])('the statistics panel renders for %s', (_, stats) => {
-  const { container } = show(<StatisticsCards stats={stats} />)
+])('the key figures render for %s', (_, stats) => {
+  const { container } = show(<Situation stats={stats} />)
   expect(container.textContent).not.toMatch(broken)
   expect(screen.getByText('Flooded area')).toBeInTheDocument()
+  // no flood: no area-by-type bar to draw
+  expect(screen.queryByRole('img', { name: 'Flooded area by type' })).not.toBeInTheDocument()
 })
 
 test.each([
   ['no data at all', nothing],
   ['settlements but nobody cut off', allConnected],
-])('the damage analysis renders for %s', (_, stats) => {
-  const { container } = show(<DamageAnalysis stats={stats} />)
+])('the evidence section renders for %s', (_, stats) => {
+  const { container } = show(<Evidence stats={stats}>picture</Evidence>)
   expect(container.textContent).not.toMatch(broken)
+  expect(screen.getByText('picture')).toBeInTheDocument()
+  expect(screen.getAllByText('none')).toHaveLength(3) // no confidence range for a type that was not found
 })
 
-test('the rescue ranking has nothing to rank and shows nothing rather than an empty table', () => {
-  const { container } = show(<SettlementPriorityRanking stats={nothing} />)
-  expect(container).toBeEmptyDOMElement()
-  expect(show(<SettlementPriorityRanking stats={allConnected} />).container).toBeTruthy()
+test('with nobody cut off the rescue list says there is nothing to rank, in place of an empty table', () => {
+  show(<SettlementPriorityRanking stats={nothing} />)
+  expect(screen.getByText(/nothing to rank/)).toBeInTheDocument()
+  expect(screen.queryByRole('list')).not.toBeInTheDocument()
 })
 
 test('the notice says no flood was mapped, with the dates, and that this is not proof of safety', () => {

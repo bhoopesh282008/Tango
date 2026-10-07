@@ -32,7 +32,7 @@ beforeEach(() => {
 test('opening the menu puts focus on its first item', () => {
   show()
   const items = open()
-  expect(items).toHaveLength(4)
+  expect(items).toHaveLength(3)
   expect(document.activeElement).toBe(items[0])
 })
 
@@ -43,7 +43,7 @@ test('arrow keys move through the items and wrap round', () => {
   expect(document.activeElement).toBe(items[1])
   fireEvent.keyDown(document, { key: 'ArrowUp' })
   fireEvent.keyDown(document, { key: 'ArrowUp' })
-  expect(document.activeElement).toBe(items[3])
+  expect(document.activeElement).toBe(items[2])
 })
 
 test('Escape closes the menu and gives focus back to the button', () => {
@@ -63,7 +63,7 @@ test('a press outside closes the menu', () => {
 
 test('a download is confirmed by name, not as a "report"', async () => {
   show()
-  fireEvent.click(open()[1])
+  fireEvent.click(open()[0])
   await waitFor(() => expect(downloadBlob).toHaveBeenCalledTimes(1))
   expect(downloadBlob.mock.calls[0][1]).toMatch(/settlements\.csv$/)
   expect(useUIStore.getState().toasts.map((t) => t.msg)).toEqual(['Settlements CSV downloaded'])

@@ -118,11 +118,51 @@
   --shadow-lg: 0 16px 40px rgba(0, 0, 0, 0.6);
 }
 
+/* Third pass: the interface itself is monochrome, ink on warm paper. Colour is kept for data
+   (blue is water, red is cut off or damaged, and so on), so it means something wherever it
+   appears; buttons and selections are ink, not blue. Paper and ink share one warm hue, and the
+   greys are all from that family. */
+:root {
+  --bg-secondary: #f2f1ed; /* canvas */
+  --bg-primary: #fbfaf8; /* panels and controls */
+  --surface-2: #eceae4; /* hover, inset, selected */
+  --border: #dcdad2;
+  --border-strong: #bfbcb2;
+  --text-primary: #17181a;
+  --text-secondary: #4c4f55;
+  /* Dark enough to read on the hover and selected-row tint (4.5:1), not just on the paper */
+  --text-muted: #62656b;
+  --success-text: #0a7340;
+  --primary: #17181a;
+  --primary-fill: #17181a;
+  --primary-text: #17181a;
+  --primary-soft: var(--surface-2);
+  --on-primary: #fbfaf8;
+}
+:root[data-theme='dark'] {
+  --bg-secondary: #0b0c0d;
+  --bg-primary: #121314;
+  --surface-2: #1b1c1e;
+  --border: #27292b;
+  --border-strong: #3a3d40;
+  --text-primary: #ecebe7;
+  --text-secondary: #a9aba8;
+  --text-muted: #85878a;
+  --primary: #ecebe7;
+  --primary-fill: #ecebe7;
+  --primary-text: #ecebe7;
+  --primary-soft: var(--surface-2);
+  --on-primary: #121314;
+}
+
 body {
   margin: 0;
-  background: var(--bg-secondary);
+  /* One surface all the way across: panes are told apart by hairlines, not by boxes on a grey ground */
+  background: var(--bg-primary);
   color: var(--text-primary);
-  font-family: 'Geist Variable', system-ui, -apple-system, 'Segoe UI', Roboto, 'Noto Sans',
+  /* Atkinson Hyperlegible Next, from the Braille Institute: letters that cannot be mistaken for
+     each other (1 l I, 0 O), which matters for place names and figures read on a phone in the field. */
+  font-family: 'Atkinson Hyperlegible Next Variable', system-ui, -apple-system, 'Segoe UI', Roboto, 'Noto Sans',
     'Noto Sans Devanagari', sans-serif;
   font-variant-numeric: tabular-nums;
   -webkit-font-smoothing: antialiased;
@@ -198,7 +238,7 @@ summary,
   top: -48px;
   z-index: 2000;
   padding: 11px 16px;
-  border-radius: 8px;
+  border-radius: 3px;
   background: var(--bg-primary);
   color: var(--text-primary);
   border: 1px solid var(--border);
@@ -212,7 +252,7 @@ summary,
 
 /* Placeholder blocks shaped like the content that is loading */
 .skeleton {
-  border-radius: 8px;
+  border-radius: 3px;
   background: linear-gradient(90deg, var(--border) 25%, var(--bg-primary) 50%, var(--border) 75%);
   background-size: 200% 100%;
   animation: skeleton-sweep 1.4s ease-in-out infinite;
@@ -234,13 +274,37 @@ summary,
 
 @layer components {
   .card {
-    @apply rounded-lg border border-line bg-surface;
+    @apply rounded border border-line bg-surface;
   }
   .btn {
-    @apply inline-flex min-h-[40px] items-center justify-center gap-2 rounded-md border border-line bg-surface px-3 text-sm font-medium text-ink transition duration-150 hover:bg-surface-alt active:translate-y-px active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-50;
+    @apply inline-flex min-h-[40px] items-center justify-center gap-2 rounded-[3px] border border-line bg-surface px-3 text-sm font-medium text-ink transition duration-150 hover:bg-[var(--surface-2)] active:translate-y-px disabled:cursor-not-allowed disabled:opacity-50;
+  }
+  /* No box until it is pointed at: for toolbars and the header, where a row of outlined
+     buttons is noise. The pressed (on) state is a filled tint. */
+  .btn-quiet {
+    @apply inline-flex min-h-[40px] items-center justify-center gap-1.5 rounded-[3px] px-2.5 text-sm font-medium text-ink-soft transition duration-150 hover:bg-[var(--surface-2)] hover:text-ink active:translate-y-px disabled:cursor-not-allowed disabled:opacity-50;
+  }
+  .btn-quiet[aria-pressed='true'] {
+    @apply bg-[var(--surface-2)] text-ink;
+  }
+  /* The area, as the title of the page: a plain select with a chevron, boxed only when pointed at */
+  .area-select {
+    @apply cursor-pointer appearance-none rounded-[3px] border border-transparent bg-transparent py-0.5 pl-1 pr-5 text-ink hover:border-line;
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='6' viewBox='0 0 10 6'%3E%3Cpath d='M1 1l4 4 4-4' fill='none' stroke='%236a707b' stroke-width='1.6'/%3E%3C/svg%3E");
+    background-repeat: no-repeat;
+    background-position: right 5px center;
+  }
+  /* Windows draws the open list from these, not from the select */
+  .area-select option {
+    background-color: var(--bg-primary);
+    color: var(--text-primary);
+  }
+  /* A small caption above a figure or a list */
+  .label {
+    @apply text-xs font-medium text-ink-soft;
   }
   .btn-primary {
-    @apply border-primary bg-primary text-white hover:bg-primary hover:brightness-110;
+    @apply border-primary bg-primary text-[color:var(--on-primary)] hover:bg-primary hover:opacity-90;
   }
   .btn-active {
     @apply border-primary bg-primary-soft;

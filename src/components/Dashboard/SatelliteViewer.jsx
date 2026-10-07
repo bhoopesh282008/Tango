@@ -84,6 +84,8 @@ function Scene({ url, flooded, zoom, origin, svgRef, onShape }) {
           src={url}
           decoding="async"
           alt={flooded ? 'Satellite image after the flood' : 'Satellite image before the flood'}
+          // A picture that is already in the cache can finish before the load handler is attached.
+          ref={(img) => img?.complete && img.naturalWidth && onShape?.(img.naturalWidth / img.naturalHeight)}
           onLoad={(e) => onShape?.(e.currentTarget.naturalWidth / e.currentTarget.naturalHeight)}
           // The whole area is shown uncropped; no-data pixels are transparent over black.
           className="h-full w-full object-contain"
@@ -103,8 +105,10 @@ function ScenesWithoutImagery({ before, after }) {
     ['After', after],
   ]
   return (
-    <section className="card p-4">
-      <h2 className="section-title">Satellite scenes</h2>
+    <section aria-labelledby="scenes-heading">
+      <h3 id="scenes-heading" className="section-title">
+        Satellite scenes
+      </h3>
       <dl className="mt-3 grid gap-3 text-sm sm:grid-cols-2">
         {scenes.map(([label, scene]) => (
           <div key={label} className="min-w-0">
@@ -171,16 +175,18 @@ export default function SatelliteViewer({ before, after, detail, comparisonValue
   }
 
   return (
-    <section className="card overflow-hidden">
-      <div className="flex flex-wrap items-center gap-2 px-3 py-2.5 sm:px-4">
-        <h2 className="section-title mr-auto">Satellite comparison</h2>
-        <div className="no-print flex flex-wrap items-center gap-2">
+    <section aria-labelledby="compare-heading">
+      <div className="flex flex-wrap items-center gap-x-2 gap-y-1 pb-2">
+        <h3 id="compare-heading" className="section-title mr-auto">
+          Before and after
+        </h3>
+        <div className="no-print flex flex-wrap items-center gap-1">
           {hasDetail && !optical && (
             <div className="flex" role="group" aria-label="Picture extent">
               {[
                 ['detail', 'Flood area'],
                 ['whole', 'Whole area'],
-              ].map(([id, label], i) => (
+              ].map(([id, label]) => (
                 <button
                   key={id}
                   type="button"
@@ -189,7 +195,7 @@ export default function SatelliteViewer({ before, after, detail, comparisonValue
                     setZoom(1)
                   }}
                   aria-pressed={view === id}
-                  className={`btn ${i === 0 ? 'rounded-r-none' : '-ml-px rounded-l-none'} ${view === id ? 'btn-active' : ''}`}
+                  className="btn-quiet"
                 >
                   {label}
                 </button>
@@ -199,7 +205,7 @@ export default function SatelliteViewer({ before, after, detail, comparisonValue
           <label className="sr-only" htmlFor="sensor">
             Imagery layer
           </label>
-          <select id="sensor" className="btn pr-2" value={sensor} onChange={(e) => setSensor(e.target.value)}>
+          <select id="sensor" className="btn pr-2 text-[13px]" value={sensor} onChange={(e) => setSensor(e.target.value)}>
             <option value="s1">Sentinel-1 radar</option>
             <option value="s2" disabled={!hasOptical}>
               {hasOptical ? 'Sentinel-2 optical (false colour)' : 'Sentinel-2 optical (not available)'}
@@ -208,7 +214,7 @@ export default function SatelliteViewer({ before, after, detail, comparisonValue
           <div className="flex">
             <button
               type="button"
-              className="btn w-10 rounded-r-none px-0"
+              className="btn-quiet w-10 px-0"
               onClick={() => setZoom((z) => Math.max(1, z / 2))}
               disabled={zoom <= 1}
               aria-label="Zoom out"
@@ -217,7 +223,7 @@ export default function SatelliteViewer({ before, after, detail, comparisonValue
             </button>
             <button
               type="button"
-              className="btn -ml-px w-10 rounded-none px-0"
+              className="btn-quiet w-10 px-0"
               onClick={() => setZoom(1)}
               disabled={zoom === 1}
               aria-label="Fit image"
@@ -226,7 +232,7 @@ export default function SatelliteViewer({ before, after, detail, comparisonValue
             </button>
             <button
               type="button"
-              className="btn -ml-px w-10 rounded-l-none px-0"
+              className="btn-quiet w-10 px-0"
               onClick={() => setZoom((z) => Math.min(MAX_ZOOM, z * 2))}
               disabled={zoom >= MAX_ZOOM}
               aria-label="Zoom in"
@@ -234,25 +240,26 @@ export default function SatelliteViewer({ before, after, detail, comparisonValue
               <ZoomIn size={16} />
             </button>
           </div>
-          <button type="button" className="btn w-10 px-0" onClick={download} aria-label="Download after image">
+          <button type="button" className="btn-quiet w-10 px-0" onClick={download} aria-label="Download after image">
             <Download size={16} />
           </button>
         </div>
       </div>
 
-      <div className="flex justify-center border-y border-line bg-[var(--surface-2)]">
+      <div className="flex">
       <div
-        className={`compare-stage relative select-none overflow-hidden bg-black ${
+        className={`compare-stage relative select-none overflow-hidden ${
           placeholder
-            ? 'h-[220px] w-full sm:h-[320px] lg:h-[360px]'
+            ? 'h-[220px] w-full bg-black sm:h-[320px] lg:h-[360px]'
             : shape
-              ? ''
-              : 'h-[62vh] max-h-[560px] w-full'
+              ? 'bg-black'
+              : 'aspect-square w-full max-w-[560px] bg-[var(--surface-2)]'
         }`}
-        // As tall as the screen allows, or as wide as the card: whichever is reached first.
+        // At most 560 px tall, and no wider than its column: the stage is the picture's shape, so
+        // the slider runs across the picture and not across empty space beside it.
         style={
           !placeholder && shape
-            ? { aspectRatio: shape, width: `min(100%, calc(min(62vh, 560px) * ${shape}))` }
+            ? { aspectRatio: shape, width: `min(100%, ${Math.round(560 * shape)}px)` }
             : undefined
         }
         onPointerMove={lookAt}
@@ -299,7 +306,7 @@ export default function SatelliteViewer({ before, after, detail, comparisonValue
       </div>
       </div>
 
-      <p className="px-3 py-2 text-xs text-ink-soft sm:px-4">
+      <p className="max-w-prose pt-2 text-xs leading-relaxed text-ink-soft">
         {sensor === 's2' && hasOptical
           ? 'Sentinel-2, near infrared / red / green: vegetation shows red, water dark. Each pixel is the nearest clear look to the event; cloud is left blank.'
           : after.sensor

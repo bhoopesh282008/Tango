@@ -42,5 +42,5 @@ test('the dashboard says so, in place of the map, when the browser has no WebGL'
   // jsdom has no WebGL, which is the case being tested
   expect(await screen.findByText('The map is not available', {}, { timeout: 8000 })).toBeInTheDocument()
   // and the rest of the page is there
-  expect(screen.getByLabelText('Key statistics')).toBeInTheDocument()
+  expect(screen.getByLabelText('Key figures')).toBeInTheDocument()
 })

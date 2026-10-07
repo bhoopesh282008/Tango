@@ -10,6 +10,14 @@ export default {
       xl: '1280px',
     },
     extend: {
+      // Tighter than Tailwind's defaults, everywhere at once: controls 4 px, panels 6 px.
+      // Large soft corners are one of the plainest signs of a generated interface.
+      borderRadius: {
+        DEFAULT: '3px',
+        md: '4px',
+        lg: '6px',
+        xl: '8px',
+      },
       colors: {
         brand: 'var(--brand)',
         primary: { DEFAULT: 'var(--primary)', soft: 'var(--primary-soft)' },

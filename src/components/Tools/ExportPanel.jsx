@@ -1,6 +1,5 @@
-import { ChevronDown, Download, FileText, Map, Table } from 'lucide-react'
+import { ChevronDown, Download, Map, Table } from 'lucide-react'
 import { useEffect, useRef, useState } from 'react'
-import { useNavigate } from 'react-router-dom'
 import {
   combinedGeoJson,
   downloadBlob,
@@ -17,18 +16,10 @@ export default function ExportPanel() {
   const addToast = useUIStore((s) => s.addToast)
   const [open, setOpen] = useState(false)
   const [busy, setBusy] = useState(false)
-  const navigate = useNavigate()
   const trigger = useRef(null)
   const menu = useRef(null)
 
   const options = [
-    {
-      id: 'pdf',
-      label: 'Situation report (one page)',
-      hint: 'English or Nepali; print it or save it as PDF',
-      icon: FileText,
-      run: () => navigate('/report'),
-    },
     {
       id: 'settlements',
       label: 'Settlements (CSV)',
@@ -114,7 +105,7 @@ export default function ExportPanel() {
       <button
         ref={trigger}
         type="button"
-        className="btn"
+        className="btn-quiet"
         disabled={!stats}
         aria-busy={busy}
         onClick={() => !busy && setOpen((v) => !v)}

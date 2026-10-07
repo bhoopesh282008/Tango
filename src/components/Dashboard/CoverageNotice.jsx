@@ -1,4 +1,3 @@
-import { TriangleAlert } from 'lucide-react'
 import { Link } from 'react-router-dom'
 import { USE_MOCK } from '../../config/apiConfig'
 import { formatPercent } from '../../utils/formatters'
@@ -6,14 +5,14 @@ import { formatPercent } from '../../utils/formatters'
 const range = ([low, high]) =>
   formatPercent(low) === formatPercent(high) ? formatPercent(low) : `${formatPercent(low)} to ${formatPercent(high)}`
 
-// The figures below it are what the map found, not everything the flood did.
+// The figures beside it are what the map found, not everything the flood did.
 // With a reference check the notice carries that check's numbers; a run that
 // was never checked says so. The demo dataset is already labelled as a demo.
+// Plain text with a rule at its edge, not a coloured box: it has to be read, not noticed.
 export default function CoverageNotice({ validation }) {
   if (USE_MOCK && !validation) return null
   return (
-    <div role="note" className="card flex items-start gap-3 border-l-2 border-l-warning px-4 py-3 text-sm leading-relaxed text-ink-soft">
-      <TriangleAlert size={18} className="mt-0.5 shrink-0 text-warning" aria-hidden />
+    <div role="note" className="border-l-2 border-l-warning pl-3 text-[13px] leading-relaxed text-ink-soft">
       <p>
         {validation ? (
           <>
