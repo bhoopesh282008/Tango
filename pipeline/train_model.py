@@ -5,6 +5,12 @@
 Validation uses flood events held out from training (split by event, not by
 patch, since neighbouring patches of one event look alike). The best epoch by
 validation flood IoU is saved to models/unet_kurosiwo.pt.
+
+    python train_model.py --hold-out-test-events --model-path models/unet_kurosiwo_heldout.pt
+
+drops every flood event that also appears in the test split from training, so that no
+test patch comes from an event the model has seen (Kuro Siwo's own split shares events
+between train and test: other areas of the same flood).
 """
 import argparse
 import json
@@ -39,6 +45,15 @@ def load_split(split, limit=None):
             relief[i] = np.nanmax(dem) - np.nanmin(dem) if np.isfinite(dem).any() else 0
     mask[mask > 2] = INVALID   # label no-data (3) in patches saved before pack() masked it
     return x, mask, relief, actid
+
+
+def test_events():
+    """Activation ids that have patches in the test split."""
+    events = set()
+    for f in (K.ROOT / 'test').glob('*.npz'):
+        with np.load(f) as d:
+            events.add(int(d['actid']))
+    return events
 
 
 def split_events(actid, fraction=VAL_FRACTION, seed=0):
@@ -97,10 +112,19 @@ def main():
     ap.add_argument('--batch', type=int, default=32)
     ap.add_argument('--lr', type=float, default=1e-3)
     ap.add_argument('--limit', type=int, help='use only the first N patches (smoke test)')
+    ap.add_argument('--hold-out-test-events', action='store_true',
+                    help='leave out of training every event that also has test patches')
+    ap.add_argument('--model-path', default=str(MODEL_PATH), help='where the best checkpoint is saved')
     args = ap.parse_args()
+    model_path = Path(args.model_path)
 
     device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
     x, mask, _, actid = load_split('train', args.limit)
+    if args.hold_out_test_events:
+        keep = ~np.isin(actid, sorted(test_events()))
+        print(f'{int((~keep).sum())} of {len(keep)} training patches belong to events that also have test patches '
+              f'and are left out', flush=True)
+        x, mask, actid = x[keep], mask[keep], actid[keep]
     is_val, val_events = split_events(actid)
     train_idx, val_idx = np.flatnonzero(~is_val), np.flatnonzero(is_val)
     print(f'{len(train_idx)} train / {len(val_idx)} val patches, '
@@ -120,7 +144,7 @@ def main():
     rng = np.random.default_rng(0)
 
     best, history = -1.0, []
-    MODEL_PATH.parent.mkdir(exist_ok=True)
+    model_path.parent.mkdir(exist_ok=True)
     for epoch in range(1, args.epochs + 1):
         model.train()
         started, total = time.time(), 0.0
@@ -149,9 +173,13 @@ def main():
         if val['iou'][FLOOD] > best:
             best = val['iou'][FLOOD]
             torch.save({'state': model.state_dict(), 'epoch': epoch, 'val': val,
-                        'val_events': val_events.tolist(), 'train_patches': len(train_idx)}, MODEL_PATH)
-    (MODEL_PATH.parent / 'training_log.json').write_text(json.dumps(history, indent=1))
-    print('best validation flood IoU', round(best, 4), '->', MODEL_PATH)
+                        'val_events': val_events.tolist(), 'train_patches': len(train_idx),
+                        # every event the model could have learned from (train and validation patches)
+                        'train_events': np.unique(actid).tolist(),
+                        'held_out_test_events': bool(args.hold_out_test_events)}, model_path)
+    log = 'training_log.json' if model_path == MODEL_PATH else f'{model_path.stem}_training_log.json'
+    (model_path.parent / log).write_text(json.dumps(history, indent=1))
+    print('best validation flood IoU', round(best, 4), '->', model_path)
 
 
 if __name__ == '__main__':

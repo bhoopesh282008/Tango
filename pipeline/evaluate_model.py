@@ -1,12 +1,15 @@
 """Score the trained U-Net on Kuro Siwo test events it never saw in training.
 
     python evaluate_model.py
+    python evaluate_model.py --model models/unet_kurosiwo_heldout.pt --out evaluation_heldout.json
 
 Reports flood detection (IoU, precision, recall, F1) for the model and for the
 threshold baseline in segment.py on the same patches, overall and for patches
 in steep terrain. Writes models/evaluation.json.
 """
+import argparse
 import json
+from pathlib import Path
 
 import numpy as np
 import torch
@@ -49,8 +52,14 @@ def training_events():
 
 
 def main():
+    ap = argparse.ArgumentParser()
+    ap.add_argument('--model', default=str(MODEL_PATH))
+    ap.add_argument('--out', default='evaluation.json', help='file name, written next to the model')
+    args = ap.parse_args()
+    model_path = Path(args.model)
+
     device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
-    checkpoint = torch.load(MODEL_PATH, map_location=device)
+    checkpoint = torch.load(model_path, map_location=device)
     model = UNet().to(device)
     model.load_state_dict(checkpoint['state'])
 
@@ -62,6 +71,7 @@ def main():
     multi = scores(confusion(torch.from_numpy(pred), torch.from_numpy(mask).long()))
     report = {
         'test_patches': int(len(x)), 'test_events': sorted(int(a) for a in np.unique(actid)),
+        'model': model_path.name, 'held_out_test_events': bool(checkpoint.get('held_out_test_events', False)),
         'trained_epoch': checkpoint['epoch'], 'train_patches': checkpoint['train_patches'],
         'flood_pixel_share': round(float(truth[valid].mean()), 4),
         'model_per_class_iou': dict(zip(CLASS_NAMES, (round(v, 4) for v in multi['iou']))),
@@ -69,7 +79,8 @@ def main():
     }
     # Kuro Siwo's test split shares activations with its training split (other areas of
     # the same flood), so "unseen" here means the activation is absent from training.
-    seen = training_events()
+    # A checkpoint records the events it could learn from; an older one is judged by the training folder.
+    seen = set(checkpoint['train_events']) if 'train_events' in checkpoint else training_events()
     unseen = ~np.isin(actid, sorted(seen))
     report['test_events_also_in_training'] = sorted(int(a) for a in np.unique(actid[~unseen]))
     subsets = {'all': np.ones(len(x), bool), 'unseen_events': unseen, 'seen_events': ~unseen,
@@ -88,7 +99,7 @@ def main():
                  'threshold_baseline': binary_scores(base[actid == a], truth[actid == a], valid[actid == a])['iou']}
         for a in np.unique(actid)
     }
-    (MODEL_PATH.parent / 'evaluation.json').write_text(json.dumps(report, indent=1))
+    (model_path.parent / args.out).write_text(json.dumps(report, indent=1))
     print(json.dumps(report, indent=1))
 
 

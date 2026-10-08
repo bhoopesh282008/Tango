@@ -91,6 +91,13 @@ def check(bbox, event, out, *, need_scenes=True, optical=False, today=None):
         elif day < SENTINEL1_FIRST_DATA:
             problems.append(f'The event date {day} is before Sentinel-1 began (October 2014).')
         else:
+            # The brief's data rule: only OpenStreetMap as it was before the event. The snapshot is
+            # derived by config.osm_snapshot_for; this is the check that it still is.
+            if date.fromisoformat(C.osm_snapshot_for(day)) >= day:
+                problems.append(
+                    f'The OpenStreetMap snapshot for {day} would not predate the event. Only mapping made before '
+                    f'the event may be used (config.osm_snapshot_for).'
+                )
             if need_scenes and day > today - timedelta(days=RECENT_DAYS):
                 warnings.append(
                     f'The event is only {(today - day).days} days ago. The run needs a Sentinel-1 image on or after '

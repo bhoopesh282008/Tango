@@ -25,7 +25,7 @@ import config as C
 TARGET = C.ROOT.parent / 'public' / 'data'
 # What the dashboard reads. The rasters stay in the run folder.
 FILES = ['flood_zones.geojson', 'buildings.geojson', 'roads.geojson', 'infrastructure.json',
-         'settlements.json', 'attribution.json', 'dem.json', 'dem.bin']
+         'settlements.json', 'attribution.json', 'context.json', 'dem.json', 'dem.bin']
 # Without these the dashboard cannot show the run at all (the rest are optional extras)
 REQUIRED = ['satellite.json', 'flood_zones.geojson', 'buildings.geojson', 'roads.geojson',
             'infrastructure.json', 'settlements.json']

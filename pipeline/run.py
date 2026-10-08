@@ -18,6 +18,7 @@ import rasterio
 from shapely.geometry import Point
 
 import config as C
+import context
 import cutoff
 import damage
 import download
@@ -27,6 +28,7 @@ import fetch_osm
 import fetch_s1
 import floodpath
 import infrastructure
+import osm_quality
 import preflight
 import preprocess_s1 as P
 import publish
@@ -234,6 +236,8 @@ def main():
                     help='add Sentinel-2: confirm radar detections and fill radar blind spots where the sky was clear')
     ap.add_argument('--search-days', type=int, default=20,
                     help='how many days either side of the event to look for Sentinel-1 scenes (default 20)')
+    ap.add_argument('--no-context', action='store_true',
+                    help='skip the context beside the map (modelled population and river flow from open datasets)')
     ap.add_argument('--out', default=str(C.OUT))
     ap.add_argument('--name', help='what the dashboard calls this area; default: its largest mapped settlement')
     ap.add_argument('--publish', action='store_true',
@@ -241,7 +245,7 @@ def main():
     args = ap.parse_args()
 
     have_rasters = bool(args.pre and args.post)
-    progress = Progress(7 + int(args.optical))
+    progress = Progress(7 + int(args.optical) + int(not args.no_context))
     progress.step('Checking the area, the date, the credentials and the output folder')
     try:
         for warning in preflight.check(args.bbox, args.event, args.out,
@@ -332,6 +336,8 @@ def main():
     buildings = damage.assign_settlement(buildings, settlements)
 
     status = cutoff.connectivity(settlements, hospitals_or_any(osm['health']), roads)
+    # How much of the answer rests on missing map data (pre-event OpenStreetMap only)
+    quality = osm_quality.summarise(buildings, roads, status)
 
     roads = describe_roads(roads, settlements)
     roads['flooded_km'] = damage.flooded_length_km(roads, zones)
@@ -350,11 +356,19 @@ def main():
     settlement_rows = settlement_records(settlements, status)
     area_name = args.name or default_area_name(buildings, settlements) or f'Area {args.bbox}'
     infra = infrastructure.build(osm['bridges'], osm['health'], roads, zones, settlements)
+    context_data = None
+    if not args.no_context:
+        # Shown beside the map only: nothing above reads it, and nothing in the results depends on it.
+        progress.step('Context beside the map: modelled population and river flow (not used in the results)')
+        context_data = context.build([float(v) for v in args.bbox.split(',')], args.event, buildings, osm['waterways'])
+        print('  ' + ('Context found: ' + ', '.join(k for k in ('population', 'river') if context_data and context_data[k])
+                      if context_data else 'No context available (offline, or no coverage); the run is not affected'), flush=True)
     progress.step('Writing the dashboard files')
     export.export_all(args.out, zones, buildings, roads, settlement_rows, infra, {
         'event': args.event, 'method': method,
         'area': {'name': area_name, 'bbox': [float(v) for v in args.bbox.split(',')]},
         'osm_snapshot': snapshot,
+        'osm_quality': quality,
         'osm_source': sorted({v for k, v in fetch_osm.SOURCES.items() if v != 'unavailable'}),
         'before': {**(scenes.get('pre') or {}), **images['pre']},
         'after': {**(scenes.get('post') or {}), **images['post']},
@@ -362,6 +376,7 @@ def main():
         'detail': detail,
         'valley_floor': {'drainage': drainage_source, 'share_of_area': round(float(floor.mean()), 3)},
     })
+    context.write(args.out, context_data)
     # The DEM the dashboard's flood-path tool traces on
     floodpath.export_dem(args.out, [float(v) for v in args.bbox.split(',')])
     if args.publish:

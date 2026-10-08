@@ -22,6 +22,21 @@ Flood class, from `evaluate_model.py` (full output in `results/evaluation.json`)
 
 Permanent water IoU is 0.37; the model often confuses permanent water with flood.
 
+## A stricter test: no event shared between training and test
+
+`python train_model.py --hold-out-test-events --model-path models/unet_kurosiwo_heldout.pt` leaves out of training every flood event that also has test patches. That leaves 320 of the 4,240 training patches (8 events for training, 2 for choosing the epoch, 239 and 81 patches), so it is a much smaller model; `evaluate_model.py --model models/unet_kurosiwo_heldout.pt --out evaluation_heldout.json` scores it on all 1,170 test patches, none of whose events it has seen.
+
+| Flood class, test patches | Patches (events) | Held-out model IoU / precision / recall | Threshold rule IoU / precision / recall | Original model IoU |
+|---|---|---|---|---|
+| All | 1,170 (18) | 0.63 / 0.74 / 0.82 | 0.44 / 0.75 / 0.51 | 0.67 (11 of 18 events seen) |
+| Events with ids below 1,000,000 | 442 (12) | 0.55 / 0.76 / 0.67 | 0.34 / 0.88 / 0.36 | 0.55 |
+| The 1111xxx series of events | 728 (6) | 0.65 / 0.73 / 0.85 | 0.46 / 0.74 / 0.55 | 0.69 |
+
+- The held-out model beats the threshold rule on all 18 events (median flood IoU per event 0.61 against 0.29), mostly by finding more of the flood (recall) at about the same precision, but it is worse on precision in the 12 older events (0.76 against 0.88).
+- **Read the 1111xxx row with care.** Those test events interleave with training events in the same numbering (1111006, 1111008 and 1111010 are in training, six others in test). The patch files keep only the event id, not place or date, so whether they are neighbouring areas of one flood is not known from our data. The 12 events outside that series are the cleaner "never seen" figure: **flood IoU 0.55 against 0.34 for the threshold rule.**
+- The original model, trained on 13 times more patches, scores the same on those 12 events (0.55), so more of this sample did not help on events it had not seen.
+- **Steep terrain is still untested.** Only 6 test patches with more than 300 m of relief lie outside the 1111xxx series, and the model scores 0.0 on them (30 more steep patches lie in the series, 0.68). That is too few to say anything either way; the Trishuli comparison below remains the only steep, unseen test, and the model does worse than the threshold rule there.
+
 ## What these numbers do and do not show
 
 - **Most of the test sample is not unseen.** 11 of the 18 test activations also appear in the training sample (other areas of the same flood). The honest "never seen" figure is the first row: IoU 0.46 on 7 activations.

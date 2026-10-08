@@ -5,6 +5,9 @@ from pathlib import Path
 import config as C
 
 
+ROAD_TAGS = ('highway', 'oneway', 'surface')
+
+
 def _write(path, data):
     # allow_nan=False: a NaN would be written as a bare NaN, which browsers reject.
     Path(path).write_text(json.dumps(data, ensure_ascii=False, allow_nan=False, separators=(',', ':')),
@@ -43,6 +46,9 @@ def export_all(out, zones, buildings, roads, settlements, infrastructure, satell
     roads['id'] = [f'r{i + 1:04d}' for i in range(len(roads))]
     # flooded_km is absent from older callers; the dashboard then falls back to length_km.
     columns = ['id', 'name', 'damaged', 'length_km'] + (['flooded_km'] if 'flooded_km' in roads.columns else [])
+    # Road class, one-way and surface as OpenStreetMap had them before the event: the dashboard's
+    # router uses them for time estimates and to warn about one-way roads. Absent tags stay null.
+    columns += [c for c in ROAD_TAGS if c in roads.columns]
     _write(out / 'roads.geojson', _fc(roads, columns))
     _write(out / 'settlements.json', settlements)
     _write(out / 'infrastructure.json', infrastructure)
