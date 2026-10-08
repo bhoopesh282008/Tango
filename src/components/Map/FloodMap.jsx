@@ -1,6 +1,6 @@
 import 'maplibre-gl/dist/maplibre-gl.css'
 import '../../config/maplibreWorker'
-import { Copy, Layers, Maximize2, Minimize2, Ruler, SlidersHorizontal, Waves, X } from 'lucide-react'
+import { Copy, Layers, Maximize2, Minimize2, Navigation, Ruler, SlidersHorizontal, Waves, X } from 'lucide-react'
 import { motion } from 'motion/react'
 import { useEffect, useMemo, useRef, useState } from 'react'
 import Map, { Layer, NavigationControl, Popup, ScaleControl, Source } from 'react-map-gl/maplibre'
@@ -11,7 +11,10 @@ import {
   MAP_DEFAULTS,
   TERRAIN_SOURCE,
 } from '../../config/mapConfig'
+import { useRouting } from '../../hooks/useRouting'
+import { locateOnce } from '../../services/geolocation'
 import { useMapStore } from '../../store/mapStore'
+import { useRouteStore } from '../../store/routeStore'
 import { useUIStore } from '../../store/uiStore'
 import { filterZones } from '../../utils/calculations'
 import { copyText } from '../../utils/clipboard'
@@ -25,6 +28,9 @@ import MeasurementTool, { MeasurementLayer } from '../Tools/MeasurementTool'
 import DamageOverlay from './DamageOverlay'
 import Spinner from '../Common/Spinner'
 import LayerControl from './LayerControl'
+import NavigationHud from './NavigationHud'
+import RouteLayer from './RouteLayer'
+import RoutePanel from './RoutePanel'
 import { InfrastructureMarkers, SettlementLayer, showsAllMarkers, STATUS_LABEL } from './MapMarkers'
 
 // Layers that answer clicks; the click event lists the topmost feature first.
@@ -83,21 +89,31 @@ function describeInfrastructure(item) {
     lat: item.lat,
     title: item.name,
     lines: [`${type?.label ?? item.type} · ${STATUS_LABEL[item.status] ?? item.status}${length}`],
+    // a health post can be the end of a route
+    place: item.type === 'health_post' ? { key: `health:${item.id}`, kind: 'health', id: item.id, label: item.name, lng: item.lng, lat: item.lat } : undefined,
   }
 }
+
+// A settlement as a place a route can end at.
+const settlementPlace = (p, lng, lat) => ({ key: `settlement:${p.id}`, kind: 'settlement', id: p.id, label: p.name, lng, lat })
 
 export default function FloodMap({ data, settlementRows, priority, confidence }) {
   const {
     zoom, center, viewSet, baseMap, visibleLayers, filters, measureMode, pathMode, focus,
     setMeasureMode, setPathMode, setFloodPath, setView, addMeasurePoint, setBaseMap,
   } = useMapStore()
+  const routePick = useRouteStore((s) => s.pick)
+  const navigating = useRouteStore((s) => s.navigating)
+  const following = useRouteStore((s) => s.following)
+  const fix = useRouteStore((s) => s.fix)
+  const { route, progress } = useRouting(data)
   // [west, south, east, north] of the run on screen, when the run records it
   const areaBox = data.satelliteData?.area?.bbox
   // A tool that takes over map clicks is active.
-  const toolActive = !!measureMode || pathMode
+  const toolActive = !!measureMode || pathMode || !!routePick
   const darkMode = useUIStore((s) => s.darkMode)
   const addToast = useUIStore((s) => s.addToast)
-  const [panel, setPanel] = useState(null) // 'layers' | 'filters' | null
+  const [panel, setPanel] = useState(null) // 'route' | 'layers' | 'filters' | null
   const [expanded, setExpanded] = useState(false)
   // Below the large breakpoint the map sits in the middle of a scrolling page. On a phone a map
   // that takes every swipe leaves no way to scroll past it, so there it takes two fingers.
@@ -136,8 +152,44 @@ export default function FloodMap({ data, settlementRows, priority, confidence })
       lng: s.lng,
       lat: s.lat,
       ...describeFeature({ layer: { id: 'settlements' }, properties: s }),
+      place: settlementPlace(s, s.lng, s.lat),
     })
   }, [focus])
+
+  // Navigating, or planning a route on a phone, takes the whole screen (the map is otherwise a strip
+  // in a scrolling page, with no room for the route sheet), and gives it back afterwards.
+  const wantsFullScreen = navigating || (panel === 'route' && inPage)
+  const expandedByRoute = useRef(false)
+  useEffect(() => {
+    if (wantsFullScreen && !expanded) {
+      expandedByRoute.current = true
+      setExpanded(true)
+    } else if (!wantsFullScreen && expandedByRoute.current) {
+      expandedByRoute.current = false
+      setExpanded(false)
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- only a change in what is wanted should do this
+  }, [wantsFullScreen])
+
+  // Keep the person's position in the middle of the map while they have not moved it themselves
+  useEffect(() => {
+    if (!navigating || !following || !fix) return
+    const map = mapRef.current
+    if (map) map.easeTo({ center: [fix.lng, fix.lat], zoom: Math.max(map.getZoom(), 15), duration: 700 })
+  }, [navigating, following, fix])
+
+  // A new route is brought into view, clear of the panel beside it
+  useEffect(() => {
+    const map = mapRef.current
+    if (!route || navigating || !map) return
+    const xs = route.coordinates.map((c) => c[0])
+    const ys = route.coordinates.map((c) => c[1])
+    const wide = window.innerWidth >= 640
+    map.fitBounds(
+      [[Math.min(...xs), Math.min(...ys)], [Math.max(...xs), Math.max(...ys)]],
+      { padding: { top: 70, bottom: wide ? 70 : 280, left: 70, right: wide ? 380 : 70 }, duration: 700, maxZoom: 15 },
+    )
+  }, [route, navigating])
 
   // Entering or leaving full screen changes the container size.
   useEffect(() => {
@@ -192,8 +244,30 @@ export default function FloodMap({ data, settlementRows, priority, confidence })
     addToast(ok ? 'Coordinates copied' : 'Could not copy', ok ? 'success' : 'error')
   }
 
+  // "Route here" on a popup: the place becomes the destination, and the start is the device's position
+  const routeHere = async (place) => {
+    useRouteStore.getState().setTo({ ...place, source: 'place' })
+    setPopup(null)
+    setPanel('route')
+    if (useRouteStore.getState().from) return
+    try {
+      const here = await locateOnce()
+      useRouteStore.getState().setFrom({ lng: here.lng, lat: here.lat, label: 'Your location', source: 'gps' })
+    } catch (error) {
+      addToast(error.message, 'error')
+    }
+  }
+
   const handleClick = (event) => {
     const { lng, lat } = event.lngLat
+    if (routePick) {
+      const point = { lng, lat, label: 'Point on the map', source: 'map' }
+      if (routePick === 'from') useRouteStore.getState().setFrom(point)
+      else useRouteStore.getState().setTo(point)
+      useRouteStore.getState().setPick(null)
+      setPanel('route')
+      return
+    }
     if (measureMode) {
       addMeasurePoint([lng, lat])
       return
@@ -205,7 +279,13 @@ export default function FloodMap({ data, settlementRows, priority, confidence })
     const feature = event.features?.[0]
     if (feature) {
       setCoordinate(null)
-      setPopup({ lng, lat, ...describeFeature(feature) })
+      const [fx, fy] = feature.geometry?.coordinates ?? [lng, lat]
+      setPopup({
+        lng,
+        lat,
+        ...describeFeature(feature),
+        place: feature.layer.id === 'settlements' ? settlementPlace(feature.properties, fx, fy) : undefined,
+      })
     } else {
       setPopup(null)
       setCoordinate({ lat, lng })
@@ -220,6 +300,7 @@ export default function FloodMap({ data, settlementRows, priority, confidence })
   }
 
   const tools = [
+    { id: 'route', label: 'Route', icon: Navigation, active: panel === 'route' || navigating, onClick: () => togglePanel('route') },
     { id: 'layers', label: 'Layers', icon: Layers, active: panel === 'layers', onClick: () => togglePanel('layers') },
     {
       id: 'filters',
@@ -311,6 +392,7 @@ export default function FloodMap({ data, settlementRows, priority, confidence })
           onClick={handleClick}
           onMouseEnter={() => setHovering(true)}
           onMouseLeave={() => setHovering(false)}
+          onDragStart={() => navigating && useRouteStore.getState().setFollowing(false)}
           onMoveEnd={({ viewState }) =>
             setView({ lat: viewState.latitude, lng: viewState.longitude }, viewState.zoom)
           }
@@ -380,6 +462,8 @@ export default function FloodMap({ data, settlementRows, priority, confidence })
             />
           </Source>
 
+          <RouteLayer route={route} />
+
           <SettlementLayer
             // Rows carry each settlement's building counts, for the popup
             settlements={settlementRows ?? data.settlements}
@@ -413,6 +497,15 @@ export default function FloodMap({ data, settlementRows, priority, confidence })
               {popup.lines.map((line) => (
                 <div key={line}>{line}</div>
               ))}
+              {popup.place && (
+                <button
+                  type="button"
+                  className="mt-2 flex min-h-[32px] items-center gap-1.5 rounded-[3px] bg-[#0b0c0d] px-2.5 text-xs font-medium text-white"
+                  onClick={() => routeHere(popup.place)}
+                >
+                  <Navigation size={13} aria-hidden /> Route here
+                </button>
+              )}
             </Popup>
           )}
         </Map>
@@ -424,10 +517,10 @@ export default function FloodMap({ data, settlementRows, priority, confidence })
             initial={{ opacity: 0, y: 8 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.2, ease: 'easeOut' }}
-            className="no-print card panel-glass absolute inset-x-0 bottom-0 z-10 max-h-[70%] overflow-y-auto overscroll-contain rounded-b-none p-3 shadow-lg sm:inset-x-auto sm:bottom-auto sm:right-3 sm:top-3 sm:max-h-[calc(100%-1.5rem)] sm:w-72 sm:rounded-b-xl"
+            className={`no-print card panel-glass absolute inset-x-0 bottom-0 z-10 max-h-[70%] overflow-y-auto overscroll-contain rounded-b-none p-3 shadow-lg sm:inset-x-auto sm:bottom-auto sm:right-3 sm:top-3 sm:max-h-[calc(100%-1.5rem)] ${panel === 'route' ? 'sm:w-[23rem]' : 'sm:w-72'} sm:rounded-b-xl`}
           >
             <div className="mb-1 flex items-center justify-between">
-              <h3 className="text-sm font-semibold">{panel === 'layers' ? 'Map layers' : 'Filter damage zones'}</h3>
+              <h3 className="text-sm font-semibold">{{ layers: 'Map layers', filters: 'Filter damage zones', route: 'Route' }[panel]}</h3>
               <button
                 type="button"
                 className="-mr-2 flex h-10 w-10 items-center justify-center rounded-md text-ink-soft hover:bg-surface-alt"
@@ -437,9 +530,21 @@ export default function FloodMap({ data, settlementRows, priority, confidence })
                 <X size={16} />
               </button>
             </div>
-            {panel === 'layers' ? <LayerControl confidence={confidence} /> : <FilterControls />}
+            {panel === 'layers' && <LayerControl confidence={confidence} />}
+            {panel === 'filters' && <FilterControls />}
+            {panel === 'route' && (
+              <RoutePanel
+                data={data}
+                onStart={() => {
+                  setPanel(null)
+                  useRouteStore.getState().startNavigation()
+                }}
+              />
+            )}
           </motion.div>
         )}
+
+        {navigating && <NavigationHud route={route} progress={progress} />}
 
         <div className="no-print absolute bottom-3 left-3 z-[9] flex flex-col items-start gap-2">
           <MeasurementTool />
