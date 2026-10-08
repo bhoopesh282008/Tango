@@ -7,7 +7,8 @@ export const useMapStore = create((set) => ({
   center: MAP_DEFAULTS.center,
   // False until the map has been moved or fitted: it then opens on the data's own area
   viewSet: false,
-  baseMap: 'street',
+  // Real satellite imagery first: the flood is read against what the ground looks like
+  baseMap: 'imagery',
   visibleLayers: {
     damage: true,
     buildings: true,

@@ -89,7 +89,7 @@ function describeInfrastructure(item) {
 export default function FloodMap({ data, settlementRows, priority, confidence }) {
   const {
     zoom, center, viewSet, baseMap, visibleLayers, filters, measureMode, pathMode, focus,
-    setMeasureMode, setPathMode, setFloodPath, setView, addMeasurePoint,
+    setMeasureMode, setPathMode, setFloodPath, setView, addMeasurePoint, setBaseMap,
   } = useMapStore()
   // [west, south, east, north] of the run on screen, when the run records it
   const areaBox = data.satelliteData?.area?.bbox
@@ -249,7 +249,18 @@ export default function FloodMap({ data, settlementRows, priority, confidence })
             {shownZones} of {data.floodZones.features.length} zones shown
           </span>
         </h2>
-        <div className="no-print flex gap-0.5">
+        <div className="no-print flex flex-wrap items-center gap-0.5">
+          {/* The two maps people reach for. Sentinel-2 stays in the Layers panel. */}
+          <div role="group" aria-label="Base map" className="mr-1 flex">
+            {[
+              ['imagery', 'Satellite'],
+              ['street', 'Map'],
+            ].map(([id, label]) => (
+              <button key={id} type="button" onClick={() => setBaseMap(id)} aria-pressed={baseMap === id} className="btn-quiet">
+                {label}
+              </button>
+            ))}
+          </div>
           {tools.map((tool) => (
             <button
               key={tool.id}
@@ -315,7 +326,8 @@ export default function FloodMap({ data, settlementRows, priority, confidence })
               id="hillshade"
               beforeId={FIRST_LABEL_LAYER}
               type="hillshade"
-              layout={visibility(visibleLayers.elevation)}
+              // Shading belongs to the drawn map; photographs already carry their own relief
+              layout={visibility(visibleLayers.elevation && baseMap === 'street')}
               paint={{
                 'hillshade-exaggeration': 0.55,
                 'hillshade-shadow-color': darkBase ? '#000000' : '#5b616b',

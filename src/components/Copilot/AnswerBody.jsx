@@ -51,7 +51,7 @@ function Group({ group }) {
   }
   if (group.kind === 'bullet') {
     return (
-      <ul className="space-y-1.5">
+      <ul className="space-y-2">
         {group.items.map((item, i) => (
           <li key={i} className="flex gap-2.5">
             <span className="mt-[0.6em] h-1.5 w-1.5 shrink-0 rounded-full bg-ink-muted" aria-hidden />
@@ -65,12 +65,10 @@ function Group({ group }) {
   }
   if (group.kind === 'number') {
     return (
-      <ol className="space-y-1.5">
+      <ol className="space-y-2">
         {group.items.map((item, i) => (
           <li key={i} className="flex gap-2.5">
-            <span className="mt-0.5 flex h-6 min-w-6 shrink-0 items-center justify-center rounded-md bg-surface-alt px-1 text-xs font-semibold text-ink-soft">
-              {item.rank}
-            </span>
+            <span className="num w-5 shrink-0 text-ink-muted">{item.rank}</span>
             <span className="min-w-0">
               <Lead text={item.text} />
             </span>
@@ -85,7 +83,7 @@ function Group({ group }) {
 export default function AnswerBody({ text }) {
   const blocks = text.split(/\n{2,}/).map((block) => groupLines(block.split('\n').map(parseLine)))
   return (
-    <div className="space-y-3 px-4 py-3 text-[15px] leading-relaxed">
+    <div className="space-y-4 text-[15px] leading-relaxed">
       {blocks.map((groups, i) => (
         <div key={i} className="space-y-2">
           {groups.map((group, j) => (

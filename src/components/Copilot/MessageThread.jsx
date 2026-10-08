@@ -1,17 +1,9 @@
-import { Bot, User } from 'lucide-react'
+import { Copy, Download } from 'lucide-react'
 import { motion } from 'motion/react'
 import { useEffect, useRef } from 'react'
 import { formatPercent } from '../../utils/formatters'
 import { TypingDots } from '../Common/Animated'
 import AnswerBody from './AnswerBody'
-
-function Avatar({ icon: Icon, className }) {
-  return (
-    <span className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-md ${className}`}>
-      <Icon size={16} aria-hidden />
-    </span>
-  )
-}
 
 // A message easing in as it joins the thread
 const arrive = {
@@ -20,74 +12,80 @@ const arrive = {
   transition: { duration: 0.25, ease: 'easeOut' },
 }
 
+// Who is speaking is said once, in words, above an answer. There are no avatars: the question
+// sits in a tinted block on the right and the answer runs as plain text on the page.
+function Speaker() {
+  return <p className="mb-2 text-xs font-medium text-ink-soft">Copilot</p>
+}
+
 function UserMessage({ text }) {
   return (
-    <motion.li {...arrive} className="flex justify-end gap-2">
-      <p className="max-w-[85%] rounded-lg border border-line bg-[var(--surface-2)] px-3.5 py-2 text-sm text-ink sm:max-w-[70%]">
-        {text}
-      </p>
-      <Avatar icon={User} className="border border-line bg-surface text-ink-soft" />
+    <motion.li {...arrive} className="flex justify-end">
+      <p className="max-w-[85%] rounded-[6px] bg-[var(--surface-2)] px-4 py-2.5 text-[15px] leading-snug text-ink sm:max-w-[70%]">{text}</p>
     </motion.li>
   )
 }
 
-function AssistantMessage({ response }) {
+function AssistantMessage({ response, onCopy, onDownload }) {
   const lang = response.language === 'np' ? 'ne' : 'en'
   return (
-    <motion.li {...arrive} className="flex gap-2">
-      <Avatar icon={Bot} className="border border-line bg-surface text-ink-soft" />
+    <motion.li {...arrive} className="max-w-[46rem]">
+      <Speaker />
       {response.notice ? (
-        <p lang={lang} className="card max-w-[85%] rounded-tl-sm px-4 py-2.5 text-sm text-ink-soft sm:max-w-[70%]">
+        <p lang={lang} className="text-[15px] leading-relaxed text-ink-soft">
           {response.notice}
         </p>
       ) : (
-        <article lang={lang} className="card min-w-0 max-w-[92%] rounded-tl-sm sm:max-w-[85%]">
-          {response.title && (
-            <h2 className="border-b border-line px-4 py-2.5 text-sm font-semibold">{response.title}</h2>
-          )}
+        <article lang={lang} className="min-w-0">
+          {response.title && <h2 className="mb-3 text-lg font-semibold leading-snug tracking-tight">{response.title}</h2>}
           <AnswerBody text={response.answer} />
-          <footer className="border-t border-line px-4 py-2 text-xs text-ink-soft" lang="en">
+          <p className="mt-4 text-xs text-ink-muted" lang="en">
             Source: {response.dataSource}
-            {response.confidence != null && ` · Model confidence ${formatPercent(response.confidence)}`}
-          </footer>
+            {response.confidence != null && `. Model confidence ${formatPercent(response.confidence)}`}
+          </p>
+          {/* Copy and Download act on the newest answer, so only that one carries them */}
+          {onCopy && (
+            <div className="no-print -ml-2.5 mt-2 flex gap-1">
+              <button type="button" className="btn-quiet" onClick={onCopy}>
+                <Copy size={15} aria-hidden /> Copy
+              </button>
+              <button type="button" className="btn-quiet" onClick={onDownload}>
+                <Download size={15} aria-hidden /> Download
+              </button>
+            </div>
+          )}
         </article>
       )}
     </motion.li>
   )
 }
 
-export default function MessageThread({ conversation, loading }) {
+export default function MessageThread({ conversation, loading, onCopy, onDownload }) {
   const end = useRef(null)
+  const lastAnswer = conversation.findLastIndex((m) => m.role === 'assistant' && m.response?.answer)
 
   // Keep the newest message in view.
   useEffect(() => {
     end.current?.scrollIntoView?.({ behavior: 'smooth', block: 'nearest' })
   }, [conversation, loading])
 
-  if (conversation.length === 0 && !loading) {
-    return (
-      <motion.div {...arrive} className="px-1 pb-6 pt-10">
-        <h2 className="text-2xl font-semibold tracking-tight">What would you like to know?</h2>
-        <p className="mt-2 max-w-[60ch] text-sm leading-relaxed text-ink-soft">
-          Ask about flood extent, damaged infrastructure, cut-off settlements or rescue priorities.
-          Answers are assembled from the satellite analysis shown on the dashboard.
-        </p>
-      </motion.div>
-    )
-  }
-
   return (
-    <ol className="flex flex-col gap-4" role="log" aria-live="polite" aria-label="Conversation">
-      {conversation.map((message) =>
+    <ol className="flex flex-col gap-9 pt-8" role="log" aria-live="polite" aria-label="Conversation">
+      {conversation.map((message, index) =>
         message.role === 'user' ? (
           <UserMessage key={message.id} text={message.text} />
         ) : (
-          <AssistantMessage key={message.id} response={message.response} />
+          <AssistantMessage
+            key={message.id}
+            response={message.response}
+            onCopy={index === lastAnswer ? onCopy : undefined}
+            onDownload={index === lastAnswer ? onDownload : undefined}
+          />
         ),
       )}
       {loading && (
-        <li className="flex items-center gap-2">
-          <Avatar icon={Bot} className="border border-line bg-surface text-ink-soft" />
+        <li>
+          <Speaker />
           <TypingDots label="Reading satellite analysis" />
         </li>
       )}

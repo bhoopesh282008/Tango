@@ -10,7 +10,8 @@ export default function LayerControl({ confidence }) {
     <div className="text-sm">
       <fieldset>
         <legend className="mb-1 text-xs font-semibold uppercase tracking-wide text-ink-soft">Layers</legend>
-        {MAP_LAYERS.map((layer) => (
+        {/* Terrain shading only applies to the drawn map, so it is offered only there */}
+        {MAP_LAYERS.filter((layer) => layer.id !== 'elevation' || baseMap === 'street').map((layer) => (
           <label
             key={layer.id}
             className="flex min-h-[44px] cursor-pointer items-center gap-2.5 rounded-lg px-1 hover:bg-surface-alt"
