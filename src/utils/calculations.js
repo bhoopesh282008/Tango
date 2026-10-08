@@ -238,6 +238,10 @@ export function computeStats({ floodZones, buildings, roads, settlements, infras
     areaName: satelliteData?.area?.name ?? null,
     // How the run compared with a reference map, when that check was made; null otherwise
     validation: satelliteData?.validation ?? null,
+    // How complete the pre-event OpenStreetMap data is here (pipeline runs only)
+    osmQuality: satelliteData?.osm_quality ?? null,
+    // Modelled population and river flow from open datasets, beside the map and outside its numbers
+    context: satelliteData?.context ?? null,
 
     // False when the run produced no infrastructure layer: counts below are then not findings
     infrastructureAssessed: infrastructure.length > 0,

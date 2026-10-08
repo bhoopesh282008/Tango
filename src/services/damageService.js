@@ -22,11 +22,23 @@ function sceneWithUrls(scene) {
   }
 }
 
+// Modelled population and river flow from open datasets, shown beside the map and used by nothing
+// in it. A run without the file has none, and a failure to load it is never worth failing the page.
+async function getContext() {
+  try {
+    const context = await getFile(PIPELINE_FILES.context, { optional: true })
+    return context && typeof context === 'object' && !Array.isArray(context) ? context : null
+  } catch (error) {
+    console.warn(`The context file could not be loaded (${error.message}); the page is shown without it.`)
+    return null
+  }
+}
+
 export async function getSatellite() {
   if (USE_MOCK) return mock((await demo()).satellite)
   if (PIPELINE) {
     // A run from existing rasters records no scenes, so either side may be missing.
-    const { before, after, validation, detail, area, event } = record(
+    const { before, after, validation, detail, area, event, osm_quality: osmQuality } = record(
       await getFile(PIPELINE_FILES.satellite),
       'The satellite scene record',
     )
@@ -40,6 +52,9 @@ export async function getSatellite() {
       validation: validation ?? null,
       // Where the close-up pictures are, when the run made them
       detail: detail ?? null,
+      // How complete the pre-event road map is here, when the run measured it
+      osm_quality: osmQuality ?? null,
+      context: await getContext(),
     }
   }
   const [before, after] = await Promise.all([

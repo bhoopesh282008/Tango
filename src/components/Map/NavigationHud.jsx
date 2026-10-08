@@ -1,7 +1,7 @@
 import { ArrowDownLeft, ArrowDownRight, ArrowUp, ArrowUpLeft, ArrowUpRight, CornerUpLeft, CornerUpRight, Crosshair, Flag, Navigation, TriangleAlert, X } from 'lucide-react'
 import { useRouteStore } from '../../store/routeStore'
 import { formatDuration, formatMetres } from '../../utils/formatters'
-import { travelMinutes } from '../../utils/routing'
+import { routeMinutes } from '../../utils/routing'
 
 // The arrow for a manoeuvre: straight on, slightly, a turn, or sharply to one side.
 function icon({ kind, side }) {
@@ -76,7 +76,7 @@ export default function NavigationHud({ route, progress }) {
           {progress ? (
             <p className="num text-lg font-semibold leading-tight">
               {formatMetres(progress.remainingM)}
-              <span className="ml-2 text-sm font-normal text-ink-soft">{formatDuration(travelMinutes(progress.remainingM, travel))} at an assumed speed</span>
+              <span className="ml-2 text-sm font-normal text-ink-soft">{formatDuration(routeMinutes(route, travel, progress.alongM))} at assumed speeds</span>
             </p>
           ) : (
             <p className="text-sm text-ink-soft">{route ? `${formatMetres(route.distanceM)} planned` : ''}</p>

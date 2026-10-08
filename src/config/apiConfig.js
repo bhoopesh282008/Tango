@@ -15,6 +15,8 @@ export const PIPELINE_FILES = {
   roads: '/roads.geojson',
   infrastructure: '/infrastructure.json',
   settlements: '/settlements.json',
+  // Optional: modelled population and river flow shown beside the map, never part of it
+  context: '/context.json',
 }
 
 export const ENDPOINTS = {

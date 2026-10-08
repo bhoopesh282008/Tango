@@ -11,8 +11,37 @@ const M_PER_DEG_LAT = 110540
 const rad = (degrees) => (degrees * Math.PI) / 180
 const deg = (radians) => (radians * 180) / Math.PI
 
-// Speeds are assumptions, shown as such: nothing in the data says how fast anyone can travel.
+// Speeds are assumptions, shown as such: nothing in the data says how fast anyone can travel, least
+// of all after a flood. On foot it is one pace for every road. By vehicle it depends on the road's
+// class in OpenStreetMap, at typical mountain-road speeds; a road with no class gets the default.
 export const SPEEDS_KMH = { vehicle: 20, foot: 4 }
+export const ROAD_SPEEDS_KMH = {
+  motorway: 40,
+  trunk: 30,
+  primary: 25,
+  secondary: 22,
+  tertiary: 18,
+  unclassified: 14,
+  residential: 12,
+  service: 10,
+  track: 8,
+}
+// Unsurfaced roads are slower than the same class paved
+const UNPAVED = new Set(['unpaved', 'dirt', 'ground', 'gravel', 'fine_gravel', 'earth', 'mud', 'sand', 'grass', 'compacted'])
+const UNPAVED_FACTOR = 0.7
+
+// Vehicle speed on a road of this class and surface, km/h
+export function roadSpeedKmh(highway, surface) {
+  const base = ROAD_SPEEDS_KMH[highway] ?? SPEEDS_KMH.vehicle
+  return UNPAVED.has(surface) ? base * UNPAVED_FACTOR : base
+}
+
+// OpenStreetMap's one-way tag: 'forward' (along the way as drawn), 'reverse' (-1), or null
+export function oneWayDirection(value) {
+  if (['yes', '1', 'true'].includes(value)) return 'forward'
+  if (value === '-1' || value === 'reverse') return 'reverse'
+  return null
+}
 
 // A point further than this from any road is not routed from or to.
 export const SNAP_LIMIT_M = 2000
@@ -37,6 +66,22 @@ export function compass(bearingDeg) {
 }
 
 export const travelMinutes = (metres, mode = 'vehicle') => (metres / 1000 / SPEEDS_KMH[mode]) * 60
+
+// Minutes to travel a route from a point `fromM` metres along it to its end. On foot that is the
+// distance at a walking pace; by vehicle it adds up each stretch at its road's speed.
+export function routeMinutes(route, mode = 'vehicle', fromM = 0) {
+  const remaining = Math.max(0, route.distanceM - fromM)
+  if (mode === 'foot' || !route.cumulativeMin) return travelMinutes(remaining, mode)
+  return route.cumulativeMin.at(-1) - interpolate(route.cumulative, route.cumulativeMin, Math.min(fromM, route.distanceM))
+}
+
+function interpolate(xs, ys, x) {
+  if (x <= xs[0]) return ys[0]
+  let i = 1
+  while (i < xs.length - 1 && xs[i] < x) i++
+  const span = xs[i] - xs[i - 1]
+  return span > 0 ? ys[i - 1] + ((x - xs[i - 1]) / span) * (ys[i] - ys[i - 1]) : ys[i]
+}
 
 // ---------------------------------------------------------------- graph
 
@@ -95,15 +140,25 @@ export function buildRoadGraph(roads, zones = null) {
     const lines = g?.type === 'MultiLineString' ? g.coordinates : g?.type === 'LineString' ? [g.coordinates] : []
     if (lines.length === 0) continue
     const way = ways.length
-    ways.push({ id: p.id ?? null, name: p.name || 'Unnamed road', flagged: !!p.damaged, floodedKm: p.flooded_km ?? null })
+    ways.push({
+      id: p.id ?? null,
+      name: p.name || 'Unnamed road',
+      flagged: !!p.damaged,
+      floodedKm: p.flooded_km ?? null,
+      highway: p.highway ?? null,
+      speedKmh: roadSpeedKmh(p.highway, p.surface),
+      oneway: oneWayDirection(p.oneway),
+    })
     for (const line of lines) {
       let previous = null
       for (const c of line) {
         const i = node(c)
         if (previous !== null && previous !== i) {
           const len = distanceM(coords[previous], coords[i])
-          const forward = { to: i, len, way, flooded: false }
-          const back = { to: previous, len, way, flooded: false }
+          // Going with a one-way road's drawn direction is `forward`; the other way is against it
+          const oneway = ways[way].oneway
+          const forward = { to: i, len, way, flooded: false, against: oneway === 'reverse' }
+          const back = { to: previous, len, way, flooded: false, against: oneway === 'forward' }
           forward.twin = back
           back.twin = forward
           adj[previous].push(forward)
@@ -194,8 +249,10 @@ class Heap {
   }
 }
 
-// Shortest path by length. With avoidFlagged, flagged road sections are not used at all.
-// Returns the edges walked, or null when the two are not connected.
+// Quickest path by vehicle: each stretch costs its length over its road's speed. With avoidFlagged,
+// flagged road sections are not used at all. One-way roads can be used either way (the pipeline's
+// cut-off graph is undirected, and a rescue vehicle may have to), and the route reports how much of
+// it goes against one. Returns the edges walked, or null when the two are not connected.
 export function shortestPath(graph, source, target, { avoidFlagged = false } = {}) {
   if (source === target) return []
   const dist = new Map([[source, 0]])
@@ -208,10 +265,10 @@ export function shortestPath(graph, source, target, { avoidFlagged = false } = {
     if (cost > (dist.get(here) ?? Infinity)) continue
     for (const edge of graph.adj[here]) {
       if (avoidFlagged && graph.ways[edge.way].flagged) continue
-      const next = cost + edge.len
+      const next = cost + edge.len / graph.ways[edge.way].speedKmh
       if (next < (dist.get(edge.to) ?? Infinity)) {
         dist.set(edge.to, next)
-        via.set(edge.to, { from: here, to: edge.to, len: edge.len, way: edge.way, flooded: edge.flooded })
+        via.set(edge.to, { from: here, to: edge.to, len: edge.len, way: edge.way, flooded: edge.flooded, against: edge.against })
         heap.push([next, edge.to])
       }
     }
@@ -362,7 +419,10 @@ export function describeRoute(graph, edges, { destinationLabel = 'your destinati
   const coordinates = [graph.coords[first], ...edges.map((e) => graph.coords[e.to])]
   const cumulative = [0]
   edges.forEach((e) => cumulative.push(cumulative[cumulative.length - 1] + e.len))
-  const route = { coordinates, cumulative, distanceM: cumulative[cumulative.length - 1] }
+  // Minutes by vehicle at each point of the route, each stretch at its road's speed
+  const cumulativeMin = [0]
+  edges.forEach((e) => cumulativeMin.push(cumulativeMin[cumulativeMin.length - 1] + (e.len / 1000 / graph.ways[e.way].speedKmh) * 60))
+  const route = { coordinates, cumulative, cumulativeMin, distanceM: cumulative[cumulative.length - 1] }
 
   // Flagged sections the route uses, one entry per stretch of the same road.
   const flaggedSections = []
@@ -409,6 +469,8 @@ export function describeRoute(graph, edges, { destinationLabel = 'your destinati
     flaggedSections,
     flaggedM: flaggedSections.reduce((sum, s) => sum + s.distanceM, 0),
     floodedParts,
+    // metres of the route that go against a one-way road's direction
+    oneWayAgainstM: edges.reduce((sum, e) => sum + (e.against ? e.len : 0), 0),
     // null when the flood zones were not given, so "none" is never claimed without having looked
     floodedM: graph.zonesKnown ? floodedParts.reduce((sum, p) => sum + p.distanceM, 0) : null,
     bridges,

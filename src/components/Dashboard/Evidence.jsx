@@ -1,4 +1,5 @@
 import { useState } from 'react'
+import ContextNote from './ContextNote'
 import { DAMAGE_TYPES } from '../../utils/constants'
 import { formatNumber, formatPercent } from '../../utils/formatters'
 import { WORDING } from '../../utils/wording'
@@ -133,6 +134,31 @@ function Infrastructure({ stats }) {
   )
 }
 
+// How much of the answer rests on missing map data: the pre-event road map is what "cut off" is
+// judged by, so a valley where it is thin has fewer answers, not safer ones.
+function MapData({ quality }) {
+  if (!quality) return null
+  const near = quality.buildings_near_road
+  return (
+    <section aria-labelledby="mapdata-heading">
+      <h3 id="mapdata-heading" className="section-title">
+        How complete the road map is
+      </h3>
+      <p className="mt-2 text-sm leading-relaxed text-ink-soft">
+        {near != null && (
+          <>
+            <span className="num font-semibold text-ink">{formatPercent(near)}</span> of the {formatNumber(quality.buildings)} mapped buildings are
+            within {quality.near_road_m} m of a mapped road.{' '}
+          </>
+        )}
+        <span className="num font-semibold text-ink">{formatNumber(quality.settlements_without_road)}</span> of {formatNumber(quality.settlements)}{' '}
+        settlements have no mapped road at all, so for them &ldquo;cut off&rdquo; cannot be judged and they are listed as access unknown. A thin road
+        map is not evidence of safety.
+      </p>
+    </section>
+  )
+}
+
 // The pictures the map was made from, and what lies inside the zones it drew. Below the console
 // because it backs the map up rather than being what a responder reads first.
 export default function Evidence({ stats, children }) {
@@ -150,6 +176,8 @@ export default function Evidence({ stats, children }) {
           <div className="min-w-0 space-y-9">
             <Detection stats={stats} />
             <Infrastructure stats={stats} />
+            <MapData quality={stats.osmQuality} />
+            <ContextNote context={stats.context} />
           </div>
         </div>
       </div>

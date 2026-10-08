@@ -5,6 +5,7 @@ import { FACTOR_WEIGHTS, summarisePriority } from '../../utils/calculations'
 import { ACCESS_LEVELS, PRIORITY_BANDS, PRIORITY_WEIGHTS } from '../../utils/constants'
 import { formatNumber, formatPercent } from '../../utils/formatters'
 import { WORDING } from '../../utils/wording'
+import { modelledPeople } from './ContextNote'
 
 const FACTOR_LABELS = {
   population: 'population',
@@ -54,7 +55,7 @@ function RiskSummary({ priority }) {
   )
 }
 
-function PriorityRow({ settlement: s, buildings, selected }) {
+function PriorityRow({ settlement: s, buildings, selected, people }) {
   const focusSettlement = useMapStore((state) => state.focusSettlement)
   const setHighlighted = useMapStore((state) => state.setHighlightedSettlement)
   const band = PRIORITY_BANDS.find((b) => b.id === s.band)
@@ -95,7 +96,11 @@ function PriorityRow({ settlement: s, buildings, selected }) {
             <span className={`h-2 w-2 shrink-0 ${BAND_FILL[s.band]}`} aria-hidden />
             {band.label}
           </span>
-          <span className="num">{size}</span>
+          <span className="num">
+            {size}
+            {/* A modelled figure from outside the map's data, said to be one, and not part of the score */}
+            {people != null && <span className="block text-xs text-ink-muted">about {modelledPeople(people)} people, modelled</span>}
+          </span>
           <span className="num">{formatPercent(s.damageRatio)} damaged</span>
         </span>
         {/* Kept as an empty cell from md up so the score stays in its column */}
@@ -178,7 +183,13 @@ export default function SettlementPriorityRanking({ stats }) {
         </div>
         <ol className="divide-y divide-line border-t border-line md:border-t-0">
           {settlements.map((settlement) => (
-            <PriorityRow key={settlement.id} settlement={settlement} buildings={buildings} selected={selectedId === settlement.id} />
+            <PriorityRow
+              key={settlement.id}
+              settlement={settlement}
+              buildings={buildings}
+              selected={selectedId === settlement.id}
+              people={stats.context?.population?.by_settlement?.[settlement.id]}
+            />
           ))}
         </ol>
 

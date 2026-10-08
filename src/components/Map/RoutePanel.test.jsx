@@ -70,8 +70,21 @@ test('when no road avoids the flagged sections it says so and offers the route t
 test('the time is a stated speed, and changes with how you travel', () => {
   planned()
   render(<RoutePanel data={data} onStart={() => {}} />)
+  // the test roads have no class, so the default vehicle speed is the average
   expect(screen.getByText('About (20 km/h)')).toBeInTheDocument()
   fireEvent.click(screen.getByRole('button', { name: 'On foot' }))
   expect(screen.getByText('About (4 km/h)')).toBeInTheDocument()
-  expect(screen.getByText(/assumed speed/)).toBeInTheDocument()
+  expect(screen.getByText(/assumed speeds/)).toBeInTheDocument()
+})
+
+test('says how much of the route goes against a one-way road', () => {
+  const oneWay = network({
+    type: 'Feature',
+    properties: { id: 'r1', name: 'Main Road', damaged: false, highway: 'residential', oneway: 'yes' },
+    geometry: { type: 'LineString', coordinates: [A, C] },
+  })
+  const plan = planRoutes(buildRoadGraph(oneWay, zones), [C[0], C[1]], [A[0], A[1]], { destinationLabel: 'Alder' })
+  act(() => useRouteStore.setState({ from: { key: 'health:h1', label: 'Clinic', lng: C[0], lat: C[1] }, to: { key: 'settlement:s1', label: 'Alder', lng: A[0], lat: A[1] }, plan, preference: 'avoid' }))
+  render(<RoutePanel data={data} onStart={() => {}} />)
+  expect(screen.getByText(/goes against a one-way road/)).toBeInTheDocument()
 })

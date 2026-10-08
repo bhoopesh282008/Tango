@@ -27,8 +27,11 @@ test('loads the six datasets from the data folder', async () => {
   const loaded = {}
   for (const [part, load] of Object.entries(DATA_PARTS)) loaded[part] = await load()
 
-  expect(fetch.mock.calls.map(([url]) => url).sort()).toEqual(Object.keys(FILES).sort())
-  expect(loaded.satelliteData).toEqual({ area: null, event: '2026-08-26', before: { date: '2026-08-24' }, after: null, validation: null, detail: null })
+  // context.json is the one optional file: asked for, and a run without it is fine
+  expect(fetch.mock.calls.map(([url]) => url).sort()).toEqual([...Object.keys(FILES), '/data/context.json'].sort())
+  expect(loaded.satelliteData).toEqual({
+    area: null, event: '2026-08-26', before: { date: '2026-08-24' }, after: null, validation: null, detail: null, osm_quality: null, context: null,
+  })
   expect(loaded.settlements[0]).toMatchObject({ population: null, connected: null })
   expect(loaded.infrastructure).toEqual([])
 })
@@ -43,6 +46,27 @@ test('picture names in satellite.json are resolved against the data folder', asy
   expect(before).toMatchObject({ url: '/data/before.png', optical_url: '/data/before_optical.png', date: '2026-08-16' })
   expect(after.url).toBe('https://example.org/after.png')
   expect(after.optical_url).toBeUndefined()
+})
+
+test('the road map quality and the context beside the map are passed on when the run has them', async () => {
+  const quality = { buildings: 10, buildings_near_road: 0.9, near_road_m: 300, settlements: 4, settlements_without_road: 1 }
+  const context = { population: { by_settlement: { s001: 120 } }, river: { ratio_on_event: 0.9 } }
+  const files = { ...FILES, '/data/satellite.json': { ...FILES['/data/satellite.json'], osm_quality: quality }, '/data/context.json': context }
+  vi.stubGlobal('fetch', vi.fn(async (url) => ({ ok: url in files, status: url in files ? 200 : 404, json: async () => files[url] })))
+  const satellite = await DATA_PARTS.satelliteData()
+  expect(satellite.osm_quality).toEqual(quality)
+  expect(satellite.context).toEqual(context)
+})
+
+test('a context file that cannot be loaded never stops the page', async () => {
+  vi.spyOn(console, 'warn').mockImplementation(() => {})
+  vi.stubGlobal('fetch', vi.fn(async (url) => (url.endsWith('context.json')
+    ? { ok: false, status: 400 }
+    : { ok: true, status: 200, json: async () => FILES['/data/satellite.json'] })))
+  expect((await DATA_PARTS.satelliteData()).context).toBeNull()
+  // and one in the wrong shape is ignored, not trusted
+  vi.stubGlobal('fetch', vi.fn(async (url) => ({ ok: true, status: 200, json: async () => (url.endsWith('context.json') ? [1, 2] : FILES['/data/satellite.json']) })))
+  expect((await DATA_PARTS.satelliteData()).context).toBeNull()
 })
 
 test('a missing file is an error, not a silent fall back to demo data', async () => {

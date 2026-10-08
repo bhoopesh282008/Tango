@@ -5,7 +5,7 @@ import { downloadBlob } from '../../services/exportService'
 import { activeRoute, useRouteStore } from '../../store/routeStore'
 import { useUIStore } from '../../store/uiStore'
 import { formatDuration, formatMetres } from '../../utils/formatters'
-import { routeToGpx, travelMinutes, SPEEDS_KMH } from '../../utils/routing'
+import { routeMinutes, routeToGpx, SPEEDS_KMH } from '../../utils/routing'
 import { filePrefix } from '../../config/run'
 
 // Every place a route can start or end at, in the groups a responder thinks in.
@@ -100,7 +100,9 @@ export default function RoutePanel({ data, onStart }) {
   const other = plan && !plan.error ? (preference === 'avoid' ? plan.fastest : plan.avoid) : null
   const unknownFlood = route && route.floodedM == null
   const floodedLabel = route ? formatMetres(unknownFlood ? route.flaggedM : route.floodedM) : null
-  const minutes = route ? travelMinutes(route.distanceM, travel) : 0
+  const minutes = route ? routeMinutes(route, travel) : 0
+  // By vehicle the time comes from each road's class, so the speed shown is the route's average
+  const averageKmh = route && minutes > 0 ? Math.round(route.distanceM / 1000 / (minutes / 60)) : SPEEDS_KMH.vehicle
   // The sections that are actually under water on this route, worst first (all of them if the zones are unknown)
   const listed = !route
     ? []
@@ -183,7 +185,7 @@ export default function RoutePanel({ data, onStart }) {
         <div className="mt-3">
           <dl className="flex gap-6">
             <Pair label="Distance" value={formatMetres(route.distanceM)} />
-            <Pair label={`About (${SPEEDS_KMH[travel]} km/h)`} value={formatDuration(minutes)} />
+            <Pair label={`About (${travel === 'foot' ? SPEEDS_KMH.foot : averageKmh} km/h)`} value={formatDuration(minutes)} />
           </dl>
           <div className="mt-3 flex gap-2">
             <button type="button" className="btn btn-primary flex-1" onClick={onStart}>
@@ -207,7 +209,7 @@ export default function RoutePanel({ data, onStart }) {
               </button>
             ))}
           </div>
-          <p className="mt-1 text-xs text-ink-muted">Time is the distance at an assumed speed. Nothing in the data says how fast this road can be travelled.</p>
+          <p className="mt-1 text-xs text-ink-muted">Time uses assumed speeds: by vehicle each road's class from OpenStreetMap (trunk 30 km/h down to track 8), on foot 4 km/h. Nothing in the data says how fast a road can be travelled, least of all after a flood.</p>
 
           <div className="mt-3 border-t border-line pt-3">
             {route.flaggedSections.length === 0 ? (
@@ -238,6 +240,11 @@ export default function RoutePanel({ data, onStart }) {
                   </p>
                 )}
               </>
+            )}
+            {route.oneWayAgainstM > 20 && (
+              <p className="mt-2 text-ink-soft">
+                {formatMetres(route.oneWayAgainstM)} of this route goes against a one-way road. Fine on foot; check before driving it.
+              </p>
             )}
             {route.bridges.length > 0 && (
               <p className="mt-2">

@@ -6,11 +6,16 @@ import {
   distanceM,
   navigationProgress,
   nearestNode,
+  oneWayDirection,
   planRoutes,
   pointAlong,
   projectOnRoute,
+  ROAD_SPEEDS_KMH,
+  roadSpeedKmh,
+  routeMinutes,
   routeToGpx,
   shortestPath,
+  SPEEDS_KMH,
   travelMinutes,
 } from './routing'
 import { A, B, C, D, E, full, network, road, zones } from './routing.fixture'
@@ -207,5 +212,65 @@ describe('following a route', () => {
 
   test('a position away from the road is reported as off it', () => {
     expect(navigationProgress(avoid, [85.005, 28.002]).offM).toBeGreaterThan(150)
+  })
+})
+
+describe('road class, surface and one-way roads', () => {
+  const classed = (highway, surface = null, oneway = null) => ({
+    type: 'Feature',
+    properties: { id: 'x', name: 'Road', damaged: false, highway, surface, oneway },
+    geometry: { type: 'LineString', coordinates: [A, C] },
+  })
+
+  test('a road is driven at the speed of its class, slower where unsurfaced, with a default for no class', () => {
+    expect(roadSpeedKmh('trunk')).toBe(ROAD_SPEEDS_KMH.trunk)
+    expect(roadSpeedKmh('tertiary', 'gravel')).toBeCloseTo(ROAD_SPEEDS_KMH.tertiary * 0.7)
+    expect(roadSpeedKmh('tertiary', 'asphalt')).toBe(ROAD_SPEEDS_KMH.tertiary)
+    expect(roadSpeedKmh(null)).toBe(SPEEDS_KMH.vehicle)
+    expect(roadSpeedKmh('something_new')).toBe(SPEEDS_KMH.vehicle)
+  })
+
+  test('the quickest way beats the shortest when the longer road is faster', () => {
+    const graph = buildRoadGraph(network(
+      { type: 'Feature', properties: { id: 'a', name: 'Short Track', damaged: false, highway: 'track' }, geometry: { type: 'LineString', coordinates: [A, C] } },
+      { type: 'Feature', properties: { id: 'b', name: 'Highway', damaged: false, highway: 'trunk' }, geometry: { type: 'LineString', coordinates: [A, [85.01, 28.004], C] } },
+    ))
+    const { fastest } = planRoutes(graph, A, C)
+    expect(fastest.steps[0].name).toBe('Highway')
+    expect(fastest.distanceM).toBeGreaterThan(distanceM(A, C))
+    // 2.2 km at 30 km/h, not 2.2 km at the 8 km/h of the track it avoided
+    expect(routeMinutes(fastest, 'vehicle')).toBeCloseTo((fastest.distanceM / 1000 / 30) * 60, 1)
+  })
+
+  test('minutes by vehicle add up each road at its own speed, and what is left falls as you go', () => {
+    const graph = buildRoadGraph(network(
+      { type: 'Feature', properties: { id: 'a', name: 'Slow', damaged: false, highway: 'track' }, geometry: { type: 'LineString', coordinates: [A, B] } },
+      { type: 'Feature', properties: { id: 'b', name: 'Quick', damaged: false, highway: 'trunk' }, geometry: { type: 'LineString', coordinates: [B, C] } },
+    ))
+    const { fastest } = planRoutes(graph, A, C)
+    const slowM = distanceM(A, B)
+    const quickM = distanceM(B, C)
+    const total = (slowM / 1000 / 8 + quickM / 1000 / 30) * 60
+    expect(routeMinutes(fastest, 'vehicle')).toBeCloseTo(total, 1)
+    expect(routeMinutes(fastest, 'vehicle', slowM)).toBeCloseTo((quickM / 1000 / 30) * 60, 1)
+    expect(routeMinutes(fastest, 'foot')).toBeCloseTo(travelMinutes(fastest.distanceM, 'foot'), 5)
+    expect(routeMinutes(fastest, 'vehicle', fastest.distanceM)).toBeCloseTo(0, 5)
+  })
+
+  test('a one-way road can still be used, and the route says how much of it goes against the sign', () => {
+    const graph = buildRoadGraph(network(classed('residential', null, 'yes')))
+    const along = planRoutes(graph, A, C).fastest
+    const against = planRoutes(graph, C, A).fastest
+    expect(along.oneWayAgainstM).toBe(0)
+    expect(against.oneWayAgainstM).toBeCloseTo(against.distanceM, 0)
+    const reversed = planRoutes(buildRoadGraph(network(classed('residential', null, '-1'))), A, C).fastest
+    expect(reversed.oneWayAgainstM).toBeCloseTo(reversed.distanceM, 0)
+  })
+
+  test('two-way roads and unknown tags never count as against', () => {
+    expect(oneWayDirection('no')).toBeNull()
+    expect(oneWayDirection(undefined)).toBeNull()
+    expect(oneWayDirection('yes')).toBe('forward')
+    expect(planRoutes(buildRoadGraph(network(classed('residential'))), C, A).fastest.oneWayAgainstM).toBe(0)
   })
 })
