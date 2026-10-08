@@ -27,10 +27,12 @@ test('loads the six datasets from the data folder', async () => {
   const loaded = {}
   for (const [part, load] of Object.entries(DATA_PARTS)) loaded[part] = await load()
 
-  // context.json is the one optional file: asked for, and a run without it is fine
-  expect(fetch.mock.calls.map(([url]) => url).sort()).toEqual([...Object.keys(FILES), '/data/context.json'].sort())
+  // context.json and outlines.json are the optional files: asked for, and a run without them is fine
+  expect(fetch.mock.calls.map(([url]) => url).sort()).toEqual(
+    [...Object.keys(FILES), '/data/context.json', '/data/outlines.json'].sort(),
+  )
   expect(loaded.satelliteData).toEqual({
-    area: null, event: '2026-08-26', before: { date: '2026-08-24' }, after: null, validation: null, detail: null, osm_quality: null, null_test: null, context: null,
+    area: null, event: '2026-08-26', before: { date: '2026-08-24' }, after: null, validation: null, detail: null, osm_quality: null, null_test: null, context: null, outlines: null,
   })
   expect(loaded.settlements[0]).toMatchObject({ population: null, connected: null })
   expect(loaded.infrastructure).toEqual([])
@@ -67,6 +69,29 @@ test('a context file that cannot be loaded never stops the page', async () => {
   // and one in the wrong shape is ignored, not trusted
   vi.stubGlobal('fetch', vi.fn(async (url) => ({ ok: true, status: 200, json: async () => (url.endsWith('context.json') ? [1, 2] : FILES['/data/satellite.json']) })))
   expect((await DATA_PARTS.satelliteData()).context).toBeNull()
+})
+
+test('the outlines over the pictures are passed on, and only the views that hold something', async () => {
+  const whole = { width: 100, height: 120, paths: { water: 'M1 1L5 1L5 5Z', debris: '' } }
+  const files = { ...FILES, '/data/outlines.json': { whole, detail: { width: 80, height: 80, paths: {} } } }
+  vi.stubGlobal('fetch', serve(files))
+  expect((await DATA_PARTS.satelliteData()).outlines).toEqual({
+    whole: { width: 100, height: 120, paths: { water: 'M1 1L5 1L5 5Z' } },     // the empty path is dropped
+    detail: null,                                                              // a picture with no zone has none
+  })
+})
+
+test('an outlines file that cannot be loaded or read never stops the page', async () => {
+  vi.spyOn(console, 'warn').mockImplementation(() => {})
+  const satellite = FILES['/data/satellite.json']
+  vi.stubGlobal('fetch', vi.fn(async (url) => (url.endsWith('outlines.json')
+    ? { ok: false, status: 400 }
+    : { ok: true, status: 200, json: async () => satellite })))
+  expect((await DATA_PARTS.satelliteData()).outlines).toBeNull()
+  for (const bad of [[1, 2], 'text', { whole: { width: 'x', height: 3, paths: {} } }, { whole: { width: 0, height: 0, paths: { water: 'M0 0Z' } } }]) {
+    vi.stubGlobal('fetch', vi.fn(async (url) => ({ ok: true, status: 200, json: async () => (url.endsWith('outlines.json') ? bad : satellite) })))
+    expect((await DATA_PARTS.satelliteData()).outlines).toBeNull()
+  }
 })
 
 test('a missing file is an error, not a silent fall back to demo data', async () => {

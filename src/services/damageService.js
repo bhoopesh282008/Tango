@@ -34,6 +34,37 @@ async function getContext() {
   }
 }
 
+// One picture's outlines: { width, height, paths: { water, debris, uncertain: SVG path data } }
+function outlineView(view) {
+  const ok =
+    view &&
+    Number.isFinite(view.width) &&
+    Number.isFinite(view.height) &&
+    view.width > 0 &&
+    view.height > 0 &&
+    view.paths &&
+    typeof view.paths === 'object'
+  if (!ok) return null
+  const paths = Object.fromEntries(
+    Object.entries(view.paths).filter(([, d]) => typeof d === 'string' && d.length > 0),
+  )
+  return Object.keys(paths).length ? { width: view.width, height: view.height, paths } : null
+}
+
+// The flood zones drawn over the before/after pictures. Optional like the context, and for the same
+// reason: a picture without outlines is still the picture, so a bad file is not worth a failed page.
+async function getOutlines() {
+  try {
+    const file = await getFile(PIPELINE_FILES.outlines, { optional: true })
+    if (!file || typeof file !== 'object') return null
+    const outlines = { whole: outlineView(file.whole), detail: outlineView(file.detail) }
+    return outlines.whole || outlines.detail ? outlines : null
+  } catch (error) {
+    console.warn(`The outlines file could not be loaded (${error.message}); the pictures are shown without them.`)
+    return null
+  }
+}
+
 export async function getSatellite() {
   if (USE_MOCK) return mock((await demo()).satellite)
   if (PIPELINE) {
@@ -57,6 +88,7 @@ export async function getSatellite() {
       // What the same rule marks between two images from before the flood, when that was measured
       null_test: nullTest ?? null,
       context: await getContext(),
+      outlines: await getOutlines(),
     }
   }
   const [before, after] = await Promise.all([

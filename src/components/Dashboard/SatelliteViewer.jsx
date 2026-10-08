@@ -135,7 +135,7 @@ function ScenesWithoutImagery({ before, after }) {
 
 // What the greys and the hatch in the pictures mean. Dark in radar is not always water, so
 // the legend says what else it can be; the hatch is where the satellite has no data at all.
-function Legend({ optical }) {
+function Legend({ optical, outlined }) {
   const items = optical
     ? [
         ['bg-[#111]', 'Dark: water, or shadow'],
@@ -154,11 +154,61 @@ function Legend({ optical }) {
           {label}
         </li>
       ))}
+      {outlined.map((kind) => (
+        <li key={kind} className="flex items-center gap-1.5">
+          <span
+            aria-hidden
+            className="inline-block h-3 w-4 shrink-0 border-2 bg-[#777]"
+            style={{ borderColor: `var(--${kind})` }}
+          />
+          Outline: {OUTLINES[kind]} mapped
+        </li>
+      ))}
     </ul>
   )
 }
 
-export default function SatelliteViewer({ before, after, detail, comparisonValue, onComparisonChange }) {
+// The flood zone types that are outlined, in drawing order (the least certain first, so it
+// never covers the others), and how the key names them.
+const OUTLINES = {
+  uncertain: 'uncertain change',
+  debris: 'debris',
+  water: 'water or wet sediment',
+}
+
+// The flood zones as outlines over the pictures. The paths are in the picture's own pixels
+// (the pipeline cut them to the same grid), so the same viewBox as the picture puts each one
+// on its place at any size and zoom. The picture is zoomed by a CSS transform, which a
+// non-scaling stroke does not see, so the stroke is made thinner by the zoom to stay one width.
+function ZoneOutlines({ outline, zoom, origin }) {
+  return (
+    <div
+      className="pointer-events-none absolute inset-0"
+      style={{ transform: `scale(${zoom})`, transformOrigin: `${origin.x}% ${origin.y}%` }}
+    >
+      <svg
+        viewBox={`0 0 ${outline.width} ${outline.height}`}
+        className="h-full w-full"
+        fill="none"
+        strokeLinejoin="round"
+        aria-hidden="true"
+        focusable="false"
+        data-testid="zone-outlines"
+      >
+        {Object.keys(OUTLINES)
+          .filter((kind) => outline.paths[kind])
+          .map((kind) => (
+            <g key={kind}>
+              <path d={outline.paths[kind]} stroke="rgba(0,0,0,0.6)" strokeWidth={3 / zoom} vectorEffect="non-scaling-stroke" />
+              <path d={outline.paths[kind]} stroke={`var(--${kind})`} strokeWidth={1.25 / zoom} vectorEffect="non-scaling-stroke" />
+            </g>
+          ))}
+      </svg>
+    </div>
+  )
+}
+
+export default function SatelliteViewer({ before, after, detail, outlines, comparisonValue, onComparisonChange }) {
   const [zoom, setZoom] = useState(1)
   // Width over height of the real picture, once it has loaded. The stage takes this shape,
   // so the slider runs across the picture and not across empty space beside it.
@@ -177,6 +227,13 @@ export default function SatelliteViewer({ before, after, detail, comparisonValue
   const optical = sensor === 's2' && hasOptical
   const closeUp = hasDetail && view === 'detail' && !optical
   const urlOf = (scene) => (optical ? scene?.optical_url : closeUp ? scene?.detail_url : scene?.url)
+  // The zones are outlined on whichever picture is showing (the optical pictures are on the radar's
+  // grid, so the whole-area outlines fit them too). Only if they are the picture's shape: a file
+  // from another run would draw the zones in the wrong place, which is worse than not drawing them.
+  const [showOutline, setShowOutline] = useState(true)
+  const candidate = closeUp ? outlines?.detail : outlines?.whole
+  const outline =
+    candidate && shape && Math.abs(candidate.width / candidate.height / shape - 1) < 0.01 ? candidate : null
 
   const lookAt = (event) => {
     if (zoom === 1 || event.pointerType !== 'mouse') return
@@ -226,6 +283,17 @@ export default function SatelliteViewer({ before, after, detail, comparisonValue
                 </button>
               ))}
             </div>
+          )}
+          {outline && (
+            <button
+              type="button"
+              onClick={() => setShowOutline((on) => !on)}
+              aria-pressed={showOutline}
+              className="btn-quiet"
+              title="Outline the flood zones the map shows, over both pictures"
+            >
+              Mapped flood
+            </button>
           )}
           <label className="sr-only" htmlFor="sensor">
             Imagery layer
@@ -296,6 +364,8 @@ export default function SatelliteViewer({ before, after, detail, comparisonValue
           <Scene url={urlOf(before)} flooded={false} zoom={zoom} origin={origin} />
         </div>
 
+        {outline && showOutline && <ZoneOutlines outline={outline} zoom={zoom} origin={origin} />}
+
         <span className="absolute left-2 top-2 rounded bg-black/70 px-2 py-1 text-xs font-medium text-white">
           Before · {formatDate(before.date)}
         </span>
@@ -331,7 +401,12 @@ export default function SatelliteViewer({ before, after, detail, comparisonValue
       </div>
       </div>
 
-      {!placeholder && <Legend optical={optical} />}
+      {!placeholder && (
+        <Legend
+          optical={optical}
+          outlined={outline && showOutline ? Object.keys(OUTLINES).filter((kind) => outline.paths[kind]) : []}
+        />
+      )}
 
       <p className="max-w-prose pt-2 text-xs leading-relaxed text-ink-soft">
         {sensor === 's2' && hasOptical
@@ -343,6 +418,8 @@ export default function SatelliteViewer({ before, after, detail, comparisonValue
           `Close-up at full resolution: the ${detail?.width_km ?? ''} × ${detail?.height_km ?? ''} km where the map found the most flood${
             detail?.near ? `, near ${detail.near}` : ''
           }. `}
+        {outline && showOutline &&
+          'The outlines are the flood zones mapped from this pair, drawn in the same place over both pictures. '}
         Drag to compare.{!placeholder && ' Zoom in, then move the pointer over the picture to look around.'}
         {placeholder && ' Placeholder rendering: no satellite scene is loaded in demo mode.'}
       </p>

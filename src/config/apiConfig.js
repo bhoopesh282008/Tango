@@ -17,6 +17,8 @@ export const PIPELINE_FILES = {
   settlements: '/settlements.json',
   // Optional: modelled population and river flow shown beside the map, never part of it
   context: '/context.json',
+  // Optional: the flood zones as outlines in the pixels of the before/after pictures
+  outlines: '/outlines.json',
 }
 
 export const ENDPOINTS = {

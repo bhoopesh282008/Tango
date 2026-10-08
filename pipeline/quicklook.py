@@ -3,7 +3,9 @@
 PNG files on the output grid, north up, shrunk to a size a browser loads
 quickly. Pixels with no data (radar layover and shadow, cloud) are transparent.
 """
+import json
 import warnings
+from pathlib import Path
 
 import numpy as np
 import rasterio
@@ -70,6 +72,71 @@ def detail_pngs(pre_db, post_db, flood, out, side=DETAIL_SIDE):
     radar_png(pre_db[window], out / 'before_detail.png', max_side=None)
     radar_png(post_db[window], out / 'after_detail.png', max_side=None)
     return row, col, rows, cols
+
+
+def picture_size(shape, max_side=MAX_SIDE):
+    """(rows, cols) of the picture `shrink` makes of an array of this shape, and the shrink step."""
+    step = max(1, int(np.ceil(max(shape) / max_side)))
+    return ((shape[0] // step, shape[1] // step) if step > 1 else tuple(shape)), step
+
+
+def _path_data(geometry):
+    """SVG path data for the rings of a polygon or multipolygon, to a tenth of a picture pixel."""
+    polygons = getattr(geometry, 'geoms', [geometry])
+    parts = []
+    for polygon in polygons:
+        for ring in [polygon.exterior, *polygon.interiors]:
+            points = list(ring.coords)[:-1]
+            if len(points) < 3:
+                continue
+            parts.append('M' + 'L'.join(f'{x:.1f} {y:.1f}' for x, y in points) + 'Z')
+    return ''.join(parts)
+
+
+def zone_outlines(zones, transform, shape, detail_window=None, max_side=MAX_SIDE, tolerance=0.5):
+    """The flood zones as outlines in the pixels of the before/after pictures.
+
+    `zones` is in the grid's own CRS and `transform` is the grid's. The whole-area pictures are
+    the grid shrunk `step` times; the close-up is the grid cut at `detail_window` (row, col, rows,
+    cols). Returns {'whole': {...}, 'detail': {...} or None}, each with the picture's width and
+    height and `paths`: SVG path data per zone type, in the picture's own pixels, so the viewer
+    draws them over the picture with no map arithmetic. `tolerance` is in grid cells: the zones
+    come from a raster and are staircases, and half a cell is below what any picture can show.
+    """
+    from shapely.affinity import affine_transform
+
+    (rows, cols), step = picture_size(shape, max_side)
+    inverse = ~transform                      # map x, y -> grid column, row
+
+    def outlines(row0, col0, height, width, scale):
+        matrix = [inverse.a / scale, inverse.b / scale, inverse.d / scale, inverse.e / scale,
+                  (inverse.c - col0) / scale, (inverse.f - row0) / scale]
+        grouped = {}
+        for kind, geometry in zip(zones['type'], zones.geometry):
+            moved = affine_transform(geometry.simplify(tolerance * abs(transform.a)), matrix)
+            x0, y0, x1, y1 = moved.bounds
+            if x1 < 0 or y1 < 0 or x0 > width or y0 > height:
+                continue                      # not in this picture
+            grouped.setdefault(kind, []).append(_path_data(moved))
+        return {'width': width, 'height': height, 'paths': {k: ''.join(v) for k, v in grouped.items() if ''.join(v)}}
+
+    whole = outlines(0, 0, rows, cols, step)
+    detail = None
+    if detail_window:
+        row, col, d_rows, d_cols = detail_window
+        detail = outlines(row, col, d_rows, d_cols, 1)
+    return {'whole': whole, 'detail': detail}
+
+
+def write_outlines(out, outlines):
+    """Write outlines.json beside the pictures, unless no zone shows in any of them."""
+    shown = any(view and view['paths'] for view in outlines.values())
+    path = Path(out) / 'outlines.json'
+    if not shown:
+        path.unlink(missing_ok=True)          # a rerun that found no flood must not leave the last one's
+        return False
+    path.write_text(json.dumps(outlines, separators=(',', ':')), encoding='utf-8')
+    return True
 
 
 def radar_png(db, path, max_side=MAX_SIDE):

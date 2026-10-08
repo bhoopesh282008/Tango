@@ -64,6 +64,7 @@ export default function Dashboard() {
           before={data.satelliteData.before}
           after={data.satelliteData.after}
           detail={data.satelliteData.detail}
+          outlines={data.satelliteData.outlines}
           comparisonValue={comparisonBlend}
           onComparisonChange={setComparisonBlend}
         />

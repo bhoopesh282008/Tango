@@ -383,6 +383,8 @@ def main():
     zones = segment.vectorise(classes, conf, transform, crs)
     # A full-resolution close-up of where the most flood was mapped, for the before/after viewer.
     detail_window = quicklook.detail_pngs(pre, post, np.isin(classes, (C.CLASS_WATER, C.CLASS_DEBRIS)), out)
+    # The zones drawn over those pictures (in their own pixels), so the viewer can outline what was mapped
+    outlines = quicklook.zone_outlines(zones, transform, pre.shape, detail_window)
 
     progress.step('Damage to buildings, roads and bridges, and which settlements are cut off')
     roads = damage.flag_damaged(osm['roads'], zones)
@@ -435,6 +437,7 @@ def main():
         'detail': detail,
         'valley_floor': {'drainage': drainage_source, 'share_of_area': round(float(floor.mean()), 3)},
     })
+    quicklook.write_outlines(args.out, outlines)
     context.write(args.out, context_data)
     # The DEM the dashboard's flood-path tool traces on
     floodpath.export_dem(args.out, [float(v) for v in args.bbox.split(',')])
