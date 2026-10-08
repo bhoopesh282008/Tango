@@ -1,6 +1,8 @@
-import { lazy, Suspense, useEffect, useState } from 'react'
+import { lazy, Suspense, useEffect, useLayoutEffect, useRef, useState } from 'react'
 import { asset } from '../../config/assets'
+import { hasWebGL } from '../../utils/webgl'
 import { EARTH, formatCoordinates, locate } from './earth'
+import SpinningEarth from './SpinningEarth'
 
 // The satellite needs a 3D library and a model, so it loads after the text is on screen.
 const SatelliteModel = lazy(() => import('./SatelliteModel'))
@@ -8,10 +10,11 @@ const SatelliteModel = lazy(() => import('./SatelliteModel'))
 // NASA's Tycho star map (github.com/nasa/NASA-3D-Resources): the real sky, Milky Way included.
 const STAR_MAP = asset('images/starmap.webp')
 
-// The Earth is a plain picture (see earth.js), so it is always there, on any connection and any
-// graphics card. Only the 3D satellite, which is extra, can be switched off: when the browser
-// reports a request to save data, or a 2G link, or has no WebGL2. A "3g" report is not a reason:
-// browsers guess it from round-trip time, and it is often wrong on a perfectly good connection.
+// The Earth is first a plain picture (see earth.js), so it is there at once, on any connection and
+// any graphics card, and stays if WebGL is missing; SpinningEarth then takes over and turns it.
+// Only the 3D satellite, which is extra, can be switched off: when the browser reports a request to
+// save data, or a 2G link, or has no WebGL2. A "3g" report is not a reason: browsers guess it from
+// round-trip time, and it is often wrong on a perfectly good connection.
 export function satelliteAllowed() {
   if (typeof navigator === 'undefined') return false
   const connection = navigator.connection
@@ -30,6 +33,8 @@ const SPLIT_FROM = 1025
 const EARTH_DIAMETER_KM = 12742
 // Sentinel-1 images a strip about 250 km wide (interferometric wide swath)
 const SWATH_KM = 250
+// Where the name sits: this far from the top of the window, up the line of the radar track
+const LABEL_TOP = 170
 
 // Where everything sits, in pixels, for a window of this size. The planet is larger than the
 // frame and rises from its lower edge, so it reads as a horizon, not as an object in a box.
@@ -72,28 +77,60 @@ function useWindowSize() {
 }
 
 // `target` is where the run is: { latitude, longitude, name, track } or null. It is marked on
-// the Earth if that place is on the side we see, and the radar strip is drawn across it.
-// `settled` is true once the data has arrived: the satellite waits for that so it never
-// competes with the data for the connection.
+// the Earth while that place faces us, with the radar strip drawn across it, and both follow the
+// Earth as it turns. `settled` is true once the data has arrived: the satellite waits for that so
+// it never competes with the data for the connection.
 export default function SpaceScene({ target, settled }) {
   const { width, height } = useWindowSize()
   const [withSatellite] = useState(satelliteAllowed)
+  const [live] = useState(hasWebGL)
   const [satelliteShown, setSatelliteShown] = useState(false)
+  const [turning, setTurning] = useState(false)
   const { wide, planet, orbit, satellite } = layout(width, height)
 
-  const spot = target ? locate(target.latitude, target.longitude) : null
-  const mark = spot?.visible
-    ? { x: planet.left + spot.x * planet.image, y: planet.top + spot.y * planet.image }
-    : null
+  // Things drawn on the Earth are moved directly on every frame: re-rendering React sixty times a second would be waste.
+  const markRef = useRef(null)
+  const leaderRef = useRef(null)
+  const leaderLineRef = useRef(null)
+  const labelRef = useRef(null)
+  const stripRef = useRef(null)
+  const longitude = useRef(EARTH.longitude0)
+  const swathWidth = SWATH_KM * (planet.diameter / EARTH_DIAMETER_KM)
   // Sentinel-1 climbs the sky heading a little west of north when ascending, and descends a little west of south.
   const trackAngle = target?.track?.state === 'descending' ? 12 : -12
-  const swathWidth = SWATH_KM * (planet.diameter / EARTH_DIAMETER_KM)
-  // The name goes where that line meets the sky: about 170 px from the top of the window
-  let label = null
-  if (mark) {
-    const length = Math.max(0, (mark.y - 170) / Math.cos((trackAngle * Math.PI) / 180))
-    label = { length, x: mark.x + length * Math.sin((trackAngle * Math.PI) / 180), y: mark.y - length }
+
+  const place = (turnedTo) => {
+    longitude.current = turnedTo
+    if (!target) return
+    const spot = locate(target.latitude, target.longitude, { ...EARTH, longitude0: turnedTo })
+    const x = planet.left + spot.x * planet.image
+    const y = planet.top + spot.y * planet.image
+    const opacity = spot.visible ? '1' : '0'
+    const lean = (trackAngle * Math.PI) / 180
+    // The name goes where the track's line meets the dark sky
+    const length = Math.max(0, (y - LABEL_TOP) / Math.cos(lean))
+
+    if (markRef.current) {
+      markRef.current.style.transform = `translate(${x - 9}px, ${y - 9}px)`
+      markRef.current.style.opacity = opacity
+    }
+    if (leaderRef.current) {
+      leaderRef.current.style.transform = `translate(${x}px, ${y}px)`
+      leaderRef.current.style.opacity = opacity
+      if (leaderLineRef.current) leaderLineRef.current.style.height = `${length}px`
+    }
+    if (labelRef.current) {
+      labelRef.current.style.transform = `translate(${x + length * Math.sin(lean)}px, ${y - length - 8}px)`
+      labelRef.current.style.opacity = opacity
+    }
+    if (stripRef.current) {
+      stripRef.current.style.left = `${x - (planet.centre.x - planet.radius)}px`
+      stripRef.current.style.top = `${y - (planet.centre.y - planet.radius)}px`
+      stripRef.current.style.opacity = opacity
+    }
   }
+  // After every render (a resize moves the planet) the marks are put where the Earth now is
+  useLayoutEffect(() => place(longitude.current))
 
   return (
     <div className="absolute inset-0 -z-10 overflow-hidden bg-[#0b0c0d]" aria-hidden>
@@ -129,19 +166,23 @@ export default function SpaceScene({ target, settled }) {
           className="block h-full w-full select-none"
           draggable={false}
         />
+        {live && (
+          <div className={`absolute inset-0 transition-opacity duration-700 ${turning ? 'opacity-100' : 'opacity-0'}`}>
+            <SpinningEarth onTurn={place} onShown={() => setTurning(true)} />
+          </div>
+        )}
       </div>
 
-      {mark && target.track && (
+      {target?.track && (
         // The strip is clipped to the planet, so it never spills onto the sky
         <div
           className="absolute overflow-hidden rounded-full"
           style={{ left: planet.centre.x - planet.radius, top: planet.centre.y - planet.radius, width: planet.diameter, height: planet.diameter }}
         >
           <div
-            className="absolute"
+            ref={stripRef}
+            className="absolute opacity-0 transition-opacity duration-500"
             style={{
-              left: mark.x - (planet.centre.x - planet.radius),
-              top: mark.y - (planet.centre.y - planet.radius),
               width: swathWidth,
               height: planet.diameter * 1.4,
               transform: `translate(-50%, -50%) rotate(${trackAngle}deg)`,
@@ -154,33 +195,38 @@ export default function SpaceScene({ target, settled }) {
         </div>
       )}
 
-      {mark && (
-        <>
-          <span
-            className="splash-mark absolute block h-[18px] w-[18px] -translate-x-1/2 -translate-y-1/2 rounded-full border-[1.5px] border-[#ff6b6b]"
-            style={{ left: mark.x, top: mark.y }}
-          >
+      {target && (
+        <div ref={markRef} className="absolute left-0 top-0 opacity-0 transition-opacity duration-500">
+          <span className="splash-mark relative block h-[18px] w-[18px] rounded-full border-[1.5px] border-[#ff6b6b]">
             <span className="absolute left-1/2 top-1/2 h-1 w-1 -translate-x-1/2 -translate-y-1/2 rounded-full bg-[#ff6b6b]" />
           </span>
-          {wide && label && (
+        </div>
+      )}
+
+      {target && wide && (
+        <>
+          {/* A hairline from the mark up the line of the track, out over the dark sky to the name:
+              the name sits on the black, where it can be read, not on the bright land. */}
+          <div ref={leaderRef} className="absolute left-0 top-0 opacity-0 transition-opacity duration-500">
             <div className="splash-in" style={{ '--i': 9 }}>
-              {/* A hairline from the mark up the line of the track, out over the dark sky to the name:
-                  the name sits on the black, where it can be read, not on the bright land. */}
               <span
-                className="absolute block w-px origin-bottom bg-[rgba(242,241,237,0.5)]"
-                style={{ left: mark.x, top: mark.y - label.length, height: label.length, transform: `rotate(${trackAngle}deg)` }}
+                ref={leaderLineRef}
+                className="absolute bottom-0 left-0 block w-px origin-bottom bg-[rgba(242,241,237,0.5)]"
+                style={{ transform: `rotate(${trackAngle}deg)` }}
               />
-              <div className="absolute pl-3 text-xs leading-snug text-[#c9cbc8]" style={{ left: label.x, top: label.y - 8 }}>
-                <p className="text-sm font-semibold text-[#f2f1ed]">{target.name}</p>
-                <p className="num">{formatCoordinates(target.latitude, target.longitude)}</p>
-                {target.track && (
-                  <p>
-                    Sentinel-1, track {target.track.orbit}, {target.track.state}
-                  </p>
-                )}
-              </div>
             </div>
-          )}
+          </div>
+          <div ref={labelRef} className="absolute left-0 top-0 opacity-0 transition-opacity duration-500">
+            <div className="splash-in pl-3 text-xs leading-snug text-[#c9cbc8]" style={{ '--i': 9 }}>
+              <p className="text-sm font-semibold text-[#f2f1ed]">{target.name}</p>
+              <p className="num">{formatCoordinates(target.latitude, target.longitude)}</p>
+              {target.track && (
+                <p>
+                  Sentinel-1, track {target.track.orbit}, {target.track.state}
+                </p>
+              )}
+            </div>
+          </div>
         </>
       )}
 
