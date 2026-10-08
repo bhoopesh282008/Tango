@@ -87,7 +87,7 @@ function Scene({ url, flooded, zoom, origin, svgRef, onShape }) {
           // A picture that is already in the cache can finish before the load handler is attached.
           ref={(img) => img?.complete && img.naturalWidth && onShape?.(img.naturalWidth / img.naturalHeight)}
           onLoad={(e) => onShape?.(e.currentTarget.naturalWidth / e.currentTarget.naturalHeight)}
-          // The whole area is shown uncropped; no-data pixels are transparent over black.
+          // The whole area is shown uncropped; no-data pixels are transparent over the stage's hatch.
           className="h-full w-full object-contain"
         />
       ) : (
@@ -130,6 +130,31 @@ function ScenesWithoutImagery({ before, after }) {
         compare. The flood zones on the map come from these two scenes.
       </p>
     </section>
+  )
+}
+
+// What the greys and the hatch in the pictures mean. Dark in radar is not always water, so
+// the legend says what else it can be; the hatch is where the satellite has no data at all.
+function Legend({ optical }) {
+  const items = optical
+    ? [
+        ['bg-[#111]', 'Dark: water, or shadow'],
+        ['no-data', 'Hatched: cloud, no data'],
+      ]
+    : [
+        ['bg-[#111]', 'Dark: little radar return (calm water, or ground turned away from the satellite)'],
+        ['bg-[#f0f0f0]', 'Bright: rough or steep ground facing the satellite'],
+        ['no-data', 'Hatched: no data (radar layover and shadow, left out)'],
+      ]
+  return (
+    <ul className="mt-2 flex flex-wrap gap-x-4 gap-y-1 text-xs text-ink-soft" aria-label="Picture key">
+      {items.map(([swatch, label]) => (
+        <li key={label} className="flex items-center gap-1.5">
+          <span aria-hidden className={`inline-block h-3 w-4 shrink-0 border border-line ${swatch}`} />
+          {label}
+        </li>
+      ))}
+    </ul>
   )
 }
 
@@ -252,7 +277,7 @@ export default function SatelliteViewer({ before, after, detail, comparisonValue
           placeholder
             ? 'h-[220px] w-full bg-black sm:h-[320px] lg:h-[360px]'
             : shape
-              ? 'bg-black'
+              ? 'no-data'
               : 'aspect-square w-full max-w-[560px] bg-[var(--surface-2)]'
         }`}
         // At most 560 px tall, and no wider than its column: the stage is the picture's shape, so
@@ -306,9 +331,11 @@ export default function SatelliteViewer({ before, after, detail, comparisonValue
       </div>
       </div>
 
+      {!placeholder && <Legend optical={optical} />}
+
       <p className="max-w-prose pt-2 text-xs leading-relaxed text-ink-soft">
         {sensor === 's2' && hasOptical
-          ? 'Sentinel-2, near infrared / red / green: vegetation shows red, water dark. Each pixel is the nearest clear look to the event; cloud is left blank.'
+          ? 'Sentinel-2, near infrared / red / green: vegetation shows red, water dark. Each pixel is the nearest clear look to the event; cloud is hatched.'
           : after.sensor
             ? `${after.sensor}${after.resolution ? `, ${after.resolution} resolution` : ''}.`
             : 'Radar backscatter: water dark, rough ground bright.'}{' '}

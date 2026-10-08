@@ -231,6 +231,14 @@ summary,
     inset 0 0 0 5px rgba(255, 255, 255, 0.85);
 }
 
+/* Pixels the satellite has no data for (radar layover and shadow, cloud) are transparent in the
+   pictures. Over black they looked like water, which is also black in radar, so the stage
+   behind them is a hatch that cannot be mistaken for any grey of the picture itself. */
+.no-data {
+  background-color: #262626;
+  background-image: repeating-linear-gradient(135deg, #b4b4b4 0 1px, transparent 1px 4px);
+}
+
 /* First stop for keyboard users: jump past the header */
 .skip-link {
   position: absolute;

@@ -25,7 +25,26 @@ test('offers the optical pictures only when both exist, and switches to them', (
   expect(option).toBeEnabled()
   fireEvent.change(screen.getByLabelText('Imagery layer'), { target: { value: 's2' } })
   expect(screen.getByAltText('Satellite image after the flood')).toHaveAttribute('src', '/data/after_optical.png')
-  expect(screen.getByText(/cloud is left blank/)).toBeInTheDocument()
+  expect(screen.getByText(/cloud is hatched/)).toBeInTheDocument()
+  expect(screen.getByText('Hatched: cloud, no data')).toBeInTheDocument()
+})
+
+test('a key says what dark, bright and hatched mean, so a gap in the data is not read as water', () => {
+  show(scene('before'), scene('after'))
+  const key = screen.getByRole('list', { name: 'Picture key' })
+  expect(key).toHaveTextContent(/Dark: little radar return \(calm water, or ground turned away/)
+  expect(key).toHaveTextContent(/Hatched: no data \(radar layover and shadow/)
+  // The stage behind the transparent pixels is the hatch, not black.
+  const picture = screen.getByAltText('Satellite image after the flood')
+  Object.defineProperty(picture, 'naturalWidth', { value: 800 })
+  Object.defineProperty(picture, 'naturalHeight', { value: 800 })
+  fireEvent.load(picture)
+  expect(document.querySelector('.compare-stage')).toHaveClass('no-data')
+})
+
+test('demo placeholder has no key, because nothing in it is a real scene', () => {
+  show({ date: '2026-08-23', url: null }, { date: '2026-08-28', url: null })
+  expect(screen.queryByRole('list', { name: 'Picture key' })).not.toBeInTheDocument()
 })
 
 test('opens on the close-up of the flood area when a run provides one, and can show the whole area', () => {
