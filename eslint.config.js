@@ -9,7 +9,7 @@ import globals from 'globals'
 export default [
   {
     ignores: [
-      'dist',
+      'dist*', // the build, and any copy of it made for checking
       'node_modules',
       'pipeline',
       'public',
