@@ -295,15 +295,26 @@ export default function SatelliteViewer({ before, after, detail, outlines, compa
               Mapped flood
             </button>
           )}
-          <label className="sr-only" htmlFor="sensor">
-            Imagery layer
-          </label>
-          <select id="sensor" className="btn pr-2 text-[13px]" value={sensor} onChange={(e) => setSensor(e.target.value)}>
-            <option value="s1">Sentinel-1 radar</option>
-            <option value="s2" disabled={!hasOptical}>
-              {hasOptical ? 'Sentinel-2 optical (false colour)' : 'Sentinel-2 optical (not available)'}
-            </option>
-          </select>
+          {/* A choice only when there is one: a run is radar only unless optical images were added. */}
+          {hasOptical && (
+            <div className="flex" role="group" aria-label="Imagery">
+              {[
+                ['s1', 'Radar', 'Sentinel-1 radar: sees through cloud, the flood map is made from it'],
+                ['s2', 'Optical', 'Sentinel-2 optical, false colour: a camera, blocked by cloud'],
+              ].map(([id, label, hint]) => (
+                <button
+                  key={id}
+                  type="button"
+                  onClick={() => setSensor(id)}
+                  aria-pressed={sensor === id}
+                  className="btn-quiet"
+                  title={hint}
+                >
+                  {label}
+                </button>
+              ))}
+            </div>
+          )}
           <div className="flex">
             <button
               type="button"
@@ -412,8 +423,11 @@ export default function SatelliteViewer({ before, after, detail, outlines, compa
         {sensor === 's2' && hasOptical
           ? 'Sentinel-2, near infrared / red / green: vegetation shows red, water dark. Each pixel is the nearest clear look to the event; cloud is hatched.'
           : after.sensor
-            ? `${after.sensor}${after.resolution ? `, ${after.resolution} resolution` : ''}.`
-            : 'Radar backscatter: water dark, rough ground bright.'}{' '}
+            ? `${after.sensor}${after.resolution ? `, ${after.resolution} resolution` : ''}. Radar sends its own signal, so it sees through monsoon cloud and works at night; the flood map is made from the change between these two images.`
+            : 'Radar backscatter: water dark, rough ground bright.'}
+        {!hasOptical && !placeholder && ' This run uses radar only; optical Sentinel-2 images were not added.'}
+      </p>
+      <p className="max-w-prose pt-1.5 text-xs leading-relaxed text-ink-soft">
         {closeUp &&
           `Close-up at full resolution: the ${detail?.width_km ?? ''} × ${detail?.height_km ?? ''} km where the map found the most flood${
             detail?.near ? `, near ${detail.near}` : ''

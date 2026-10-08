@@ -229,7 +229,8 @@ const plainStyle = (dark) =>
 
 export const BASE_MAPS = {
   street: { label: 'Street map' },
-  sentinel: { label: 'Sentinel-2 mosaic (10 m)' },
+  // A cloud-free background built from 2020 passes, not an image of the flood
+  sentinel: { label: 'Sentinel-2 mosaic, 2020 (10 m)' },
   imagery: { label: 'High-resolution imagery' },
 }
 
