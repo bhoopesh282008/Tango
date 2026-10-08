@@ -53,8 +53,31 @@ def test_attach_records_a_short_summary_next_to_the_rest_of_the_run(tmp_path):
     null_test.attach(tmp_path, result)
     saved = json.loads((tmp_path / 'satellite.json').read_text(encoding='utf-8'))
     assert saved['validation'] == {'areas': 3} and saved['event'] == '2026-08-26'      # nothing else touched
-    assert saved['null_test'] == {'real_flood_km2': 2.5, 'worst_share_of_real': 0.1,
+    assert saved['null_test'] == {'rule': 'single image', 'real_flood_km2': 2.5, 'worst_share_of_real': 0.1,
                                   'pairs': [{'pair': 'a to b', 'flood_km2': 0.25, 'share_of_real': 0.1}]}
+
+
+def test_a_run_made_with_a_baseline_gets_the_baseline_rules_figures_recorded(tmp_path):
+    import json
+    (tmp_path / 'satellite.json').write_text(json.dumps({'baseline': {'images': 3}}), encoding='utf-8')
+    real = {'water': 1.6, 'debris': 0.9, 'uncertain': 0.0}
+    nulls = [{'pair': 'a to b', 'water': 0.4, 'debris': 0.3, 'uncertain': 0.0, 'baseline': {'water': 0.1, 'debris': 0.05, 'uncertain': 0.0}},
+             {'pair': 'b to c', 'water': 0.5, 'debris': 0.2, 'uncertain': 0.0, 'baseline': {'water': 0.2, 'debris': 0.0, 'uncertain': 0.0}},
+             {'pair': 'early', 'water': 3.0, 'debris': 0.0, 'uncertain': 0.0, 'baseline': None}]     # too early to have a baseline
+    result = null_test.summarise(real, nulls, real_baseline={'water': 1.5, 'debris': 0.5, 'uncertain': 0.0})
+    assert result['real_baseline_flood_km2'] == 2.0
+    assert result['no_change_pairs'][0]['baseline_share_of_real'] == 0.075 and 'baseline_flood_km2' not in result['no_change_pairs'][2]
+    null_test.attach(tmp_path, result)
+    saved = json.loads((tmp_path / 'satellite.json').read_text(encoding='utf-8'))['null_test']
+    assert saved['rule'] == 'baseline' and saved['real_flood_km2'] == 2.0
+    assert [p['pair'] for p in saved['pairs']] == ['a to b', 'b to c']          # only pairs the rule could be applied to
+    assert saved['worst_share_of_real'] == 0.1
+
+
+def test_the_baseline_rule_is_not_applied_before_there_are_three_images_behind_it():
+    import numpy as np
+    series = [(f'2026-0{k}-01', np.zeros((4, 4), 'float32')) for k in range(1, 5)]
+    assert null_test.baseline_rule(series, 2, None, np.ones((4, 4), bool), None, None) is None
 
 
 def test_the_summary_gives_each_no_change_pair_as_a_share_of_the_real_flood():

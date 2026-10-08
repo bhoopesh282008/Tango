@@ -119,6 +119,28 @@ def prepare_pair(bbox, event, out, res=10.0, pols=('vv',), search_days=20, say=p
     return paths, meta
 
 
+def read_history(items, rasters, crs, transform, shape, height, say=print):
+    """Earlier scenes (VV, dB) on the run's grid: [(date, array)], oldest first. Cached beside the run's rasters."""
+    crs_name = crs.to_string()
+    xs = transform.c + transform.a * (np.arange(shape[1]) + 0.5)
+    ys = transform.f + transform.e * (np.arange(shape[0]) + 0.5)
+    out = []
+    for item in items:
+        day = fetch_s1._day(item).isoformat()
+        path = Path(rasters) / f'history_{day}_vv_db.tif'
+        if not path.exists():
+            say(f'  Reading the {day} scene and correcting it for terrain', flush=True)
+            scene = download.get_scene(item, 'vv')
+            ann = P.parse_annotation(scene.product_xml)
+            geo = P.geocode(ann, crs_name, xs, ys, height)
+            window = P.radar_window(geo, ann)
+            db = P.terrain_correct(download.read_window(scene, window), window, geo,
+                                   P.parse_calibration(scene.calibration_xml), P.parse_noise(scene.noise_xml))
+            write_raster(path, db, crs, transform)
+        out.append((day, read_db(path)[0]))
+    return sorted(out)
+
+
 def settlements_from_places(places):
     """OSM places -> settlement table. Population only where OSM carries it."""
     rows = []
@@ -237,6 +259,10 @@ def main():
                     help='add Sentinel-2: confirm radar detections and fill radar blind spots where the sky was clear')
     ap.add_argument('--search-days', type=int, default=20,
                     help='how many days either side of the event to look for Sentinel-1 scenes (default 20)')
+    ap.add_argument('--baseline-images', type=int, default=1, metavar='N',
+                    help='compare with the median of N images on the same track (the "before" scene and N-1 earlier ones, '
+                         '12 days apart) and count a change only if it exceeds 3 standard deviations of how much that '
+                         'ground varied between them. Default 1: the single "before" image. Needs N of at least 3.')
     ap.add_argument('--no-context', action='store_true',
                     help='skip the context beside the map (modelled population and river flow from open datasets)')
     ap.add_argument('--out', default=str(C.OUT))
@@ -246,7 +272,11 @@ def main():
     args = ap.parse_args()
 
     have_rasters = bool(args.pre and args.post)
-    progress = Progress(7 + int(args.optical) + int(not args.no_context))
+    if args.baseline_images == 2 or args.baseline_images < 1:
+        ap.error('--baseline-images needs 1 (the single before image) or at least 3: two images give no spread to measure')
+    if args.baseline_images > 1 and (have_rasters or args.model):
+        ap.error('--baseline-images reads earlier Sentinel-1 scenes itself, so it cannot be combined with --pre/--post or --model')
+    progress = Progress(7 + int(args.optical) + int(not args.no_context) + int(args.baseline_images > 1))
     progress.step('Checking the area, the date, the credentials and the output folder')
     try:
         for warning in preflight.check(args.bbox, args.event, args.out,
@@ -296,6 +326,21 @@ def main():
         rivers = rivers[rivers['waterway'] == 'river']
     floor, drainage_source = terrain.valley_floor(height, cell, rivers, transform, crs)
 
+    # Optionally a steadier "before": the median of several earlier images and how much the ground varies
+    before, spread, baseline = pre, None, None
+    if args.baseline_images > 1:
+        progress.step(f'Earlier images for a steadier baseline ({args.baseline_images - 1} before the "before" scene)')
+        meta = scenes['pre']
+        history, found = fetch_s1.find_history(args.bbox, meta['relative_orbit'], meta['orbit_state'], meta['date'],
+                                               args.baseline_images - 1)
+        earlier = read_history(history, Path(args.out) / 'rasters', crs, transform, pre.shape, height)
+        if len(earlier) + 1 < 3:
+            print(f'  Warning: only {len(earlier)} earlier scene(s) on track {meta["relative_orbit"]} {meta["orbit_state"]} about 12 days '
+                  f'apart ({fetch_s1.describe_scenes(found) or "none"}), so there is no baseline: the single before image is used', flush=True)
+        else:
+            before, spread = segment.temporal_baseline(np.stack([a for _, a in earlier] + [pre]))
+            baseline = {'images': len(earlier) + 1, 'dates': [d for d, _ in earlier] + [meta['date']], 'sigma_k': C.BASELINE_SIGMA_K}
+
     progress.step('Mapping flood' + (' with the trained model' if args.model else ' from the radar change'))
     if args.model:
         import predict   # imported here so the baseline runs without PyTorch installed
@@ -305,8 +350,11 @@ def main():
         classes, conf = predict.classify(probability, pre, post, slope, floor)
         method = 'U-Net trained on Kuro Siwo (water) + change detection (debris), on valley floors'
     else:
-        classes, conf = segment.classify(pre, post, slope, floor)
+        classes, conf = segment.classify(before, post, slope, floor, spread)
         method = 'Sentinel-1 change detection on valley floors'
+        if baseline:
+            method += (f' against the median of {baseline["images"]} images, counting only change beyond '
+                       f'{C.BASELINE_SIGMA_K:g} standard deviations of the ground\'s normal variation')
 
     # Pictures for the dashboard's before/after viewer.
     out = Path(args.out)
@@ -378,6 +426,7 @@ def main():
         'event': args.event, 'method': method,
         'area': {'name': area_name, 'bbox': [float(v) for v in args.bbox.split(',')]},
         'osm_snapshot': snapshot,
+        'baseline': baseline,
         'osm_quality': quality,
         'osm_source': sorted({v for k, v in fetch_osm.SOURCES.items() if v != 'unavailable'}),
         'before': {**(scenes.get('pre') or {}), **images['pre']},

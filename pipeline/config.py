@@ -40,6 +40,14 @@ MIN_ZONE_M2 = 2000         # drop speckle-sized polygons
 SLOPE_CHANGE_DB = 4.5
 SLOPE_MIN_PIXELS = 100     # 1 ha at 10 m
 
+# A multi-image baseline (segment.temporal_baseline): the "before" is the median of several earlier
+# images on the same track, and a change only counts if it exceeds that many robust standard
+# deviations of how much the pixel varied between them. 3 is the conventional three-sigma rule, chosen
+# in advance; it was checked on pairs of scenes from before the flood (null_test.py), not tuned on a map.
+BASELINE_SIGMA_K = 3.0
+BASELINE_IMAGES = 3          # the run's "before" scene and the two before it, 12 days apart
+SIGMA_SMOOTHING = 5          # the spread is median-filtered over this many pixels: three images give a noisy estimate
+
 CLASS_NONE, CLASS_WATER, CLASS_DEBRIS, CLASS_UNCERTAIN = 0, 1, 2, 3
 CLASS_NAMES = {CLASS_WATER: 'water', CLASS_DEBRIS: 'debris', CLASS_UNCERTAIN: 'uncertain'}
 

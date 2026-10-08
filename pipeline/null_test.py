@@ -21,70 +21,79 @@ from pathlib import Path
 import numpy as np
 
 import config as C
-import download
 import fetch_dem
 import fetch_osm
 import fetch_s1
-import preprocess_s1 as P
 import segment
 import terrain
-from run import read_db, write_raster
+from run import read_db, read_history
 
 DEFAULT_HISTORY = 2
 
 
-def choose_history(items, orbit, state, pre_day, count=DEFAULT_HISTORY, tolerance_days=3, bbox=None):
-    """Earlier scenes on the same track, about 12, 24, ... days before `pre_day`, nearest first.
-
-    Returns a list of 0..count items, the k-th as close as it can be to pre_day - 12k days (within
-    `tolerance_days`) among scenes that cover the area. A track is its orbit number and direction.
-    """
-    pre_day = pre_day if isinstance(pre_day, date) else date.fromisoformat(pre_day)
-    same = [i for i in items
-            if i.properties.get('sat:relative_orbit') == orbit and i.properties.get('sat:orbit_state') == state
-            and fetch_s1._day(i) < pre_day and fetch_s1.coverage(i, bbox) >= fetch_s1.FULL_COVERAGE]
-    chosen = []
-    for k in range(1, count + 1):
-        target = pre_day - timedelta(days=fetch_s1.REVISIT_DAYS * k)
-        near = [i for i in same if abs((fetch_s1._day(i) - target).days) <= tolerance_days
-                and i not in chosen]
-        if not near:
-            break                      # a gap in the series: later ones would not be 12 k days apart
-        chosen.append(min(near, key=lambda i: abs((fetch_s1._day(i) - target).days)))
-    return chosen
+# The search for earlier scenes is shared with the run's own option for a multi-image baseline
+choose_history = fetch_s1.choose_history
 
 
-def flagged_km2(pre, post, slope, floor, transform, crs):
+def flagged_km2(pre, post, slope, floor, transform, crs, spread=None):
     """{'water': km2, 'debris': km2, 'uncertain': km2} the classifier marks for this pair, as zones."""
-    classes, conf = segment.classify(pre, post, slope, floor)
+    classes, conf = segment.classify(pre, post, slope, floor, spread)
     zones = segment.vectorise(classes, conf, transform, crs)
     return {name: round(float(zones.loc[zones['type'] == name, 'area_km2'].sum()), 3)
             for name in ('water', 'debris', 'uncertain')}
 
 
-def summarise(real, nulls):
-    """Plain figures: the false-alarm area on no-change pairs against the area the real pair marks."""
+def baseline_rule(series, target_index, slope, floor, transform, crs):
+    """Km2 the baseline rule marks for series[target_index], against the three images before it; None if too few."""
+    if target_index < 3:
+        return None
+    median, spread = segment.temporal_baseline(np.stack([a for _, a in series[target_index - 3:target_index]]))
+    return flagged_km2(median, series[target_index][1], slope, floor, transform, crs, spread)
+
+
+def summarise(real, nulls, real_baseline=None):
+    """Plain figures: the false-alarm area on no-change pairs against the area the real pair marks.
+
+    Each of `nulls` may carry a 'baseline' entry (the baseline rule on the same target); `real_baseline`
+    is that rule on the real pair. The shares are against the real pair under the same rule.
+    """
     flood = lambda k: k['water'] + k['debris']
-    rows = [{'pair': n['pair'], 'water_km2': n['water'], 'debris_km2': n['debris'], 'uncertain_km2': n['uncertain'],
-             'flood_km2': round(flood(n), 3),
-             'share_of_real': round(flood(n) / flood(real), 3) if flood(real) else None} for n in nulls]
-    return {'real_flood_km2': round(flood(real), 3), 'no_change_pairs': rows,
-            'worst_share_of_real': max((r['share_of_real'] for r in rows if r['share_of_real'] is not None), default=None)}
+    rows = []
+    for n in nulls:
+        row = {'pair': n['pair'], 'water_km2': n['water'], 'debris_km2': n['debris'], 'uncertain_km2': n['uncertain'],
+               'flood_km2': round(flood(n), 3),
+               'share_of_real': round(flood(n) / flood(real), 3) if flood(real) else None}
+        if n.get('baseline') is not None:
+            row['baseline_flood_km2'] = round(flood(n['baseline']), 3)
+            row['baseline_share_of_real'] = (round(flood(n['baseline']) / flood(real_baseline), 3)
+                                             if real_baseline is not None and flood(real_baseline) else None)
+        rows.append(row)
+    result = {'real_flood_km2': round(flood(real), 3), 'no_change_pairs': rows,
+              'worst_share_of_real': max((r['share_of_real'] for r in rows if r['share_of_real'] is not None), default=None)}
+    if real_baseline is not None:
+        result['real_baseline_flood_km2'] = round(flood(real_baseline), 3)
+    return result
 
 
 def attach(run_dir, result):
     """Record a short summary in the run's satellite.json, where the dashboard reads it.
 
-    Written after the run and read by nothing in the pipeline, as validate.attach is.
+    Written after the run and read by nothing in the pipeline, as validate.attach is. It records the
+    rule the run used: the baseline rule's figures for a run made with --baseline-images, otherwise
+    the single-image rule's.
     """
     path = Path(run_dir) / 'satellite.json'
     satellite = json.loads(path.read_text(encoding='utf-8'))
-    satellite['null_test'] = {
-        'real_flood_km2': result['real_flood_km2'],
-        'worst_share_of_real': result['worst_share_of_real'],
-        'pairs': [{'pair': r['pair'], 'flood_km2': r['flood_km2'], 'share_of_real': r['share_of_real']}
-                  for r in result['no_change_pairs']],
-    }
+    if satellite.get('baseline'):
+        rows = [{'pair': r['pair'], 'flood_km2': r['baseline_flood_km2'], 'share_of_real': r['baseline_share_of_real']}
+                for r in result['no_change_pairs'] if 'baseline_flood_km2' in r]
+        real, rule = result.get('real_baseline_flood_km2'), 'baseline'
+    else:
+        rows = [{'pair': r['pair'], 'flood_km2': r['flood_km2'], 'share_of_real': r['share_of_real']}
+                for r in result['no_change_pairs']]
+        real, rule = result['real_flood_km2'], 'single image'
+    shares = [r['share_of_real'] for r in rows if r['share_of_real'] is not None]
+    satellite['null_test'] = {'rule': rule, 'real_flood_km2': real, 'worst_share_of_real': max(shares, default=None), 'pairs': rows}
     path.write_text(json.dumps(satellite, ensure_ascii=False, separators=(',', ':')), encoding='utf-8')
 
 
@@ -107,9 +116,7 @@ def main():
     post, _, _ = read_db(rasters / 'post_vv_db.tif')
     slope = read_db(rasters / 'slope.tif')[0]
 
-    items = fetch_s1.search(bbox, (pre_day - timedelta(days=fetch_s1.REVISIT_DAYS * args.history + 6)).isoformat(),
-                            (pre_day - timedelta(days=1)).isoformat())
-    history = choose_history(items, pre_meta['relative_orbit'], pre_meta['orbit_state'], pre_day, args.history, bbox=bbox)
+    history, items = fetch_s1.find_history(bbox, pre_meta['relative_orbit'], pre_meta['orbit_state'], pre_day, args.history)
     if not history:
         sys.exit(f'No earlier scenes on track {pre_meta["relative_orbit"]} {pre_meta["orbit_state"]} cover {bbox} '
                  f'in the weeks before {pre_day}: {fetch_s1.describe_scenes(items) or "none found"}.')
@@ -124,27 +131,19 @@ def main():
         rivers = rivers[rivers['waterway'] == 'river']
     floor, _ = terrain.valley_floor(height, abs(transform.a), rivers, transform, crs)
 
-    scenes = []
-    for item in history:
-        path = rasters / f'history_{fetch_s1._day(item).isoformat()}_vv_db.tif'
-        if not path.exists():
-            print(f'Reading the {fetch_s1._day(item)} scene and correcting it for terrain', flush=True)
-            scene = download.get_scene(item, 'vv')
-            ann = P.parse_annotation(scene.product_xml)
-            geo = P.geocode(ann, crs_name, xs, ys, height)
-            window = P.radar_window(geo, ann)
-            db = P.terrain_correct(download.read_window(scene, window), window, geo,
-                                   P.parse_calibration(scene.calibration_xml), P.parse_noise(scene.noise_xml))
-            write_raster(path, db, crs, transform)
-        scenes.append((fetch_s1._day(item).isoformat(), read_db(path)[0]))
-
     # oldest first, ending with the run's own "before" scene
-    series = list(reversed(scenes)) + [(pre_day.isoformat(), pre)]
+    series = read_history(history, rasters, crs, transform, pre.shape, height) + [(pre_day.isoformat(), pre)]
     real = flagged_km2(pre, post, slope, floor, transform, crs)
+    real_baseline = None
+    if len(series) >= 3:
+        median, spread = segment.temporal_baseline(np.stack([a for _, a in series[-3:]]))
+        real_baseline = flagged_km2(median, post, slope, floor, transform, crs, spread)
     nulls = []
-    for (d0, a), (d1, b) in zip(series, series[1:]):
-        nulls.append({'pair': f'{d0} to {d1}', **flagged_km2(a, b, slope, floor, transform, crs)})
-    result = summarise(real, nulls)
+    for j in range(1, len(series)):
+        (d0, a), (d1, b) = series[j - 1], series[j]
+        nulls.append({'pair': f'{d0} to {d1}', **flagged_km2(a, b, slope, floor, transform, crs),
+                      'baseline': baseline_rule(series, j, slope, floor, transform, crs)})
+    result = summarise(real, nulls, real_baseline)
     result['real_pair'] = f'{pre_day} to {satellite["after"]["date"]}'
     (run / 'null_test.json').write_text(json.dumps(result, indent=1), encoding='utf-8')
     if args.attach:

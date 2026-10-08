@@ -96,6 +96,35 @@ def choose_pair(items, event_day, tolerance_days=3, bbox=None):
     return None if best is None else (best[1], best[2])
 
 
+def choose_history(items, orbit, state, pre_day, count=2, tolerance_days=3, bbox=None):
+    """Earlier scenes on the same track, about 12, 24, ... days before `pre_day`, nearest first.
+
+    Returns a list of 0..count items, the k-th as close as it can be to pre_day - 12k days (within
+    `tolerance_days`) among scenes that cover the area. A track is its orbit number and direction.
+    The series stops at a gap: a scene after a gap would not be 12 k days apart.
+    """
+    pre_day = pre_day if isinstance(pre_day, date) else date.fromisoformat(pre_day)
+    same = [i for i in items
+            if i.properties.get('sat:relative_orbit') == orbit and i.properties.get('sat:orbit_state') == state
+            and _day(i) < pre_day and coverage(i, bbox) >= FULL_COVERAGE]
+    chosen = []
+    for k in range(1, count + 1):
+        target = pre_day - timedelta(days=REVISIT_DAYS * k)
+        near = [i for i in same if abs((_day(i) - target).days) <= tolerance_days and i not in chosen]
+        if not near:
+            break
+        chosen.append(min(near, key=lambda i: abs((_day(i) - target).days)))
+    return chosen
+
+
+def find_history(bbox, orbit, state, pre_day, count=2):
+    """Search for the scenes before `pre_day` that choose_history picks. May return fewer than `count`."""
+    pre_day = pre_day if isinstance(pre_day, date) else date.fromisoformat(pre_day)
+    items = search(bbox, (pre_day - timedelta(days=REVISIT_DAYS * count + 6)).isoformat(),
+                   (pre_day - timedelta(days=1)).isoformat())
+    return choose_history(items, orbit, state, pre_day, count, bbox=bbox), items
+
+
 def describe_scenes(items):
     """'track 19 descending: 2026-08-12, 2026-08-24; track 85 ascending: ...' for an error message."""
     by_track = {}

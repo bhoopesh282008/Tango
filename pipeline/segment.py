@@ -12,8 +12,29 @@ from shapely.geometry import shape
 import config as C
 
 
-def classify_on_floor(pre_db, post_db, floor):
+def temporal_baseline(stack):
+    """(median, spread) of earlier images of the same place, each in dB, stacked (n, rows, cols).
+
+    The median is the "before" picture, steadier than any single image (speckle, a passing shower,
+    a river a little higher that day). The spread is a robust standard deviation (1.4826 times the
+    median absolute deviation) of each pixel across the images, smoothed over a few pixels: how much
+    that ground changes anyway. Needs at least three images; with fewer there is no spread to speak of.
+    """
+    stack = np.asarray(stack, dtype='float32')
+    if stack.ndim != 3 or stack.shape[0] < 3:
+        raise ValueError('A baseline needs at least three earlier images.')
+    median = np.nanmedian(stack, axis=0)
+    spread = 1.4826 * np.nanmedian(np.abs(stack - median), axis=0)
+    spread = ndimage.median_filter(np.where(np.isfinite(spread), spread, 0.0), size=C.SIGMA_SMOOTHING)
+    return median, spread.astype('float32')
+
+
+def classify_on_floor(pre_db, post_db, floor, spread=None, k=None):
     """Change detection constrained by terrain. Returns (classes, confidence).
+
+    With `spread` (from temporal_baseline), a change counts only if it also exceeds k times the
+    spread there, so ground that varies a lot between flood-free images needs a bigger change to
+    be called flood than steady ground does. Without it, the fixed thresholds below apply.
 
     On the valley floor a drop of 3 dB is new water or wet sediment and a rise
     of 3 dB is debris. No absolute darkness is required: a river tens of
@@ -25,8 +46,15 @@ def classify_on_floor(pre_db, post_db, floor):
     valid = np.isfinite(pre_db) & np.isfinite(post_db)
     diff = ndimage.median_filter(np.where(valid, post_db - pre_db, 0.0), size=3)
 
-    water = valid & floor & (diff < C.WATER_DROP_DB)
-    debris = valid & floor & (diff > C.DEBRIS_RISE_DB)
+    if spread is None:
+        drop, rise = C.WATER_DROP_DB, C.DEBRIS_RISE_DB
+    else:
+        # per-pixel thresholds, never below the fixed ones
+        k = C.BASELINE_SIGMA_K if k is None else k
+        drop = np.minimum(C.WATER_DROP_DB, -k * spread)
+        rise = np.maximum(C.DEBRIS_RISE_DB, k * spread)
+    water = valid & floor & (diff < drop)
+    debris = valid & floor & (diff > rise)
     strong = valid & ~floor & (np.abs(diff) > C.SLOPE_CHANGE_DB)
     labels, _ = ndimage.label(strong)
     sizes = np.bincount(labels.ravel())
@@ -43,14 +71,15 @@ def classify_on_floor(pre_db, post_db, floor):
     return classes, conf
 
 
-def classify(pre_db, post_db, slope_deg=None, floor=None):
+def classify(pre_db, post_db, slope_deg=None, floor=None, spread=None):
     """Return (classes, confidence) arrays. NaN input pixels are class 0.
 
     With a valley-floor mask the terrain-constrained rules are used; without
     one, the original rules (absolute darkness for water, a slope limit).
+    `spread` (valley-floor rules only) makes the thresholds follow how much each pixel varies.
     """
     if floor is not None:
-        return classify_on_floor(pre_db, post_db, floor)
+        return classify_on_floor(pre_db, post_db, floor, spread)
     diff = post_db - pre_db
     valid = np.isfinite(pre_db) & np.isfinite(post_db)
     if slope_deg is not None:
