@@ -30,7 +30,7 @@ test('loads the six datasets from the data folder', async () => {
   // context.json is the one optional file: asked for, and a run without it is fine
   expect(fetch.mock.calls.map(([url]) => url).sort()).toEqual([...Object.keys(FILES), '/data/context.json'].sort())
   expect(loaded.satelliteData).toEqual({
-    area: null, event: '2026-08-26', before: { date: '2026-08-24' }, after: null, validation: null, detail: null, osm_quality: null, context: null,
+    area: null, event: '2026-08-26', before: { date: '2026-08-24' }, after: null, validation: null, detail: null, osm_quality: null, null_test: null, context: null,
   })
   expect(loaded.settlements[0]).toMatchObject({ population: null, connected: null })
   expect(loaded.infrastructure).toEqual([])

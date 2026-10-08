@@ -6,6 +6,7 @@ Fallback: CDSE_USER / CDSE_PASSWORD, which downloads the whole product zip.
 Credentials are read from the environment and never written anywhere.
 """
 import os
+import time
 import zipfile
 from dataclasses import dataclass, field
 
@@ -134,8 +135,27 @@ def get_scene(item, pol='vv'):
     )
 
 
-def read_window(scene, window):
-    """Digital numbers for (row0, row1, col0, col1) of the radar image."""
+READ_ATTEMPTS = 4
+
+
+def read_window(scene, window, attempts=READ_ATTEMPTS, pause=3.0, say=print):
+    """Digital numbers for (row0, row1, col0, col1) of the radar image.
+
+    GDAL repeats a failed request, but not a response that arrives short (a tile that is cut
+    off part-way), which ends the read with an I/O error. That is a hiccup in a long read over
+    the internet, not a reason to lose a run, so the whole window is read again, a few times,
+    with a longer wait each time, before the error is allowed through.
+    """
     r0, r1, c0, c1 = window
-    with rasterio.Env(**scene.env), rasterio.open(scene.raster) as src:
-        return src.read(1, window=Window(c0, r0, c1 - c0, r1 - r0))
+    for attempt in range(1, attempts + 1):
+        try:
+            with rasterio.Env(**scene.env), rasterio.open(scene.raster) as src:
+                return src.read(1, window=Window(c0, r0, c1 - c0, r1 - r0))
+        except rasterio.errors.RasterioIOError as error:
+            if attempt == attempts:
+                raise RuntimeError(
+                    f'Reading the radar image failed {attempts} times ({str(error).splitlines()[0]}). '
+                    f'The Copernicus servers may be struggling: run the same command again to continue from here.'
+                ) from error
+            say(f'  The image read was cut short ({str(error).splitlines()[0][:80]}); trying again ({attempt + 1} of {attempts})', flush=True)
+            time.sleep(pause * attempt)

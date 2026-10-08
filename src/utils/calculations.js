@@ -240,6 +240,8 @@ export function computeStats({ floodZones, buildings, roads, settlements, infras
     validation: satelliteData?.validation ?? null,
     // How complete the pre-event OpenStreetMap data is here (pipeline runs only)
     osmQuality: satelliteData?.osm_quality ?? null,
+    // The rule's false-alarm floor: what it marks between two images from before the flood
+    nullTest: satelliteData?.null_test ?? null,
     // Modelled population and river flow from open datasets, beside the map and outside its numbers
     context: satelliteData?.context ?? null,
 

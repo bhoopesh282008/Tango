@@ -8,6 +8,7 @@
 """
 import argparse
 import json
+import threading
 import sys
 import time
 from pathlib import Path
@@ -257,6 +258,12 @@ def main():
     # Only mapping made before the event may be used (see config.osm_snapshot_for)
     snapshot = C.osm_snapshot_for(args.event)
 
+    # The population file is big and its server slow; fetch it while the scenes are being read
+    background = None
+    if not args.no_context:
+        background = threading.Thread(target=context.prefetch, args=([float(v) for v in args.bbox.split(',')],), daemon=True)
+        background.start()
+
     scenes = {}
     if not have_rasters:
         if args.model and not Path(args.model).exists():
@@ -360,6 +367,9 @@ def main():
     if not args.no_context:
         # Shown beside the map only: nothing above reads it, and nothing in the results depends on it.
         progress.step('Context beside the map: modelled population and river flow (not used in the results)')
+        if background is not None and background.is_alive():
+            print('  Waiting for the population download to finish', flush=True)
+            background.join()
         context_data = context.build([float(v) for v in args.bbox.split(',')], args.event, buildings, osm['waterways'])
         print('  ' + ('Context found: ' + ', '.join(k for k in ('population', 'river') if context_data and context_data[k])
                       if context_data else 'No context available (offline, or no coverage); the run is not affected'), flush=True)

@@ -38,7 +38,7 @@ export async function getSatellite() {
   if (USE_MOCK) return mock((await demo()).satellite)
   if (PIPELINE) {
     // A run from existing rasters records no scenes, so either side may be missing.
-    const { before, after, validation, detail, area, event, osm_quality: osmQuality } = record(
+    const { before, after, validation, detail, area, event, osm_quality: osmQuality, null_test: nullTest } = record(
       await getFile(PIPELINE_FILES.satellite),
       'The satellite scene record',
     )
@@ -54,6 +54,8 @@ export async function getSatellite() {
       detail: detail ?? null,
       // How complete the pre-event road map is here, when the run measured it
       osm_quality: osmQuality ?? null,
+      // What the same rule marks between two images from before the flood, when that was measured
+      null_test: nullTest ?? null,
       context: await getContext(),
     }
   }

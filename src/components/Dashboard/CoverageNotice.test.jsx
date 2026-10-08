@@ -60,3 +60,37 @@ test('the statistics export records the reference check', () => {
   expect(statisticsCsv(checked)).toContain('Affected area found: lowest (Copernicus EMS EMSR927),0.035,fraction')
   expect(statisticsCsv(plain)).not.toContain('Affected area found')
 })
+
+describe('the false-alarm floor', () => {
+  const nullTest = {
+    real_flood_km2: 2.517,
+    pairs: [
+      { pair: '2026-07-23 to 2026-08-04', flood_km2: 0.615, share_of_real: 0.244 },
+      { pair: '2026-08-04 to 2026-08-16', flood_km2: 0.757, share_of_real: 0.301 },
+    ],
+  }
+
+  test('says what the same rule marks between two images from before the flood, from the measured figures', () => {
+    show({ validation: checked.validation, nullTest })
+    const note = screen.getByRole('note')
+    expect(note).toHaveTextContent('Between two images from before the flood the same rule marks 0.6 to 0.8 km² (24% to 30% of the 2.5 km² mapped)')
+    expect(note).toHaveTextContent('so some of what is mapped is ordinary change, not the flood')
+    // and the rest of the note is still there, with the safety sentence last
+    expect(note).toHaveTextContent('These figures are a lower bound.')
+    expect(note.textContent).toMatch(/An area with nothing marked is not known to be safe\./)
+  })
+
+  test('says nothing when it was not measured, or when there was no flood to compare with', () => {
+    show({ validation: checked.validation, nullTest: null })
+    expect(screen.getByRole('note')).not.toHaveTextContent('before the flood')
+  })
+
+  test('gives one figure when the two pairs agree, and nothing for a run with no flood', () => {
+    const same = { real_flood_km2: 2, pairs: [{ pair: 'a', flood_km2: 0.5, share_of_real: 0.25 }, { pair: 'b', flood_km2: 0.5, share_of_real: 0.25 }] }
+    const { unmount } = show({ validation: checked.validation, nullTest: same })
+    expect(screen.getByRole('note')).toHaveTextContent('marks 0.5 km² (25% of the 2.0 km² mapped)')
+    unmount()
+    show({ validation: checked.validation, nullTest: { real_flood_km2: 0, pairs: [{ pair: 'a', flood_km2: 0.5, share_of_real: null }] } })
+    expect(screen.getByRole('note')).not.toHaveTextContent('before the flood')
+  })
+})

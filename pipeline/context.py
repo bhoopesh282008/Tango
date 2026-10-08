@@ -14,6 +14,7 @@ inside it. Every function fails soft: no network or no coverage means no context
 """
 import json
 import os
+import threading
 from datetime import date, timedelta
 from pathlib import Path
 
@@ -61,12 +62,24 @@ def worldpop_url(iso):
     return WORLDPOP_URL.format(iso=iso, low=iso.lower())
 
 
+# One download at a time: a run starts the download early, in the background, and later asks for
+# the same file; the second asker waits for the first and then finds it in the cache.
+_download_lock = threading.Lock()
+
+
 def download_worldpop(iso, say=print, max_mb=MAX_DOWNLOAD_MB, folder=None):
     """Path of the cached WorldPop file for a country, downloading it first if needed; None if it cannot be had."""
-    import requests
     folder = Path(folder or POPULATION_CACHE)
     path = folder / f'{iso.lower()}_pop_2020_CN_100m_R2025A_v1.tif'
     if path.exists():
+        return str(path)
+    with _download_lock:
+        return path_after_download(iso, path, say, max_mb, folder)
+
+
+def path_after_download(iso, path, say, max_mb, folder):
+    import requests
+    if path.exists():                         # the other asker finished while this one waited
         return str(path)
     url = worldpop_url(iso)
     try:
@@ -90,6 +103,20 @@ def download_worldpop(iso, say=print, max_mb=MAX_DOWNLOAD_MB, folder=None):
     except Exception as error:
         say(f'  Context: could not get the WorldPop file for {iso} ({type(error).__name__})')
         return None
+
+
+def prefetch(bbox, say=print):
+    """Download the WorldPop file(s) for the area now, so that the context step finds them cached.
+
+    Meant for a background thread started at the beginning of a run: the file is large and its
+    server is slow, and the run spends minutes reading satellite scenes anyway. Never raises.
+    """
+    try:
+        for iso in candidate_countries(bbox):      # smallest country box first
+            if download_worldpop(iso, say=say):
+                break                              # the area is inside that country; the others are not needed
+    except Exception as error:
+        say(f'  Context: could not prepare the population data ({type(error).__name__})')
 
 
 def read_population(bbox, files):

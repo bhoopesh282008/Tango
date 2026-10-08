@@ -119,6 +119,45 @@ def test_a_failed_download_leaves_nothing_that_looks_like_the_file(tmp_path, mon
     assert not list(tmp_path.glob('*.tif'))
 
 
+def test_two_askers_for_one_file_download_it_once(tmp_path, monkeypatch):
+    import threading
+    import time
+
+    import requests
+    gets = []
+
+    def slow_get(url, **kw):
+        gets.append(url)
+        time.sleep(0.2)                       # long enough for the second asker to arrive meanwhile
+        return FakeResponse()
+
+    monkeypatch.setattr(requests, 'head', lambda url, **kw: FakeResponse())
+    monkeypatch.setattr(requests, 'get', slow_get)
+    results = []
+    threads = [threading.Thread(target=lambda: results.append(context.download_worldpop('NPL', say=lambda *a: None, folder=tmp_path)))
+               for _ in range(2)]
+    for t in threads:
+        t.start()
+    for t in threads:
+        t.join()
+    assert len(gets) == 1 and len(set(results)) == 1 and results[0] is not None
+
+
+def test_prefetch_asks_for_the_countries_around_the_area_and_never_raises(monkeypatch):
+    asked = []
+    monkeypatch.setattr(context, 'download_worldpop', lambda iso, say=print: asked.append(iso) or None)
+    context.prefetch((85.1, 27.9, 85.5, 28.3))
+    assert asked == context.candidate_countries((85.1, 27.9, 85.5, 28.3)) and asked[0] == 'NPL'
+    asked.clear()                                   # once a country has a file, the larger boxes are not tried
+    monkeypatch.setattr(context, 'download_worldpop', lambda iso, say=print: asked.append(iso) or '/some/file.tif')
+    context.prefetch((85.1, 27.9, 85.5, 28.3))
+    assert asked == ['NPL']
+    said = []
+    monkeypatch.setattr(context, 'download_worldpop', lambda iso, say=print: 1 / 0)
+    context.prefetch((85.1, 27.9, 85.5, 28.3), say=said.append)
+    assert 'could not prepare' in said[0]
+
+
 def test_no_buildings_or_no_data_is_no_population_not_an_error(tmp_path):
     grid = write_grid(tmp_path / 'pop.tif', [[1, 1], [1, 1]])
     assert context.population_context(BBOX, buildings([], []), files=[grid]) is None

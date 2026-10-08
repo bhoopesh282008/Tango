@@ -44,3 +44,36 @@ def test_the_s3_client_for_a_scene_retries(monkeypatch):
     config = seen['config']
     assert config.retries['max_attempts'] >= 5
     assert config.connect_timeout <= 30 and config.read_timeout <= 120
+
+
+def test_a_window_read_that_is_cut_short_is_repeated_then_reported(monkeypatch):
+    import numpy as np
+    import rasterio
+
+    class Source:
+        def __init__(self, fails):
+            self.fails = fails
+
+        def __enter__(self):
+            return self
+
+        def __exit__(self, *args):
+            return False
+
+        def read(self, band, window=None):
+            if self.fails.pop(0):
+                raise rasterio.errors.RasterioIOError('TIFFReadEncodedTile() failed.' + chr(10) + 'more detail')
+            return np.ones((2, 2))
+
+    scene = download.Scene(id='x', raster='s3', product_xml='', calibration_xml='', noise_xml='')
+    said = []
+
+    plan = [True, True, False]       # fails twice, then reads
+    monkeypatch.setattr(rasterio, 'open', lambda path: Source(plan))
+    out = download.read_window(scene, (0, 2, 0, 2), pause=0, say=lambda *a, **k: said.append(a[0]))
+    assert out.shape == (2, 2) and len(said) == 2 and 'trying again (3 of 4)' in said[1]
+
+    always = [True] * 10
+    monkeypatch.setattr(rasterio, 'open', lambda path: Source(always))
+    with pytest.raises(RuntimeError, match='failed 4 times'):
+        download.read_window(scene, (0, 2, 0, 2), pause=0, say=lambda *a, **k: None)
