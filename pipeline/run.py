@@ -263,8 +263,11 @@ def main():
                     help='compare with the median of N images on the same track (the "before" scene and N-1 earlier ones, '
                          '12 days apart) and count a change only if it exceeds 3 standard deviations of how much that '
                          'ground varied between them. Default 1: the single "before" image. Needs N of at least 3.')
-    ap.add_argument('--no-context', action='store_true',
-                    help='skip the context beside the map (modelled population and river flow from open datasets)')
+    ap.add_argument('--context', action='store_true',
+                    help='add context beside the map (modelled population from WorldPop, river flow from GloFAS). Off by '
+                         'default: the challenge lists the inputs it allows (Sentinel-1/2, Copernicus DEM, pre-event '
+                         'OpenStreetMap) and these two are not among them. Nothing in the results reads it.')
+    ap.add_argument('--no-context', action='store_true', help=argparse.SUPPRESS)   # the old default, still accepted
     ap.add_argument('--out', default=str(C.OUT))
     ap.add_argument('--name', help='what the dashboard calls this area; default: its largest mapped settlement')
     ap.add_argument('--publish', action='store_true',
@@ -276,7 +279,7 @@ def main():
         ap.error('--baseline-images needs 1 (the single before image) or at least 3: two images give no spread to measure')
     if args.baseline_images > 1 and (have_rasters or args.model):
         ap.error('--baseline-images reads earlier Sentinel-1 scenes itself, so it cannot be combined with --pre/--post or --model')
-    progress = Progress(7 + int(args.optical) + int(not args.no_context) + int(args.baseline_images > 1))
+    progress = Progress(7 + int(args.optical) + int(args.context) + int(args.baseline_images > 1))
     progress.step('Checking the area, the date, the credentials and the output folder')
     try:
         for warning in preflight.check(args.bbox, args.event, args.out,
@@ -290,7 +293,7 @@ def main():
 
     # The population file is big and its server slow; fetch it while the scenes are being read
     background = None
-    if not args.no_context:
+    if args.context:
         background = threading.Thread(target=context.prefetch, args=([float(v) for v in args.bbox.split(',')],), daemon=True)
         background.start()
 
@@ -414,7 +417,7 @@ def main():
     area_name = args.name or default_area_name(buildings, settlements) or f'Area {args.bbox}'
     infra = infrastructure.build(osm['bridges'], osm['health'], roads, zones, settlements)
     context_data = None
-    if not args.no_context:
+    if args.context:
         # Shown beside the map only: nothing above reads it, and nothing in the results depends on it.
         progress.step('Context beside the map: modelled population and river flow (not used in the results)')
         if background is not None and background.is_alive():
@@ -442,7 +445,7 @@ def main():
     # The DEM the dashboard's flood-path tool traces on
     floodpath.export_dem(args.out, [float(v) for v in args.bbox.split(',')])
     if args.publish:
-        entry = publish.publish(args.out)
+        entry = publish.publish(args.out, with_context=args.context)
         print(f"Published '{entry['name']}' as {entry['id']}. Reload the dashboard to see it.")
     print(f'\nDone in {progress.elapsed()}. Output: {args.out}', flush=True)
     if not args.publish:

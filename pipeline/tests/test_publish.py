@@ -95,3 +95,14 @@ def test_leftovers_of_a_cut_off_attempt_are_cleared(tmp_path):
     (target / '.area-a.new' / 'junk').write_text('x')
     publish.publish(finished_run(tmp_path / 'a'), target=target)
     assert sorted(p.name for p in target.iterdir()) == ['area-a', 'runs.json']
+
+
+def test_the_context_file_is_published_only_when_asked_for(tmp_path):
+    target = tmp_path / 'data'
+    run = finished_run(tmp_path / 'a', extra=['context.json'])
+    publish.publish(run, target=target)
+    assert not (target / 'area-a' / 'context.json').exists()
+    publish.publish(run, target=target, with_context=True)
+    assert (target / 'area-a' / 'context.json').exists()
+    publish.publish(run, target=target)                      # and a republish leaves no stale copy
+    assert not (target / 'area-a' / 'context.json').exists()

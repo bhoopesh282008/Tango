@@ -80,3 +80,22 @@ def test_a_snapshot_that_reaches_the_event_is_a_preflight_problem(monkeypatch, t
 def test_a_normal_event_passes_the_snapshot_check(tmp_path):
     day = date.today() - timedelta(days=200)
     assert preflight.check('85.1,27.9,85.3,28.1', day.isoformat(), tmp_path, need_scenes=False) == []
+
+
+@pytest.mark.parametrize('extra, fetched', [([], False), (['--no-context'], False), (['--context'], True)])
+def test_the_context_from_datasets_the_brief_does_not_list_is_opt_in(monkeypatch, extra, fetched):
+    """WorldPop and GloFAS are not among the inputs the brief allows, so a run reaches for them only when asked."""
+    import threading
+
+    import run
+    asked = threading.Event()
+    monkeypatch.setattr(run.preflight, 'check', lambda *a, **k: [])
+    monkeypatch.setattr(run.context, 'prefetch', lambda bbox: asked.set())
+
+    def stop(*a, **k):
+        raise RuntimeError('stopped after the context decision')
+    monkeypatch.setattr(run, 'prepare_pair', stop)
+    monkeypatch.setattr('sys.argv', ['run.py', '--bbox', '85.1,27.9,85.3,28.1', '--event', '2026-08-26', *extra])
+    with pytest.raises(RuntimeError, match='stopped'):
+        run.main()
+    assert asked.wait(1.0) is fetched

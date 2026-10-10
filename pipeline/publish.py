@@ -25,7 +25,9 @@ import config as C
 TARGET = C.ROOT.parent / 'public' / 'data'
 # What the dashboard reads. The rasters stay in the run folder.
 FILES = ['flood_zones.geojson', 'buildings.geojson', 'roads.geojson', 'infrastructure.json',
-         'settlements.json', 'attribution.json', 'context.json', 'outlines.json', 'dem.json', 'dem.bin']
+         'settlements.json', 'attribution.json', 'outlines.json', 'dem.json', 'dem.bin']
+# Population and river-flow context from datasets the brief does not list as inputs: only on request
+CONTEXT_FILE = 'context.json'
 # Without these the dashboard cannot show the run at all (the rest are optional extras)
 REQUIRED = ['satellite.json', 'flood_zones.geojson', 'buildings.geojson', 'roads.geojson',
             'infrastructure.json', 'settlements.json']
@@ -71,8 +73,10 @@ def _read_list(index, target):
     return rebuilt
 
 
-def publish(out_dir, name=None, target=TARGET):
-    """Copy a run to the dashboard's data folder and put it first in the list of runs."""
+def publish(out_dir, name=None, target=TARGET, with_context=False):
+    """Copy a run to the dashboard's data folder and put it first in the list of runs.
+
+    A run's context.json (modelled population, river flow) is left behind unless `with_context`."""
     out_dir, target = Path(out_dir), Path(target)
     missing = [f for f in REQUIRED if not (out_dir / f).exists()]
     if missing:
@@ -90,7 +94,7 @@ def publish(out_dir, name=None, target=TARGET):
         shutil.rmtree(leftover, ignore_errors=True)
     staging.mkdir()
     try:
-        for path in [out_dir / f for f in FILES] + sorted(out_dir.glob('*.png')):
+        for path in [out_dir / f for f in FILES + ([CONTEXT_FILE] if with_context else [])] + sorted(out_dir.glob('*.png')):
             if path.exists():
                 shutil.copy2(path, staging / path.name)
         (staging / 'satellite.json').write_text(
@@ -119,9 +123,11 @@ def main():
     parser = argparse.ArgumentParser(description=__doc__.split('\n')[0])
     parser.add_argument('out_dir')
     parser.add_argument('--name', help='how the dashboard names this area; default: the name the run recorded')
+    parser.add_argument('--with-context', action='store_true',
+                        help="also publish the run's context.json (modelled population and river flow); left out by default")
     args = parser.parse_args()
     try:
-        entry = publish(args.out_dir, args.name)
+        entry = publish(args.out_dir, args.name, with_context=args.with_context)
     except FileNotFoundError as error:
         raise SystemExit(f'Not published: {error}') from None
     print(f"Published '{entry['name']}' as {entry['id']}. Reload the dashboard to see it.")
