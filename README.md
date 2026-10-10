@@ -24,10 +24,12 @@ What the system cannot do is listed in the app at `/about` (Method and limitatio
 ```bash
 npm install
 npm run dev      # http://localhost:5173
-npm run test     # 214 tests
+npm run test     # 217 tests
 npm run lint
 npm run build
 ```
+
+A fresh clone has no run data (`public/data` is not in git), so the dashboard opens on the bundled demo dataset with a "Demo data" badge; run the pipeline (below) to see a real area. The first page load of the dev server takes about 20 seconds while it prepares its dependencies. Tested on a clean clone: `npm install`, `npm run test`, `npm run lint`, `npm run build`, then a Python 3.13 environment, `pip install -r pipeline/requirements.txt` (about four minutes, PyTorch included) and `pytest pipeline/tests` all pass. `npm install` reports advisories in development tools and in `react-router` server-side rendering, which this static app does not use.
 
 `npm run test:a11y` runs axe-core accessibility checks in a browser; it needs `@playwright/test`, `@axe-core/playwright` and Chromium (`npm i -D @playwright/test @axe-core/playwright`, then `npx playwright install chromium`).
 
@@ -53,7 +55,7 @@ Python 3.11 to 3.13 (the geospatial packages have no wheels for 3.14 yet). From 
 ```bash
 py -3.13 -m venv pipeline/.venv
 pipeline/.venv/Scripts/python -m pip install -r pipeline/requirements.txt
-pipeline/.venv/Scripts/python -m pytest pipeline/tests     # 185 tests
+pipeline/.venv/Scripts/python -m pytest pipeline/tests     # 191 tests
 ```
 
 For GPU training install PyTorch from its own index first: `pip install torch --index-url https://download.pytorch.org/whl/cu124`.
@@ -87,6 +89,8 @@ It needs a free [Copernicus Data Space](https://dataspace.copernicus.eu) account
 cd pipeline
 .venv/Scripts/python run.py --bbox <west,south,east,north> --event <YYYY-MM-DD> --out out/<folder> --name "<area name>" --publish
 ```
+
+Add `--optical` for the full run with Sentinel-2 where the sky was clear (about 17 minutes more per area; only 30% to 55% of the Trishuli areas had a clear view on both sides of the event, and it changed the flood classes very little, section 5 of the report).
 
 The run first checks the area, the date, the credentials and the output folder, and reports every problem at once before anything is downloaded. It then prints numbered steps with the time; reading the two Sentinel-1 scenes is the slow one. `--search-days N` widens the search for scenes around the event (default 20). Areas up to about 0.2 square degrees (the case studies are 0.15) are expected; larger ones are refused with a message.
 
