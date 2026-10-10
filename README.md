@@ -174,7 +174,7 @@ echo VITE_DATA_URL=/data > .env.local
 npm run dev
 ```
 
-`public/data/` is git-ignored. In this mode the Demo data badge disappears and the dashboard states what the data does not contain instead of filling gaps:
+`public/data/` is git-ignored. When the app is built with `VITE_DATA_URL` set, the header has a **Run data / Demo** switch: it shows the published areas, or the bundled demo dataset, and reloads the page on the change (the choice is kept in this browser; a build with no run data has no switch). In run-data mode the Demo data badge disappears and the dashboard states what the data does not contain instead of filling gaps:
 
 - A settlement with no road in the pre-event map is shown as "Access unknown", not as cut off.
 - OpenStreetMap records a population for very few settlements here (1 of 149 in the Trishuli area), so settlement size is given in mapped buildings and no head count is shown.

@@ -1,6 +1,7 @@
 import { Moon, Sun } from 'lucide-react'
 import { Link, NavLink } from 'react-router-dom'
-import { USE_MOCK } from '../../config/apiConfig'
+import { CAN_SWITCH_SOURCE, DATA_SOURCE, USE_MOCK } from '../../config/apiConfig'
+import { setDataSource } from '../../config/dataSource'
 import { openRun } from '../../config/run'
 import { useDataStore } from '../../store/dataStore'
 import { useUIStore } from '../../store/uiStore'
@@ -74,7 +75,7 @@ export default function Header() {
         {USE_MOCK && (
           <span
             className="my-auto shrink-0 border border-warning px-1.5 py-0.5 text-xs font-semibold text-warning"
-            title="No backend configured. Figures are illustrative."
+            title={CAN_SWITCH_SOURCE ? 'You chose the demo data. Figures are illustrative.' : 'No backend configured. Figures are illustrative.'}
           >
             Demo data
           </span>
@@ -89,6 +90,26 @@ export default function Header() {
         </nav>
 
         <div className="no-print ml-auto flex items-center gap-1 py-1.5">
+          {/* Only where this build has run data to show: the demo dataset is always there */}
+          {CAN_SWITCH_SOURCE && (
+            <div role="group" aria-label="Data source" className="mr-1 flex">
+              {[
+                ['real', 'Run data', 'The satellite analysis of the published areas'],
+                ['demo', 'Demo', 'The bundled demo dataset, with illustrative figures'],
+              ].map(([id, label, hint]) => (
+                <button
+                  key={id}
+                  type="button"
+                  className="btn-quiet px-2.5 text-[13px]"
+                  aria-pressed={DATA_SOURCE === id}
+                  title={hint}
+                  onClick={() => DATA_SOURCE !== id && setDataSource(id)}
+                >
+                  {label}
+                </button>
+              ))}
+            </div>
+          )}
           <ExportPanel />
           <button
             type="button"

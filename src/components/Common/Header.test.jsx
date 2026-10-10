@@ -67,3 +67,8 @@ test('the icon-only button has a name', () => {
   show()
   expect(screen.getByRole('button', { name: /Switch to (dark|light) mode/ })).toBeInTheDocument()
 })
+
+test("a build without run data has no source switch, because there is nothing to switch to", () => {
+  show()
+  expect(screen.queryByRole("group", { name: "Data source" })).not.toBeInTheDocument()
+})

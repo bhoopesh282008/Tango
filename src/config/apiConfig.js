@@ -1,11 +1,26 @@
 export const API_BASE_URL = (import.meta.env.VITE_API_BASE_URL ?? '').replace(/\/$/, '')
 
 // Folder of static files written by pipeline/run.py, e.g. /data
-export const DATA_URL = (import.meta.env.VITE_DATA_URL ?? '').replace(/\/$/, '')
+const REAL_DATA_URL = (import.meta.env.VITE_DATA_URL ?? '').replace(/\/$/, '')
+
+// Where the choice made with the switch in the header is kept. It only matters when this build
+// has run data to show (REAL_DATA_URL): without any, there is nothing to switch to.
+export const SOURCE_KEY = 'tango-data-source'
+function chosenSource() {
+  try {
+    return localStorage.getItem(SOURCE_KEY)
+  } catch {
+    return null // storage blocked: the build's own default stands
+  }
+}
+export const CAN_SWITCH_SOURCE = REAL_DATA_URL !== ''
+const DEMO_CHOSEN = CAN_SWITCH_SOURCE && chosenSource() === 'demo'
+export const DATA_SOURCE = DEMO_CHOSEN ? 'demo' : 'real'
+export const DATA_URL = DEMO_CHOSEN ? '' : REAL_DATA_URL
 
 // pipeline: static files from a pipeline run. api: a REST backend.
-// demo: neither is configured, so the services answer from src/data.
-export const DATA_MODE = DATA_URL ? 'pipeline' : API_BASE_URL ? 'api' : 'demo'
+// demo: neither is configured (or the demo was chosen), so the services answer from src/data.
+export const DATA_MODE = DEMO_CHOSEN ? 'demo' : DATA_URL ? 'pipeline' : API_BASE_URL ? 'api' : 'demo'
 export const USE_MOCK = DATA_MODE === 'demo'
 
 export const PIPELINE_FILES = {
