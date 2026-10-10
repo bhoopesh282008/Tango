@@ -5,7 +5,7 @@ import { ATTRIBUTION } from '../utils/constants'
 const METHOD = [
   [
     'Where the flood hit',
-    'Two Sentinel-1 radar scenes from the same orbit track, one before and one after the event, are calibrated, corrected for terrain with the Copernicus DEM and compared pixel by pixel. On valley floors, meaning ground within 30 m above and 600 m of a mapped river, a strong drop in backscatter is mapped as water or wet sediment and a strong rise as debris. Strong change over a large area anywhere else is marked uncertain.',
+    'Sentinel-1 radar scenes from the same orbit track are calibrated, corrected for terrain with the Copernicus DEM and compared pixel by pixel. “Before” is the median of three images 12 days apart (the “before” scene and the two earlier ones), and a change counts only if it also exceeds what that ground normally varies between them, so ordinary change in a monsoon river is not mapped as flood. On valley floors, meaning ground within 30 m above and 600 m of a mapped river, a strong drop in backscatter is mapped as water or wet sediment and a strong rise as debris. Strong change over a large area anywhere else is marked uncertain.',
   ],
   [
     'Optical images, where the sky is clear',
@@ -17,7 +17,7 @@ const METHOD = [
   ],
   [
     'Who is cut off',
-    'Damaged roads are removed from the road network. A settlement is cut off when it could reach a hospital by road before the event and can no longer do so.',
+    'Damaged roads are removed from the road network. A settlement is cut off when it could reach a hospital by road before the event and can no longer do so. Beside that, the dashboard says whether it can still reach a town (a place mapped as a town or city), where the map has one.',
   ],
 ]
 
@@ -36,7 +36,15 @@ const LIMITS = [
   ],
   [
     'Most of the damage is missed',
-    'The Trishuli flood map was compared with the Copernicus Emergency Management Service reference for the event (EMSR927), in the three reference areas it covers. Where the map shows flood it is almost always right (88% to 99% of the mapped area lies inside the reference), but it finds only 4% to 23% of the reference area and about one in five of the affected buildings. A second run further down the valley found 30% to 35%. Fresh debris often looks no different to the radar than the river bed it covers. Every count is a lower bound: an area with nothing marked is not known to be safe.',
+    'The Trishuli flood map was compared with the Copernicus Emergency Management Service reference for the event (EMSR927), in the three reference areas it covers. Where the map shows flood it is almost always right (88% to 99% of the mapped area lies inside the reference), but it finds only 3% to 22% of the reference area and about one in five of the affected buildings. A second run further down the valley found 22% to 35%. Fresh debris often looks no different to the radar than the river bed it covers. Every count is a lower bound: an area with nothing marked is not known to be safe.',
+  ],
+  [
+    'Some of what is mapped is not the flood',
+    'Run on two images that are both from before the event, the same rule still marks 9% to 13% of the area it maps for the flood itself. That is ordinary change, such as a river at a different level, wet soil or farming. The comparison with the reference cannot show this, because its reference is a wide corridor that contains the river.',
+  ],
+  [
+    'One image frame',
+    'Sentinel-1 scenes are cut into frames along the orbit and the system reads one. An area that straddles two frames is mapped only where the chosen frame covers it, and the steadier baseline cannot be built there.',
   ],
   [
     'Damage is an overlap, not an inspection',
@@ -48,7 +56,7 @@ const LIMITS = [
   ],
   [
     'Road cuts are coarse',
-    'A road segment touching a flood zone is removed whole from the road network (the road length shown is only the part inside a zone), and bridges are not assessed separately, so some settlements may be reported cut off when a passable route exists, and the reverse.',
+    'A road segment touching a flood zone is removed whole from the road network (the road length shown is only the part inside a zone), and bridges are not assessed separately, so some settlements may be reported cut off when a passable route exists, and the reverse. Journey times on the route tool use assumed speeds by road class.',
   ],
   [
     'Priority score',

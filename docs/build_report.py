@@ -22,13 +22,13 @@ PAGE_LIMIT = 6
 
 CSS = """
 @page { size: A4; margin: 18mm 17mm; }
-body { font: 10.5pt/1.42 'Segoe UI', Arial, sans-serif; color: #111; }
+body { font: 10.2pt/1.4 'Segoe UI', Arial, sans-serif; color: #111; }
 h1 { font-size: 18pt; margin: 0 0 4pt; }
 h2 { font-size: 13pt; margin: 13pt 0 4pt; break-after: avoid; }
 p, ul { margin: 0 0 6pt; }
 ul { padding-left: 16pt; }
 li { margin-bottom: 2pt; }
-table { border-collapse: collapse; width: 100%; margin: 4pt 0 8pt; font-size: 9.5pt; break-inside: avoid; }
+table { border-collapse: collapse; width: 100%; margin: 4pt 0 8pt; font-size: 9.2pt; break-inside: avoid; }
 th, td { border: 0.5pt solid #999; padding: 2.5pt 5pt; text-align: left; vertical-align: top; }
 th { background: #eee; }
 blockquote { margin: 6pt 0; padding: 4pt 9pt; border-left: 3pt solid #999; background: #f4f4f4; }

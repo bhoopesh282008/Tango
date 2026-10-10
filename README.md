@@ -11,10 +11,11 @@ This is an educational prototype, not an operational tool.
 | Dashboard and copilot | Working. Runs on bundled demo data by default, or on the output of a pipeline run. |
 | Pre-event OpenStreetMap, DEM, damage overlay, cut-off analysis, flood-path trace | Run on real data for the Trishuli area. |
 | Flood model | Trained on a sample of Kuro Siwo; results in [pipeline/MODEL.md](pipeline/MODEL.md). |
-| Sentinel-1 download, calibration, terrain correction and flood mapping | **Run end to end on real scenes** for Trishuli (16 and 28 Aug 2026): 2.6 km² of flood zones, 23 of 149 settlements cut off. **Checked against Copernicus EMS (EMSR927):** precision 0.88 to 0.99, but only 4% to 35% of the reference area is found, so every figure is a lower bound. See [docs/report.md](docs/report.md), section 5. |
+| Sentinel-1 download, calibration, terrain correction and flood mapping | **Run end to end on real scenes** for Trishuli (16 and 28 Aug 2026): 2.07 km² of flood zones, 11 of 149 settlements cut off. **Checked against Copernicus EMS (EMSR927):** precision 0.88 to 0.99, but only 3% to 35% of the reference area is found, so every figure is a lower bound. See [docs/report.md](docs/report.md), section 5. |
+| The rule's false alarms | Run on two images that are both from before the event, the default rule (median of three images, a change must beat the ground's normal variation) marks 9% to 13% of its own mapped area; the single-image rule marked 24% to 127% (`pipeline/null_test.py`). Part of every map is ordinary change, not the flood. |
 | Before/after pictures | Produced from the real scenes and shown in the dashboard. |
 | Sentinel-2 optical evidence | Run on real scenes for both areas (31% and 55% clear on both sides of the event). As built it changes the flood classes very little; its valley-floor "uncertain" patches do match the reference, its hillside ones are mostly cloud and haze. See the report, section 5. |
-| Other areas and dates | A second area south-west of the first (Bidur, Phosretar) ran with the same code and settings on a different orbit track: 6.0 km² of flood zones, precision 0.94 to 0.95 and recall 0.30 to 0.35 against EMSR927. No other event or date has been tried. |
+| Other areas and dates | A second area south-west of the first (Bidur, Phosretar), on the same scene pair: 4.7 km² of flood zones, 14 of 116 settlements cut off, precision 0.94 to 0.97 and recall 0.22 to 0.35 against EMSR927. A new valley (Bhote Koshi), a dry-season date on it and the 2021 Chamoli glacier flood in Uttarakhand were run as rehearsals. On Bhote Koshi the default rule maps the real event at 3.3 times the area of the dry-season date (the single-image rule could not tell them apart). Chamoli ran end to end but its area straddles two image frames, so only 84% was mapped (see "Not built yet"). |
 
 What the system cannot do is listed in the app at `/about` (Method and limitations). The draft challenge report is [docs/report.md](docs/report.md), rendered to [docs/report.pdf](docs/report.pdf) by `docs/build_report.py`.
 
@@ -23,9 +24,27 @@ What the system cannot do is listed in the app at `/about` (Method and limitatio
 ```bash
 npm install
 npm run dev      # http://localhost:5173
-npm run test     # 72 tests
+npm run test     # 214 tests
+npm run lint
 npm run build
 ```
+
+`npm run test:a11y` runs axe-core accessibility checks in a browser; it needs `@playwright/test`, `@axe-core/playwright` and Chromium (`npm i -D @playwright/test @axe-core/playwright`, then `npx playwright install chromium`).
+
+## Deploy (GitHub Pages)
+
+The dashboard is a static site. The run data it shows (`public/data`, tens of megabytes) is not in git, so a build made from git has no data. The deploy script builds here, where the data is:
+
+```bash
+npm run deploy:pages            # build for the repository's Pages address and check it; pushes nothing
+npm run deploy:pages -- --push  # publish to the gh-pages branch
+```
+
+It works out the address and base path from the git remote (`https://<owner>.github.io/<repo>/`), refuses to continue if a published run is missing a file, builds with that base path, adds `404.html` (so a refresh on `/Tango/copilot` still loads the app) and `.nojekyll`, and with `--push` force-pushes the finished folder as a single commit on `gh-pages`. That keeps the data out of the history of `main` and stops `gh-pages` accumulating copies of it. Once, in the repository's Settings, Pages, set the source to the `gh-pages` branch.
+
+GitHub Pages cannot send response headers, so the Content-Security-Policy is a `<meta>` tag in the built page (`scripts/csp.mjs`; it lists the few map and imagery hosts the app uses). Continuous integration (`.github/workflows/ci.yml`) runs lint, the tests and a build at the Pages path; it does not deploy. Build for another path with `VITE_BASE=/other/ npm run build` (in Git Bash on Windows prefix the command with `MSYS_NO_PATHCONV=1`).
+
+Each page shows its build (version, commit, date) in the footer, so what was seen can be tied to a commit.
 
 ## Run the pipeline
 
@@ -34,7 +53,7 @@ Python 3.11 to 3.13 (the geospatial packages have no wheels for 3.14 yet). From 
 ```bash
 py -3.13 -m venv pipeline/.venv
 pipeline/.venv/Scripts/python -m pip install -r pipeline/requirements.txt
-pipeline/.venv/Scripts/python -m pytest pipeline/tests     # 64 tests
+pipeline/.venv/Scripts/python -m pytest pipeline/tests     # 185 tests
 ```
 
 For GPU training install PyTorch from its own index first: `pip install torch --index-url https://download.pytorch.org/whl/cu124`.
@@ -56,9 +75,35 @@ The system is built to be run on an area and date chosen on the day:
 
 Each published area lives in `public/data/<id>/` and is listed in `public/data/runs.json` (`publish.py`). The title, map view, statistics, before/after pictures, copilot answers, one-page situation report and flood-path terrain all follow the selected area. What stays tied to the Trishuli case study: the bundled demo data, six district labels on the map, and the wording of the Method and limitations page. `python publish.py <run folder> --name "..."` publishes a run made earlier.
 
-A first run on a new area downloads its scenes, elevation and OpenStreetMap snapshot: about 4.5 minutes for the first area; the second needed a retry because the OpenStreetMap service timed out. A re-run reuses the rasters and takes about a minute. Only two areas, both on the Trishuli, have been run so far, so a different valley or date is untested.
+A first run on a new area downloads its scenes, elevation and OpenStreetMap snapshot: 3 to 6 minutes once OpenStreetMap answers, and up to 16 when the free service is busy (the pipeline waits and retries, and stops with a message after about seven minutes; run the same command again to continue from the cache). A re-run reuses the rasters and takes under a minute. Rehearsals so far: Trishuli, a second Trishuli reach, the Bhote Koshi valley, a dry-season date on it, and the Chamoli glacier flood of 2021.
+
+By default the flood map compares with the median of three images on the same track (the "before" scene and the two 12 days earlier), counting a change only if it also exceeds the normal variation of that ground; `--baseline-images 1` gives the single "before" image. With given rasters (`--pre`, `--post`) or a model it is one image. `--context` adds modelled population (WorldPop) and river flow (GloFAS) beside the map; it is off by default because these are not among the inputs the challenge lists, and nothing in the results reads them (`publish.py --with-context` publishes the file).
 
 It needs a free [Copernicus Data Space](https://dataspace.copernicus.eu) account. Set the S3 keys from its keys manager as `AWS_ACCESS_KEY_ID` and `AWS_SECRET_ACCESS_KEY` (only the needed window of each scene is read; on Windows, `pipeline/set_cdse_keys.ps1` prompts for them and stores them), or `CDSE_USER` and `CDSE_PASSWORD` (whole products are downloaded, about 1.3 GB each). Add `--model models/unet_kurosiwo.pt` to map water with the trained model instead of thresholds, and `--optical` to bring in Sentinel-2 where the sky was clear (S3 keys only).
+
+### On the day: running a new area
+
+```bash
+cd pipeline
+.venv/Scripts/python run.py --bbox <west,south,east,north> --event <YYYY-MM-DD> --out out/<folder> --name "<area name>" --publish
+```
+
+The run first checks the area, the date, the credentials and the output folder, and reports every problem at once before anything is downloaded. It then prints numbered steps with the time; reading the two Sentinel-1 scenes is the slow one. `--search-days N` widens the search for scenes around the event (default 20). Areas up to about 0.2 square degrees (the case studies are 0.15) are expected; larger ones are refused with a message.
+
+| If it says | What it means | What to do |
+| --- | --- | --- |
+| No Copernicus Data Space credentials were found | The S3 keys (or a username and password) are not in the environment | Create keys in the Copernicus keys manager, set `AWS_ACCESS_KEY_ID` and `AWS_SECRET_ACCESS_KEY` (on Windows `pipeline/set_cdse_keys.ps1`), open a new terminal |
+| The area needs four numbers, or is not W,S,E,N | The bounding box is malformed or the wrong way round | Longitude comes first: Nepal is about `85,28`, not `28,85` |
+| The event date is not a date, or is in the future | The date is not `YYYY-MM-DD`, or there are no images of it yet | Correct the date |
+| No Sentinel-1 pair brackets the event | No two scenes on one orbit track about 12 days apart enclose the date; the message lists the scenes found | Try `--search-days 40`; for a very recent event the later scene may not exist yet |
+| No Sentinel-1 scenes cover the area | The catalogue has nothing there in that window | Check the area and the date |
+| The Copernicus catalogue could not be searched | The service did not answer three times | Check the connection; try again later |
+| 504 or 429 from `overpass-api.de` | The free OpenStreetMap service is busy | Run the same command again: layers already fetched are cached and are not asked for twice |
+| The area is larger than anything this pipeline has run on | Over 0.4 square degrees | Run and publish smaller areas separately |
+
+A run that maps no flood is a valid result: the dashboard says "No flood was mapped in this area" and that this is not proof of safety.
+
+Publishing is all or nothing (`publish.py`): a failure half way leaves the areas already published as they were.
 
 | Step | File | What it does |
 | --- | --- | --- |
@@ -67,12 +112,14 @@ It needs a free [Copernicus Data Space](https://dataspace.copernicus.eu) account
 | DEM | `fetch_dem.py` | Copernicus DEM GLO-30 from the AWS open-data bucket, converted to ellipsoid heights |
 | Preprocessing | `preprocess_s1.py` | Calibration to sigma0, thermal-noise removal, Lee speckle filter, Range-Doppler terrain correction, layover and shadow masks |
 | Valley floor | `terrain.py` | Ground within 30 m above and 600 m of a river (pre-event OSM, or DEM-derived channels): where a flood can be |
-| Flood map | `segment.py`, `predict.py` | Change detection on valley floors (water, debris; strong change elsewhere is "uncertain"), or the U-Net for water with the same rule for debris |
+| Flood map | `segment.py`, `predict.py` | Change detection on valley floors (water, debris; strong change elsewhere is "uncertain") against a three-image baseline, or the U-Net for water with the same rule for debris |
+| False alarms | `null_test.py` | The same rule on pairs of scenes that are both from before the event: what it marks there is not the flood. A check on a finished run; `--attach` records it for the dashboard |
 | Optical | `fetch_s2.py` | Sentinel-2 clear-sky composites either side of the event; confirms radar detections and fills radar blind spots on valley floors. It never removes a radar detection. Composites are cached in the run's `rasters/` folder |
-| Pictures | `quicklook.py` | Before/after PNGs for the dashboard's satellite viewer |
-| OpenStreetMap | `fetch_osm.py` | Buildings, roads, bridges, health facilities and places as of 27 July 2026 |
+| Pictures | `quicklook.py`, `add_outlines.py` | Before/after PNGs for the dashboard's satellite viewer, and the flood zones cut to those pictures' pixels (`outlines.json`); `add_outlines.py` adds the outlines to a run made earlier |
+| Map quality | `osm_quality.py` | How complete the pre-event road map is around the buildings and settlements, recorded with the run |
+| OpenStreetMap | `fetch_osm.py` | Buildings, roads, bridges, health facilities and places as of 30 days before the event (27 July 2026 for the case study) |
 | Damage | `damage.py`, `infrastructure.py` | Features inside water or debris zones; health facilities cut from the road network |
-| Cut-off settlements | `cutoff.py` | Settlements that could reach a hospital by road before the event and no longer can |
+| Cut-off settlements | `cutoff.py` | Settlements that could reach a hospital by road before the event and no longer can; also whether they can still reach a town (a place mapped as town or city), where the map has one |
 | Flood path (bonus) | `floodpath.py` | Drainage path from any point on the DEM and the settlements along it; `--export-dem` writes the DEM the dashboard traces on |
 | Publishing | `publish.py` | Copies a run's dashboard files to `public/data/<id>/` and lists it in `runs.json` for the dashboard's area selector |
 | Validation | `validate.py` | Compares a run with extracted Copernicus EMS products, per reference area: flood extent (IoU, precision, recall), buildings, roads and bridges. For checking only: `python validate.py out/trishuli cache/reference_emsr927` |
@@ -87,7 +134,9 @@ The flood-path trace runs without any account:
 
 ### Data rules
 
-Inputs are Sentinel-1, Copernicus DEM, OpenStreetMap as it was before the event, and Kuro Siwo for training. Published damage maps (Copernicus EMS, UNOSAT) and post-event OpenStreetMap edits are not used as inputs; `fetch_osm.py` refuses a snapshot date on or after the event.
+Inputs are Sentinel-1, Copernicus DEM, OpenStreetMap as it was before the event, and Kuro Siwo for training. Published damage maps (Copernicus EMS, UNOSAT) and post-event OpenStreetMap edits are not used as inputs; `config.osm_snapshot_for` takes the snapshot 30 days before the event (never later than 27 July 2026), so an earlier event never reads mapping made after it, and `fetch_osm.py` refuses a snapshot date on or after 26 August 2026.
+
+Datasets outside that list (modelled population, river flow) are not fetched unless `--context` is given, and nothing in the results reads them.
 
 The ohsome API, which the challenge names for the OpenStreetMap snapshot, answered HTTP 403 on its geometry endpoints when this was built. The pipeline asks ohsome first and falls back to the Overpass API with the same snapshot date; `satellite.json` records which service supplied the data.
 
@@ -144,6 +193,14 @@ To use a real backend, copy `.env.example` to `.env.local` and set `VITE_API_BAS
 | `POST /copilot/ask` | Copilot answers | `{ answer, confidence, dataSource }` |
 
 `type` is `water`, `debris` or `uncertain`. Infrastructure `status` is `operational` or anything else (treated as damaged).
+
+## Routes and navigation
+
+The **Route** tool on the map plans the road from where you are (or a point you pick) to a settlement or a hospital, in the browser, on the run's own roads (`src/utils/routing.js`). It plans two routes: one that avoids every road section touching a flood zone (the same rule the cut-off analysis uses) and the fastest, which may cross them. The panel gives the distance, the steps, and how much of the route lies inside a mapped flood zone (flagged is not flooded: each piece of a flagged road is tested against the flood polygons). When no clear road exists it says so and shows the fastest route with its flooded stretch. Live navigation follows the GPS position (it needs https or localhost), snaps it to the route, announces the next turn and any flooded stretch ahead, and plans again if you leave the route. Times use assumed speeds by road class, since nothing in the data gives speeds; one-way roads are warned about, not obeyed.
+
+## Before and after pictures
+
+The satellite viewer in the Evidence section compares the two radar images with a slider, opens on a full-resolution close-up of where the most flood was mapped, and draws the mapped flood zones as outlines on both pictures (a button turns them off). Pixels the radar cannot see (layover and shadow) are hatched, not black, because dark means water in radar. A run made before the outlines existed gets them with `pipeline/add_outlines.py`.
 
 ## Flood path
 
@@ -212,7 +269,7 @@ docs/           map library research
 ## Not built yet
 
 - Anything that raises recall. The EMSR927 comparison shows the map misses most of the debris corridor, because most of it changes by less than 3 dB in the radar pair. Optical change on valley floors would roughly double recall where the sky is clear, but it is still only marked "uncertain": no rule or threshold has been chosen or tuned on the reference.
-- A scene-pair rule that accepts an almost complete image. For the second area it chose an image ten days after the flood over one two days after that covers 99% of the area.
-- A run on any area or date other than the Trishuli case study.
+- Image frames. A Sentinel-1 scene is cut into frames along the orbit and the pipeline reads one, so an area that straddles two is mapped only where the chosen frame covers it (the Chamoli rehearsal: 84%), and the three-image baseline then cannot be built and falls back to one image with a warning. The share covered is recorded in `satellite.json` (`area_covered`) but the dashboard does not yet show it.
+- A rule that tells ordinary river change from flood by more than the baseline does. Even the default rule marks 9% to 13% of its own area between two images from before the event.
 - A language model behind the copilot: answers are templates filled from the computed figures.
-- Drawing/annotation tool, timeline animation, Shapefile export, live polling, offline tiles / PWA, deployment. The one-page situation report (`/report`) is saved as PDF through the browser print dialog.
+- Drawing/annotation tool, timeline animation, Shapefile export, live polling, offline tiles / PWA. The one-page situation report (`/report`) is saved as PDF through the browser print dialog.
