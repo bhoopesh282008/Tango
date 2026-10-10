@@ -1,4 +1,6 @@
-import { ArrowDownLeft, ArrowDownRight, ArrowUp, ArrowUpLeft, ArrowUpRight, CornerUpLeft, CornerUpRight, Crosshair, Flag, Navigation, TriangleAlert, X } from 'lucide-react'
+import { ArrowDownLeft, ArrowDownRight, ArrowUp, ArrowUpLeft, ArrowUpRight, CornerUpLeft, CornerUpRight, Crosshair, Flag, Navigation, TriangleAlert, Volume2, VolumeX, X } from 'lucide-react'
+import { useVoiceGuidance } from '../../hooks/useVoiceGuidance'
+import { speak, speechAvailable } from '../../services/speech'
 import { useRouteStore } from '../../store/routeStore'
 import { formatDuration, formatMetres } from '../../utils/formatters'
 import { routeMinutes } from '../../utils/routing'
@@ -25,7 +27,15 @@ export default function NavigationHud({ route, progress }) {
   const gpsMessage = useRouteStore((s) => s.gpsMessage)
   const following = useRouteStore((s) => s.following)
   const travel = useRouteStore((s) => s.travel)
-  const { stopNavigation, setFollowing } = useRouteStore.getState()
+  const voice = useRouteStore((s) => s.voice)
+  const { stopNavigation, setFollowing, setVoice } = useRouteStore.getState()
+  useVoiceGuidance(progress)
+
+  // Turning it on says so, which is also what lets a browser play speech at all (it wants a tap first)
+  const toggleVoice = () => {
+    setVoice(!voice)
+    if (!voice) speak('Voice guidance on.')
+  }
 
   const trouble = gps === 'denied' || gps === 'unavailable'
   const next = progress?.upcoming
@@ -82,6 +92,18 @@ export default function NavigationHud({ route, progress }) {
             <p className="text-sm text-ink-soft">{route ? `${formatMetres(route.distanceM)} planned` : ''}</p>
           )}
         </div>
+        {speechAvailable() && (
+          <button
+            type="button"
+            className="btn w-10 px-0"
+            aria-pressed={voice}
+            aria-label="Voice guidance"
+            title={voice ? 'Voice guidance is on' : 'Voice guidance is off'}
+            onClick={toggleVoice}
+          >
+            {voice ? <Volume2 size={17} aria-hidden /> : <VolumeX size={17} aria-hidden />}
+          </button>
+        )}
         {!following && (
           <button type="button" className="btn" onClick={() => setFollowing(true)}>
             <Crosshair size={16} aria-hidden /> Recentre

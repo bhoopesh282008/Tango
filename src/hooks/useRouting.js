@@ -17,6 +17,7 @@ export function useRouting(data) {
   const to = useRouteStore((s) => s.to)
   const plan = useRouteStore((s) => s.plan)
   const preference = useRouteStore((s) => s.preference)
+  const marginM = useRouteStore((s) => s.marginM)
   const navigating = useRouteStore((s) => s.navigating)
   const fix = useRouteStore((s) => s.fix)
   const { setPlan, setFrom, setFix, setGps } = useRouteStore.getState()
@@ -29,8 +30,8 @@ export function useRouting(data) {
       return
     }
     const graph = roadGraphFor(data.roads, data.floodZones)
-    setPlan(planRoutes(graph, [from.lng, from.lat], [to.lng, to.lat], { destinationLabel: to.label, infrastructure: data.infrastructure }))
-  }, [from, to, data, setPlan])
+    setPlan(planRoutes(graph, [from.lng, from.lat], [to.lng, to.lat], { destinationLabel: to.label, infrastructure: data.infrastructure, marginM }))
+  }, [from, to, data, marginM, setPlan])
 
   // Follow the device while navigating, and keep the screen on
   useEffect(() => {

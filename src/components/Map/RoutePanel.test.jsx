@@ -88,3 +88,34 @@ test('says how much of the route goes against a one-way road', () => {
   render(<RoutePanel data={data} onStart={() => {}} />)
   expect(screen.getByText(/goes against a one-way road/)).toBeInTheDocument()
 })
+
+describe('keeping clear of the flood', () => {
+  test('offers a labelled choice of room to keep, off by default, only while avoiding flooded roads', () => {
+    render(<RoutePanel data={data} onStart={() => {}} />)
+    const select = screen.getByLabelText(/Keep clear of mapped flood zones by/)
+    expect(select).toHaveValue('0')
+    expect(within(select).getAllByRole('option').map((o) => o.textContent)).toEqual(['Not required', '100 m', '250 m', '500 m'])
+    fireEvent.change(select, { target: { value: '250' } })
+    expect(useRouteStore.getState().marginM).toBe(250)
+    fireEvent.click(screen.getByRole('button', { name: 'Fastest' }))
+    expect(screen.queryByLabelText(/Keep clear of mapped flood zones by/)).not.toBeInTheDocument()
+  })
+
+  test('says what the margin achieved: all of it, some of it, or none, and what a blocked one means', () => {
+    const plan = planned()
+    const withPlan = (extra) => act(() => useRouteStore.setState({ plan: { ...plan, ...extra } }))
+    withPlan({ marginM: 250, achievedM: 250 })
+    const { rerender } = render(<RoutePanel data={data} onStart={() => {}} />)
+    expect(screen.getByText(/Every road on this route is at least 250 m from a mapped flood zone/)).toBeInTheDocument()
+    withPlan({ marginM: 250, achievedM: 100 })
+    rerender(<RoutePanel data={data} onStart={() => {}} />)
+    expect(screen.getByText('No road keeps 250 m from the flood zones here. This route keeps at least 100 m, the most any route can.')).toBeInTheDocument()
+    withPlan({ marginM: 250, achievedM: 0 })
+    rerender(<RoutePanel data={data} onStart={() => {}} />)
+    expect(screen.getByText('No road keeps 250 m from the flood zones here. This route only avoids the flagged sections.')).toBeInTheDocument()
+    // no clear road at all
+    act(() => useRouteStore.setState({ plan: { fastest: plan.fastest, avoid: null, avoidBlocked: 'disconnected', marginM: 250, achievedM: null } }))
+    rerender(<RoutePanel data={data} onStart={() => {}} />)
+    expect(screen.getByText('No road route avoids the flagged sections and stays 250 m from flood zones.')).toBeInTheDocument()
+  })
+})

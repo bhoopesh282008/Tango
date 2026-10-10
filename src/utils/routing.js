@@ -157,8 +157,8 @@ export function buildRoadGraph(roads, zones = null) {
           const len = distanceM(coords[previous], coords[i])
           // Going with a one-way road's drawn direction is `forward`; the other way is against it
           const oneway = ways[way].oneway
-          const forward = { to: i, len, way, flooded: false, against: oneway === 'reverse' }
-          const back = { to: previous, len, way, flooded: false, against: oneway === 'forward' }
+          const forward = { to: i, len, way, flooded: false, clearM: Infinity, against: oneway === 'reverse' }
+          const back = { to: previous, len, way, flooded: false, clearM: Infinity, against: oneway === 'forward' }
           forward.twin = back
           back.twin = forward
           adj[previous].push(forward)
@@ -185,17 +185,114 @@ export function buildRoadGraph(roads, zones = null) {
       }
     })
   }
-  return { coords, adj, ways, clear, zonesKnown: polygons.length > 0 }
+  return { coords, adj, ways, clear, zonesKnown: polygons.length > 0, polygons, clearanceReady: false, clearNodeSets: new Map() }
+}
+
+// ---------------------------------------------------------------- keeping clear of the flood
+
+// How far from a mapped flood zone a route may be asked to stay. The map finds only part of what
+// a flood did, so a person may want more room than "not inside a zone".
+export const CLEARANCES_M = [0, 100, 250, 500]
+const REACH_M = Math.max(...CLEARANCES_M)
+// A road piece is measured at points no more than this far apart
+const SAMPLE_M = 100
+const CELL_DEG = 0.01
+
+// Metres from a point to the nearest zone boundary (0 inside a zone), scaled to the point's latitude
+function metresToPolygon(x, y, { rings }, kx) {
+  if (inPolygon(x, y, rings)) return 0
+  let best = Infinity
+  for (const ring of rings) {
+    for (let i = 0, j = ring.length - 1; i < ring.length; j = i++) {
+      const ax = (ring[j][0] - x) * kx
+      const ay = (ring[j][1] - y) * M_PER_DEG_LAT
+      const bx = (ring[i][0] - x) * kx
+      const by = (ring[i][1] - y) * M_PER_DEG_LAT
+      const dx = bx - ax
+      const dy = by - ay
+      const sq = dx * dx + dy * dy
+      const t = sq === 0 ? 0 : Math.max(0, Math.min(1, -(ax * dx + ay * dy) / sq))
+      best = Math.min(best, Math.hypot(ax + t * dx, ay + t * dy))
+    }
+  }
+  return best
+}
+
+// Sets `clearM` on every road piece: a safe lower bound, in metres, on how close it comes to a flood
+// zone. Each piece is measured at points at most SAMPLE_M apart and the figure is cut by half the
+// spacing, so a zone between two points cannot be missed. Worked out once per graph, the first time
+// a clearance is asked for: it is not needed otherwise.
+export function markClearance(graph) {
+  if (graph.clearanceReady) return graph
+  graph.clearanceReady = true
+  if (!graph.zonesKnown) return graph
+  // Zones by the grid cells their reach touches, so a point looks only at the zones near it
+  const cells = new Map()
+  const midLat = graph.coords.length ? graph.coords[Math.floor(graph.coords.length / 2)][1] : 28
+  const kxMid = Math.cos(rad(midLat)) * ((Math.PI / 180) * EARTH_M)
+  const padX = REACH_M / kxMid
+  const padY = REACH_M / M_PER_DEG_LAT
+  graph.polygons.forEach((polygon, index) => {
+    const [x0, y0, x1, y1] = polygon.box
+    for (let cx = Math.floor((x0 - padX) / CELL_DEG); cx <= Math.floor((x1 + padX) / CELL_DEG); cx++) {
+      for (let cy = Math.floor((y0 - padY) / CELL_DEG); cy <= Math.floor((y1 + padY) / CELL_DEG); cy++) {
+        const key = `${cx}:${cy}`
+        if (!cells.has(key)) cells.set(key, [])
+        cells.get(key).push(index)
+      }
+    }
+  })
+  graph.adj.forEach((edges, from) => {
+    for (const edge of edges) {
+      if (edge.to < from) continue // each piece once, from its lower-numbered end
+      const a = graph.coords[from]
+      const b = graph.coords[edge.to]
+      const pieces = Math.max(1, Math.ceil(edge.len / SAMPLE_M))
+      const half = edge.len / pieces / 2
+      let nearest = Infinity
+      for (let k = 0; k <= pieces && nearest > 0; k++) {
+        const x = a[0] + ((b[0] - a[0]) * k) / pieces
+        const y = a[1] + ((b[1] - a[1]) * k) / pieces
+        const near = cells.get(`${Math.floor(x / CELL_DEG)}:${Math.floor(y / CELL_DEG)}`)
+        if (!near) continue
+        const kx = Math.cos(rad(y)) * ((Math.PI / 180) * EARTH_M)
+        for (const index of near) {
+          const polygon = graph.polygons[index]
+          if (x < polygon.box[0] - padX || x > polygon.box[2] + padX || y < polygon.box[1] - padY || y > polygon.box[3] + padY) continue
+          nearest = Math.min(nearest, metresToPolygon(x, y, polygon, kx))
+        }
+      }
+      const clearM = nearest > REACH_M + half ? Infinity : Math.max(0, nearest - half)
+      edge.clearM = clearM
+      edge.twin.clearM = clearM
+    }
+  })
+  return graph
+}
+
+// Vertices where a route that keeps `marginM` clear can start: they touch a section that is neither
+// flagged nor within the margin.
+function clearNodes(graph, marginM) {
+  if (!(marginM > 0)) return graph.clear
+  markClearance(graph)
+  if (!graph.clearNodeSets.has(marginM)) {
+    graph.clearNodeSets.set(
+      marginM,
+      graph.adj.map((edges) => edges.some((e) => !graph.ways[e.way].flagged && e.clearM >= marginM)),
+    )
+  }
+  return graph.clearNodeSets.get(marginM)
 }
 
 // The road vertex nearest to a point, within a limit. When flagged sections are being avoided
 // only vertices that touch an unflagged section count, as in the pipeline's graph without them.
-export function nearestNode(graph, point, { maxM = SNAP_LIMIT_M, avoidFlagged = false } = {}) {
+export function nearestNode(graph, point, { maxM = SNAP_LIMIT_M, avoidFlagged = false, marginM = 0 } = {}) {
   const kx = Math.cos(rad(point[1])) * ((Math.PI / 180) * EARTH_M)
+  const clear = avoidFlagged ? clearNodes(graph, marginM) : null
   let best = -1
   let bestSq = Infinity
   for (let i = 0; i < graph.coords.length; i++) {
-    if (avoidFlagged && !graph.clear[i]) continue
+    if (clear && !clear[i]) continue
     const dx = (graph.coords[i][0] - point[0]) * kx
     const dy = (graph.coords[i][1] - point[1]) * M_PER_DEG_LAT
     const sq = dx * dx + dy * dy
@@ -253,8 +350,9 @@ class Heap {
 // flagged road sections are not used at all. One-way roads can be used either way (the pipeline's
 // cut-off graph is undirected, and a rescue vehicle may have to), and the route reports how much of
 // it goes against one. Returns the edges walked, or null when the two are not connected.
-export function shortestPath(graph, source, target, { avoidFlagged = false } = {}) {
+export function shortestPath(graph, source, target, { avoidFlagged = false, marginM = 0 } = {}) {
   if (source === target) return []
+  if (avoidFlagged && marginM > 0) markClearance(graph)
   const dist = new Map([[source, 0]])
   const via = new Map()
   const heap = new Heap()
@@ -265,6 +363,7 @@ export function shortestPath(graph, source, target, { avoidFlagged = false } = {
     if (cost > (dist.get(here) ?? Infinity)) continue
     for (const edge of graph.adj[here]) {
       if (avoidFlagged && graph.ways[edge.way].flagged) continue
+      if (avoidFlagged && marginM > 0 && edge.clearM < marginM) continue
       const next = cost + edge.len / graph.ways[edge.way].speedKmh
       if (next < (dist.get(edge.to) ?? Infinity)) {
         dist.set(edge.to, next)
@@ -480,15 +579,15 @@ export function describeRoute(graph, edges, { destinationLabel = 'your destinati
 // Plans the route between two points both ways: one that avoids every flagged section (null if
 // none exists) and the fastest, which may cross them. `error` is set only when no road route
 // exists at all.
-export function planRoutes(graph, from, to, { destinationLabel, infrastructure = [] } = {}) {
+export function planRoutes(graph, from, to, { destinationLabel, infrastructure = [], marginM = 0 } = {}) {
   // `reach` limits how far from the point the road may be found: wide for the fastest route; for
   // the avoiding one, about where the fastest found it, so a place whose only roads are flagged
   // is not "reached" by ending at a clear junction a kilometre away.
-  const attempt = (avoidFlagged, reach) => {
-    const start = nearestNode(graph, from, { avoidFlagged, maxM: reach?.start ?? SNAP_LIMIT_M })
-    const end = nearestNode(graph, to, { avoidFlagged, maxM: reach?.end ?? SNAP_LIMIT_M })
+  const attempt = (avoidFlagged, reach, margin = 0) => {
+    const start = nearestNode(graph, from, { avoidFlagged, marginM: margin, maxM: reach?.start ?? SNAP_LIMIT_M })
+    const end = nearestNode(graph, to, { avoidFlagged, marginM: margin, maxM: reach?.end ?? SNAP_LIMIT_M })
     if (!start || !end) return { reason: !start ? 'start' : 'end' }
-    const edges = shortestPath(graph, start.node, end.node, { avoidFlagged })
+    const edges = shortestPath(graph, start.node, end.node, { avoidFlagged, marginM: margin })
     if (!edges) return { reason: 'disconnected' }
     const route = describeRoute(graph, edges, { destinationLabel, startNode: start.node, infrastructure })
     return {
@@ -508,8 +607,27 @@ export function planRoutes(graph, from, to, { destinationLabel, infrastructure =
           : `No mapped road within ${SNAP_LIMIT_M / 1000} km of the ${fastest.reason === 'start' ? 'start' : 'destination'}.`,
     }
   }
-  const avoiding = attempt(true, { start: fastest.route.start.offRoadM + 100, end: fastest.route.end.offRoadM + 100 })
-  return { fastest: fastest.route, avoid: avoiding.route ?? null, avoidBlocked: avoiding.route ? null : avoiding.reason }
+  // The room asked for is a wish, not a rule: in a valley whose one road runs beside the river nothing
+  // may keep 250 m clear and a route that keeps 100 m is far better than none. So the largest room
+  // that works, up to the one asked for, is used, and the plan says which it was.
+  const reach = { start: fastest.route.start.offRoadM + 100, end: fastest.route.end.offRoadM + 100 }
+  const tiers = CLEARANCES_M.filter((m) => m <= marginM).sort((a, b) => b - a)
+  let avoiding = null
+  let achievedM = 0
+  for (const tier of tiers.length ? tiers : [0]) {
+    avoiding = attempt(true, reach, tier)
+    if (avoiding.route) {
+      achievedM = tier
+      break
+    }
+  }
+  return {
+    fastest: fastest.route,
+    avoid: avoiding.route ?? null,
+    avoidBlocked: avoiding.route ? null : avoiding.reason,
+    marginM,
+    achievedM: avoiding.route ? achievedM : null,
+  }
 }
 
 // The graph is built once per set of roads: it takes a tenth of a second, and every reroute needs it.

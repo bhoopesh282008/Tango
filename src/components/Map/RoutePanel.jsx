@@ -5,7 +5,7 @@ import { downloadBlob } from '../../services/exportService'
 import { activeRoute, useRouteStore } from '../../store/routeStore'
 import { useUIStore } from '../../store/uiStore'
 import { formatDuration, formatMetres } from '../../utils/formatters'
-import { routeMinutes, routeToGpx, SPEEDS_KMH } from '../../utils/routing'
+import { CLEARANCES_M, routeMinutes, routeToGpx, SPEEDS_KMH } from '../../utils/routing'
 import { filePrefix } from '../../config/run'
 
 // Every place a route can start or end at, in the groups a responder thinks in.
@@ -82,8 +82,8 @@ function Pair({ label, value }) {
 // Choose where from and where to, and read the route: how far, which sections of it are flooded,
 // and the directions. Following it with GPS starts from here.
 export default function RoutePanel({ data, onStart }) {
-  const { from, to, pick, preference, travel, plan } = useRouteStore()
-  const { setFrom, setTo, swap, setPick, setPreference, setTravel, clearRoute } = useRouteStore.getState()
+  const { from, to, pick, preference, travel, plan, marginM } = useRouteStore()
+  const { setFrom, setTo, swap, setPick, setPreference, setTravel, setMargin, clearRoute } = useRouteStore.getState()
   const addToast = useUIStore((s) => s.addToast)
   const groups = useMemo(() => placeGroups(data.settlements, data.infrastructure), [data])
 
@@ -156,6 +156,24 @@ export default function RoutePanel({ data, onStart }) {
         </button>
       </div>
 
+      {preference === 'avoid' && (
+        <div className="mt-2">
+          <label htmlFor="route-margin" className="flex items-center justify-between gap-2 text-[13px] text-ink-soft">
+            Keep clear of mapped flood zones by
+            <select id="route-margin" className="btn px-2 text-[13px]" value={marginM} onChange={(e) => setMargin(Number(e.target.value))}>
+              {CLEARANCES_M.map((m) => (
+                <option key={m} value={m}>
+                  {m === 0 ? 'Not required' : `${m} m`}
+                </option>
+              ))}
+            </select>
+          </label>
+          <p className="mt-1 text-xs text-ink-muted">
+            The map finds only part of what a flood did, so extra room is safer. The route keeps this much room where a road allows it, and says when none does.
+          </p>
+        </div>
+      )}
+
       {!from || !to ? (
         <p className="mt-3 text-ink-soft">Choose a start and a destination, or tap “Route here” on a settlement or health post on the map.</p>
       ) : plan?.error ? (
@@ -165,11 +183,19 @@ export default function RoutePanel({ data, onStart }) {
       ) : plan && !route ? (
         // Avoiding was asked for and no road avoids the flagged sections
         <div className="mt-3 space-y-2" role="status">
-          <p className="font-semibold">No road route avoids the flagged sections.</p>
+          <p className="font-semibold">
+            {plan.marginM > 0
+              ? `No road route avoids the flagged sections and stays ${plan.marginM} m from flood zones.`
+              : 'No road route avoids the flagged sections.'}
+          </p>
           <p className="text-ink-soft">
             {plan.avoidBlocked === 'disconnected'
-              ? 'Every mapped road between these two places passes a section the analysis flags as lying in a flood zone.'
-              : 'The roads at one end of this route are themselves flagged sections.'}{' '}
+              ? plan.marginM > 0
+                ? 'Every mapped road between these two places is flagged or passes closer to a flood zone than that.'
+                : 'Every mapped road between these two places passes a section the analysis flags as lying in a flood zone.'
+              : plan.marginM > 0
+                ? 'The roads at one end of this route are flagged or lie within that distance of a flood zone. A smaller distance may find a route.'
+                : 'The roads at one end of this route are themselves flagged sections.'}{' '}
             The fastest route is dashed on the map, flooded stretches in red.
           </p>
           <p className="num">
@@ -183,6 +209,15 @@ export default function RoutePanel({ data, onStart }) {
         </div>
       ) : route ? (
         <div className="mt-3">
+          {preference === 'avoid' && plan.marginM > 0 && (
+            <p className="mb-2 text-xs text-ink-soft" role="status">
+              {plan.achievedM >= plan.marginM
+                ? `Every road on this route is at least ${plan.marginM} m from a mapped flood zone, as far as the map shows.`
+                : plan.achievedM > 0
+                  ? `No road keeps ${plan.marginM} m from the flood zones here. This route keeps at least ${plan.achievedM} m, the most any route can.`
+                  : `No road keeps ${plan.marginM} m from the flood zones here. This route only avoids the flagged sections.`}
+            </p>
+          )}
           <dl className="flex gap-6">
             <Pair label="Distance" value={formatMetres(route.distanceM)} />
             <Pair label={`About (${travel === 'foot' ? SPEEDS_KMH.foot : averageKmh} km/h)`} value={formatDuration(minutes)} />
