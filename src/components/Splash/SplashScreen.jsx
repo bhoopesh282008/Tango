@@ -1,19 +1,15 @@
 import { Check } from 'lucide-react'
 import { useEffect, useRef } from 'react'
-import { USE_MOCK } from '../../config/apiConfig'
 import { MAP_DEFAULTS } from '../../config/mapConfig'
 import { useDamageData } from '../../hooks/useDamageData'
 import { useCopilotStore } from '../../store/copilotStore'
-import { imageryDates } from '../../utils/calculations'
 import { APP, EVENT } from '../../utils/constants'
-import { formatDate, formatNumber } from '../../utils/formatters'
 import SpaceScene from './SpaceScene'
 import './splash.css'
 
-// The ledger is the loading indicator: each line comes up when its files have actually
-// arrived (see DATA_PARTS in useDamageData), and shows what was loaded. Counts are of inputs
-// (buildings mapped, settlements listed), never of findings: those belong on the dashboard,
-// next to the note that says they are a lower bound.
+// The ledger is the loading indicator: each line comes up, with a tick, when its files have
+// actually arrived (see DATA_PARTS in useDamageData). It says what was done with the data and
+// shows no figure: the numbers, and the note that they are a lower bound, belong on the dashboard.
 const SOURCES = [
   { id: 'sentinel1', parts: ['satelliteData', 'floodZones'] },
   { id: 'layers', parts: ['buildings', 'roads'] },
@@ -28,14 +24,11 @@ const TEXT = {
     sentinel1: 'Radar images compared',
     layers: 'Buildings and roads mapped',
     settlements: 'Villages checked for road access',
-    buildings: 'buildings',
-    settlementsUnit: 'settlements',
     loading: 'Receiving data…',
     ready: 'System operational. Ready to begin.',
     failed: 'Could not load the flood data.',
     retry: 'Try again',
     start: 'Launch monitoring',
-    demo: 'Demo data',
     done: 'loaded',
     pending: 'loading',
   },
@@ -45,14 +38,11 @@ const TEXT = {
     sentinel1: 'राडार तस्बिरहरूको तुलना',
     layers: 'भवन र सडक नक्साङ्कन',
     settlements: 'बस्तीहरूमा सडक पहुँचको जाँच',
-    buildings: 'भवन',
-    settlementsUnit: 'बस्ती',
     loading: 'तथ्याङ्क प्राप्त हुँदैछ…',
     ready: 'प्रणाली सञ्चालनमा छ। सुरु गर्न तयार।',
     failed: 'बाढीको तथ्याङ्क लोड हुन सकेन।',
     retry: 'फेरि प्रयास गर्नुहोस्',
     start: 'अनुगमन सुरु गर्नुहोस्',
-    demo: 'नमुना तथ्याङ्क',
     done: 'लोड भयो',
     pending: 'लोड हुँदैछ',
   },
@@ -78,7 +68,7 @@ function targetOf(data) {
 }
 
 export default function SplashScreen({ onReady }) {
-  const { data, stats, error, reload } = useDamageData()
+  const { data, error, reload } = useDamageData()
   const language = useCopilotStore((s) => s.language)
   const setLanguage = useCopilotStore((s) => s.setLanguage)
   const startButton = useRef(null)
@@ -86,20 +76,12 @@ export default function SplashScreen({ onReady }) {
   const t = TEXT[language] ?? TEXT.en
   const ready = data.loaded
   const progress = ready ? 1 : Object.keys(data.loadedParts).length / PART_COUNT
-  const { before, after } = imageryDates(data.satelliteData)
 
   // Straight to the button with a keyboard or mouse; not on a phone, where moving focus
   // alone can pull the page around.
   useEffect(() => {
     if (ready && window.matchMedia?.('(pointer: fine)').matches) startButton.current?.focus()
   }, [ready])
-
-  // What each ledger line says once its files are in
-  const detail = {
-    sentinel1: before && after ? `${formatDate(before)} to ${formatDate(after)}` : '',
-    layers: stats ? `${formatNumber(stats.totalStructures)} ${t.buildings}` : '',
-    settlements: stats ? `${formatNumber(stats.settlementRows.length)} ${t.settlementsUnit}` : '',
-  }
 
   return (
     <div
@@ -129,7 +111,6 @@ export default function SplashScreen({ onReady }) {
       <main className="w-full max-w-[26rem]">
         <p className="splash-in text-[13px] font-medium uppercase tracking-[0.16em] text-[#a9aba8]" style={{ '--i': 0 }}>
           {t.subtitle}
-          {USE_MOCK && <span className="text-[#ffcc00]"> · {t.demo}</span>}
         </p>
         <h1
           className="splash-in mt-3 text-[clamp(4.5rem,11vw,9.5rem)] font-extrabold leading-[0.88] tracking-[-0.045em] text-[#f2f1ed]"
@@ -147,12 +128,11 @@ export default function SplashScreen({ onReady }) {
             return (
               <li
                 key={source.id}
-                className={`splash-row grid grid-cols-[1fr_auto_1.1rem] items-center gap-3 border-b border-[var(--line)] py-2.5 text-[13px] ${
+                className={`splash-row grid grid-cols-[1fr_1.1rem] items-center gap-3 border-b border-[var(--line)] py-2.5 text-[13px] ${
                   done ? 'opacity-100' : 'opacity-45'
                 }`}
               >
                 <span className="font-medium">{t[source.id]}</span>
-                <span className="num text-[#a9aba8]">{done ? detail[source.id] : ''}</span>
                 <span className="flex justify-end" aria-hidden>
                   {done && <Check size={14} strokeWidth={2.5} />}
                 </span>

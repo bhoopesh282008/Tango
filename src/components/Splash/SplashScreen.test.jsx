@@ -22,15 +22,28 @@ test('lists what is loading, then offers Launch and hands over', async () => {
   expect(onReady).toHaveBeenCalledTimes(1)
 })
 
-test('each line says what was loaded, in inputs and never in findings', async () => {
+test('the ledger shows no figures: no dates, no counts, nothing like a finding', async () => {
   render(<SplashScreen onReady={() => {}} />)
   await screen.findByRole('button', { name: /launch monitoring/i }, { timeout: 5000 })
-  // the dates of the two scenes, the buildings mapped, the settlements listed
-  expect(screen.getByText(/\d{1,2} \w{3} \d{4} to \d{1,2} \w{3} \d{4}/)).toBeInTheDocument()
-  expect(screen.getByText(/[\d,]+ buildings/)).toBeInTheDocument()
-  expect(screen.getByText(/[\d,]+ settlements/)).toBeInTheDocument()
-  // nothing like a damage count: that needs the lower-bound note beside it
+  expect(screen.queryByText(/\d{1,2} \w{3} \d{4}/)).not.toBeInTheDocument()
+  expect(screen.queryByText(/[\d,]+ (buildings|settlements)/)).not.toBeInTheDocument()
   expect(screen.queryByText(/damaged|cut off|flooded/i)).not.toBeInTheDocument()
+})
+
+test('the demo dataset is not announced on the splash, in either language', async () => {
+  render(<SplashScreen onReady={() => {}} />)
+  await screen.findByRole('button', { name: /launch monitoring/i }, { timeout: 5000 })
+  expect(screen.queryByText(/demo data/i)).not.toBeInTheDocument()
+  fireEvent.click(screen.getByRole('button', { name: 'नेपाली' }))
+  await screen.findByRole('button', { name: 'अनुगमन सुरु गर्नुहोस्' }, { timeout: 5000 })
+  expect(screen.queryByText(/नमुना तथ्याङ्क/)).not.toBeInTheDocument()
+  fireEvent.click(screen.getByRole('button', { name: 'EN' })) // the language is kept between tests
+})
+
+test('every line is ticked once its files have arrived, with the ticks hidden from screen readers and the state spoken instead', async () => {
+  render(<SplashScreen onReady={() => {}} />)
+  await screen.findByRole('button', { name: /launch monitoring/i }, { timeout: 5000 })
+  expect(screen.getAllByText('loaded')).toHaveLength(3)
 })
 
 test('the labels say what was done with the data, not what was found', async () => {
