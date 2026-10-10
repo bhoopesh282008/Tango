@@ -43,8 +43,8 @@ const LIMITS = [
     'Run on two images that are both from before the event, the same rule still marks 9% to 13% of the area it maps for the flood itself. That is ordinary change, such as a river at a different level, wet soil or farming. The comparison with the reference cannot show this, because its reference is a wide corridor that contains the river.',
   ],
   [
-    'One image frame',
-    'Sentinel-1 scenes are cut into frames along the orbit and the system reads one. An area that straddles two frames is mapped only where the chosen frame covers it, and the steadier baseline cannot be built there.',
+    'Frames and swaths',
+    'Sentinel-1 passes are cut into frames along the orbit and the system joins the ones that touch the area. Where a pass still misses part of the area, the dashboard says what share it covers, and the rest is not mapped at all.',
   ],
   [
     'Damage is an overlap, not an inspection',

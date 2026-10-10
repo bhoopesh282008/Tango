@@ -94,3 +94,27 @@ describe('the false-alarm floor', () => {
     expect(screen.getByRole('note')).not.toHaveTextContent('before the flood')
   })
 })
+
+describe('when the radar images do not cover the whole area', () => {
+  test('a partial cover is stated, with what it means', () => {
+    show({ validation: checked.validation, coverage: 0.838 })
+    const note = screen.getByRole('note')
+    expect(note).toHaveTextContent('The radar images cover 84% of this area.')
+    expect(note).toHaveTextContent('The rest was not mapped at all.')
+  })
+
+  test('a full cover, or none recorded, says nothing about it', () => {
+    for (const coverage of [1, 0.97, null]) {
+      const { unmount } = show({ validation: checked.validation, coverage })
+      expect(screen.getByRole('note')).not.toHaveTextContent('radar images cover')
+      unmount()
+    }
+  })
+
+  test('the figure comes from the smaller cover of the two scenes', () => {
+    const run = (before, after) =>
+      computeStats({ ...demo, satelliteData: { ...demo.satellite, before: { ...demo.satellite.before, area_covered: before }, after: { ...demo.satellite.after, area_covered: after } } })
+    expect(run(1, 0.838).radarCoverage).toBe(0.838)
+    expect(run(undefined, undefined).radarCoverage).toBeNull()
+  })
+})

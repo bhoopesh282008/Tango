@@ -44,7 +44,7 @@ export default function Dashboard() {
 
       <div className="flex flex-col lg:h-[calc(100dvh-3.25rem)] lg:min-h-[38rem]">
         <Situation stats={stats}>
-          {stats.zones.length === 0 ? <NoFloodNotice imagery={stats.imagery} /> : <CoverageNotice validation={stats.validation} nullTest={stats.nullTest} />}
+          {stats.zones.length === 0 ? <NoFloodNotice imagery={stats.imagery} /> : <CoverageNotice validation={stats.validation} nullTest={stats.nullTest} coverage={stats.radarCoverage} />}
         </Situation>
 
         <div className="h-[68dvh] min-h-[22rem] lg:h-auto lg:min-h-[22rem] lg:flex-1">

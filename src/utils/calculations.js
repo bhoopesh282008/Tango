@@ -162,6 +162,11 @@ export function imageryDates(satelliteData) {
   }
 }
 
+export function radarCoverage(satelliteData) {
+  const shares = [satelliteData?.before?.area_covered, satelliteData?.after?.area_covered].filter(Number.isFinite)
+  return shares.length ? Math.min(...shares) : null
+}
+
 export function computeStats({ floodZones, buildings, roads, settlements, infrastructure, satelliteData }) {
   const zones = floodZones.features.map((f) => f.properties)
   const areaOf = (type) => sum(zones.filter((z) => z.type === type), (z) => z.area_km2)
@@ -241,6 +246,8 @@ export function computeStats({ floodZones, buildings, roads, settlements, infras
     priority: rankPriority(settlementRows, infrastructure),
 
     imagery: imageryDates(satelliteData),
+    // The share of the area both radar images cover (the smaller of the two); null when not recorded
+    radarCoverage: radarCoverage(satelliteData),
     // What the run calls its area; the demo dataset is the Trishuli case study
     areaName: satelliteData?.area?.name ?? null,
     // How the run compared with a reference map, when that check was made; null otherwise

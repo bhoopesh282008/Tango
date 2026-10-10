@@ -31,8 +31,13 @@ function FalseAlarmFloor({ nullTest }) {
 // With a reference check the notice carries that check's numbers; a run that
 // was never checked says so. The demo dataset is already labelled as a demo.
 // Plain text with a rule at its edge, not a coloured box: it has to be read, not noticed.
-export default function CoverageNotice({ validation, nullTest = null }) {
+// Below this share the satellite pass missed part of the area: nothing there was mapped, and that
+// is not the same as nothing happening there.
+const FULL_COVERAGE = 0.97
+
+export default function CoverageNotice({ validation, nullTest = null, coverage = null }) {
   if (USE_MOCK && !validation && !nullTest) return null
+  const partial = coverage != null && coverage < FULL_COVERAGE
   return (
     <div role="note" className="border-l-2 border-l-warning pl-3 text-[13px] leading-relaxed text-ink-soft">
       <p>
@@ -49,7 +54,15 @@ export default function CoverageNotice({ validation, nullTest = null }) {
         ) : (
           <strong className="font-semibold text-ink">This map has not been checked against a reference.</strong>
         )}
-        <FalseAlarmFloor nullTest={nullTest} /> An area with nothing marked is not known to be safe.{' '}
+        <FalseAlarmFloor nullTest={nullTest} />
+        {partial && (
+          <>
+            {' '}
+            <strong className="font-semibold text-ink">The radar images cover {formatPercent(coverage)} of this area.</strong> The rest
+            was not mapped at all.
+          </>
+        )}{' '}
+        An area with nothing marked is not known to be safe.{' '}
         <Link to="/about" className="underline">
           Method and limitations
         </Link>

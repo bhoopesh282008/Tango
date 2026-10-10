@@ -7,7 +7,8 @@ from datetime import date, datetime, timedelta
 
 from pystac_client import Client
 from pystac_client.exceptions import APIError
-from shapely.geometry import box, shape
+from shapely.geometry import box, mapping, shape
+from shapely.ops import unary_union
 
 STAC_URL = 'https://stac.dataspace.copernicus.eu/v1'
 REVISIT_DAYS = 12
@@ -50,6 +51,31 @@ def _day(item):
 def _track(item):
     p = item.properties
     return (p.get('sat:relative_orbit'), p.get('sat:orbit_state'), p.get('sar:instrument_mode'))
+
+
+class Pass:
+    """One pass of the satellite over the area: every frame of it on the track that touches the area.
+
+    Sentinel-1 scenes are cut into frames along the orbit, so an area near a cut lies in two of them
+    (84% and 16% for the 2021 Chamoli flood). Taken one by one neither covers the area; together they do.
+    A Pass looks like a catalogue item (properties, id, geometry) so the choice of pair, which only
+    reads those, does not care; `items` are the frames to read.
+    """
+
+    def __init__(self, items):
+        self.items = sorted(items, key=lambda i: i.properties['datetime'])
+        self.properties = self.items[0].properties
+        self.id = '+'.join(getattr(i, 'id', '') for i in self.items)
+        shapes = [shape(i.geometry) for i in self.items if getattr(i, 'geometry', None)]
+        self.geometry = mapping(unary_union(shapes)) if shapes else None
+
+
+def group_passes(items):
+    """Catalogue items -> Passes: the frames of one track on one day go together."""
+    groups = {}
+    for item in items:
+        groups.setdefault((_track(item), _day(item)), []).append(item)
+    return [Pass(group) for group in groups.values()]
 
 
 def coverage(item, bbox):
@@ -120,8 +146,8 @@ def choose_history(items, orbit, state, pre_day, count=2, tolerance_days=3, bbox
 def find_history(bbox, orbit, state, pre_day, count=2):
     """Search for the scenes before `pre_day` that choose_history picks. May return fewer than `count`."""
     pre_day = pre_day if isinstance(pre_day, date) else date.fromisoformat(pre_day)
-    items = search(bbox, (pre_day - timedelta(days=REVISIT_DAYS * count + 6)).isoformat(),
-                   (pre_day - timedelta(days=1)).isoformat())
+    items = group_passes(search(bbox, (pre_day - timedelta(days=REVISIT_DAYS * count + 6)).isoformat(),
+                                (pre_day - timedelta(days=1)).isoformat()))
     return choose_history(items, orbit, state, pre_day, count, bbox=bbox), items
 
 
@@ -138,7 +164,7 @@ def find_pair(bbox, event_day, search_days=20):
     """Search around the event and return the best same-track (before, after) pair."""
     event = date.fromisoformat(event_day) if isinstance(event_day, str) else event_day
     window = timedelta(days=search_days)
-    items = search(bbox, (event - window).isoformat(), (event + window).isoformat())
+    items = group_passes(search(bbox, (event - window).isoformat(), (event + window).isoformat()))
     pair = choose_pair(items, event, bbox=bbox)
     if pair is None:
         if not items:

@@ -65,6 +65,44 @@ def write_raster(path, array, crs, transform):
         dst.write(array.astype('float32'), 1)
 
 
+def read_pass(item, pol, crs, xs, ys, height, geometry=None, say=print):
+    """One polarisation of a pass on the run's grid, in dB, with every frame of the pass read and joined.
+
+    A pass is cut into frames along the orbit and an area can straddle two. Each frame is corrected
+    on its own (its own annotation and calibration) and fills the cells it covers; where two overlap
+    the first one wins. `geometry` caches each frame's viewing geometry, shared by the polarisations.
+    Returns (db, geo, ann, masked): the first frame's geometry and annotation, and the share of the
+    cells the frames cover that are lost to layover and shadow.
+    """
+    geometry = {} if geometry is None else geometry
+    frames = getattr(item, 'items', [item])
+    db = first = None
+    masked = weight = 0.0
+    for number, frame in enumerate(frames, 1):
+        if len(frames) > 1:
+            say(f'  Frame {number} of {len(frames)} of this pass', flush=True)
+        scene = download.get_scene(frame, pol)
+        ann = P.parse_annotation(scene.product_xml)
+        if frame.id not in geometry:
+            geometry[frame.id] = P.geocode(ann, crs, xs, ys, height)
+        geo = geometry[frame.id]
+        try:
+            window = P.radar_window(geo, ann)
+        except ValueError:
+            if number == len(frames) and db is None:
+                raise
+            continue                                   # a frame that only touches the area's edge
+        part = P.terrain_correct(download.read_window(scene, window), window, geo,
+                                 P.parse_calibration(scene.calibration_xml), P.parse_noise(scene.noise_xml))
+        db = part if db is None else np.where(np.isfinite(db), db, part)
+        inside = (geo['line'] >= 0) & (geo['line'] < ann.n_lines) & (geo['pixel'] >= 0) & (geo['pixel'] < ann.n_samples)
+        masked += float(((geo['layover'] | geo['shadow']) & inside).sum())
+        weight += float(inside.sum())
+        if first is None:
+            first = (geo, ann)
+    return db, first[0], first[1], (masked / weight if weight else 0.0)
+
+
 def prepare_pair(bbox, event, out, res=10.0, pols=('vv',), search_days=20, say=print):
     """Raw GRD scenes -> co-registered dB rasters. Returns paths and scene metadata.
 
@@ -87,20 +125,14 @@ def prepare_pair(bbox, event, out, res=10.0, pols=('vv',), search_days=20, say=p
     paths, meta = {'slope': out / 'slope.tif'}, {}
     for label, item in (('pre', before), ('post', after)):
         geo = ann = None
+        cache = {}
         for pol in pols:
             key = label if pol == 'vv' else f'{label}_{pol}'
             paths[key] = out / f'{label}_{pol}_db.tif'
             if paths[key].exists() and saved.get(label, {}).get('id') == item.id:
                 continue
             say(f'  Reading the {label} scene ({pol.upper()}) and correcting it for terrain; this is the slow part')
-            scene = download.get_scene(item, pol)
-            ann = P.parse_annotation(scene.product_xml)
-            if geo is None:     # both polarisations share one viewing geometry
-                geo = P.geocode(ann, crs, xs, ys, height)
-            window = P.radar_window(geo, ann)
-            db = P.terrain_correct(download.read_window(scene, window), window, geo,
-                                   P.parse_calibration(scene.calibration_xml),
-                                   P.parse_noise(scene.noise_xml))
+            db, geo, ann, masked = read_pass(item, pol, crs, xs, ys, height, cache, say)
             write_raster(paths[key], db, crs, transform)
         if geo is None:
             meta[label] = saved[label]
@@ -111,8 +143,9 @@ def prepare_pair(bbox, event, out, res=10.0, pols=('vv',), search_days=20, say=p
                 'relative_orbit': item.properties.get('sat:relative_orbit'),
                 'orbit_state': item.properties.get('sat:orbit_state'),
                 'area_covered': round(fetch_s1.coverage(item, bbox), 3),
+                'frames': len(getattr(item, 'items', [item])),
                 'geolocation_check_px': P.check_geolocation(ann),
-                'masked_fraction': round(float((geo['layover'] | geo['shadow']).mean()), 3),
+                'masked_fraction': round(masked, 3),
             }
         meta[label]['sensor'] = f"Sentinel-1 GRD ({'+'.join(p.upper() for p in pols)})"
     record.write_text(json.dumps(meta), encoding='utf-8')
@@ -130,12 +163,7 @@ def read_history(items, rasters, crs, transform, shape, height, say=print):
         path = Path(rasters) / f'history_{day}_vv_db.tif'
         if not path.exists():
             say(f'  Reading the {day} scene and correcting it for terrain', flush=True)
-            scene = download.get_scene(item, 'vv')
-            ann = P.parse_annotation(scene.product_xml)
-            geo = P.geocode(ann, crs_name, xs, ys, height)
-            window = P.radar_window(geo, ann)
-            db = P.terrain_correct(download.read_window(scene, window), window, geo,
-                                   P.parse_calibration(scene.calibration_xml), P.parse_noise(scene.noise_xml))
+            db = read_pass(item, 'vv', crs_name, xs, ys, height, None, say)[0]
             write_raster(path, db, crs, transform)
         out.append((day, read_db(path)[0]))
     return sorted(out)
