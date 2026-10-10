@@ -27,13 +27,13 @@ beforeEach(() => {
 test('a build with run data offers a labelled switch between it and the demo, showing which is on', () => {
   show()
   expect(screen.getByRole('group', { name: 'Data source' })).toBeInTheDocument()
-  expect(screen.getByRole('button', { name: 'Run data' })).toHaveAttribute('aria-pressed', 'true')
+  expect(screen.getByRole('button', { name: 'Real data' })).toHaveAttribute('aria-pressed', 'true')
   expect(screen.getByRole('button', { name: 'Demo' })).toHaveAttribute('aria-pressed', 'false')
 })
 
 test('pressing the other source switches to it, and pressing the one that is on does nothing', () => {
   show()
-  fireEvent.click(screen.getByRole('button', { name: 'Run data' }))
+  fireEvent.click(screen.getByRole('button', { name: 'Real data' }))
   expect(setDataSource).not.toHaveBeenCalled()
   fireEvent.click(screen.getByRole('button', { name: 'Demo' }))
   expect(setDataSource).toHaveBeenCalledWith('demo')

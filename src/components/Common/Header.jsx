@@ -94,7 +94,7 @@ export default function Header() {
           {CAN_SWITCH_SOURCE && (
             <div role="group" aria-label="Data source" className="mr-1 flex">
               {[
-                ['real', 'Run data', 'The satellite analysis of the published areas'],
+                ['real', 'Real data', 'Real satellite analysis of the published areas'],
                 ['demo', 'Demo', 'The bundled demo dataset, with illustrative figures'],
               ].map(([id, label, hint]) => (
                 <button
