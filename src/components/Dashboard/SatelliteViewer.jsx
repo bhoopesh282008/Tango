@@ -351,19 +351,23 @@ export default function SatelliteViewer({ before, after, detail, outlines, compa
       </div>
 
       <div className="flex">
+      {/* One box for every picture, so switching between the whole area and the close-up never
+          changes its size. The picture sits inside it at its own shape, centred, so the slider
+          and the outlines run across the picture and not across the empty margin beside it. */}
+      <div
+        className={
+          placeholder
+            ? 'w-full'
+            : 'flex aspect-square w-full max-w-[560px] items-center justify-center border border-line bg-[var(--surface-2)]'
+        }
+      >
       <div
         className={`compare-stage relative select-none overflow-hidden ${
-          placeholder
-            ? 'h-[220px] w-full bg-black sm:h-[320px] lg:h-[360px]'
-            : shape
-              ? 'no-data'
-              : 'aspect-square w-full max-w-[560px] bg-[var(--surface-2)]'
+          placeholder ? 'h-[220px] w-full bg-black sm:h-[320px] lg:h-[360px]' : shape ? 'no-data' : 'h-full w-full'
         }`}
-        // At most 560 px tall, and no wider than its column: the stage is the picture's shape, so
-        // the slider runs across the picture and not across empty space beside it.
         style={
           !placeholder && shape
-            ? { aspectRatio: shape, width: `min(100%, ${Math.round(560 * shape)}px)` }
+            ? { aspectRatio: shape, ...(shape >= 1 ? { width: '100%' } : { height: '100%' }) }
             : undefined
         }
         onPointerMove={lookAt}
@@ -409,6 +413,7 @@ export default function SatelliteViewer({ before, after, detail, outlines, compa
             {zoom}×
           </span>
         )}
+      </div>
       </div>
       </div>
 
