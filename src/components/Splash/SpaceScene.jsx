@@ -86,7 +86,6 @@ export default function SpaceScene({ target, settled }) {
   const { planet, orbit, satellite } = layout(width, height)
 
   // Things drawn on the Earth are moved directly on every frame: re-rendering React sixty times a second would be waste.
-  const markRef = useRef(null)
   const stripRef = useRef(null)
   const longitude = useRef(EARTH.longitude0)
   const swathWidth = SWATH_KM * (planet.diameter / EARTH_DIAMETER_KM)
@@ -100,10 +99,6 @@ export default function SpaceScene({ target, settled }) {
     const x = planet.left + spot.x * planet.image
     const y = planet.top + spot.y * planet.image
     const opacity = spot.visible ? '1' : '0'
-    if (markRef.current) {
-      markRef.current.style.transform = `translate(${x - 9}px, ${y - 9}px)`
-      markRef.current.style.opacity = opacity
-    }
     if (stripRef.current) {
       stripRef.current.style.left = `${x - (planet.centre.x - planet.radius)}px`
       stripRef.current.style.top = `${y - (planet.centre.y - planet.radius)}px`
@@ -173,14 +168,6 @@ export default function SpaceScene({ target, settled }) {
               WebkitMaskImage: 'linear-gradient(to bottom, transparent, #000 30%, #000 70%, transparent)',
             }}
           />
-        </div>
-      )}
-
-      {target && (
-        <div ref={markRef} className="absolute left-0 top-0 opacity-0 transition-opacity duration-500">
-          <span className="splash-mark relative block h-[18px] w-[18px] rounded-full border-[1.5px] border-[#ff6b6b]">
-            <span className="absolute left-1/2 top-1/2 h-1 w-1 -translate-x-1/2 -translate-y-1/2 rounded-full bg-[#ff6b6b]" />
-          </span>
         </div>
       )}
 

@@ -43,23 +43,6 @@
   animation: splash-rise 1600ms cubic-bezier(0.16, 1, 0.3, 1) both;
 }
 
-/* The mark on the Earth: a ring that draws itself once */
-@keyframes splash-ping {
-  0% {
-    transform: scale(0.4);
-    opacity: 0;
-  }
-  40% {
-    opacity: 1;
-  }
-  100% {
-    transform: none;
-    opacity: 1;
-  }
-}
-.splash-mark {
-  animation: splash-ping 900ms 1100ms cubic-bezier(0.16, 1, 0.3, 1) both;
-}
 
 /* The ledger: a row is dim until its data has arrived, then it comes up to full strength */
 .splash-row {
@@ -96,8 +79,7 @@
 
 @media (prefers-reduced-motion: reduce) {
   .splash-in,
-  .splash-rise,
-  .splash-mark {
+  .splash-rise {
     animation: none;
   }
   .splash-cta__fill {
