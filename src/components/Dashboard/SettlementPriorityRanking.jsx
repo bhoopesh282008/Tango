@@ -65,6 +65,8 @@ function PriorityRow({ settlement: s, buildings, selected, people }) {
     s.healthPostUnreachable && 'Health post unreachable',
     s.bridgeDestroyed && WORDING.bridgeIssue,
     s.water_source_cut && 'Water supply cut',
+    s.town_connected === true && 'Road to a town still open',
+    s.town_connected === false && 'No road to a town either',
   ].filter(Boolean)
   const size = buildings ? `${formatNumber(s.total)} buildings` : s.population != null ? `${formatNumber(s.population)} people` : 'population not recorded'
 

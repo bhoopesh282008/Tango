@@ -97,3 +97,24 @@ def test_the_baseline_option_refuses_what_cannot_work(monkeypatch, capsys, extra
         run.main()
     assert stop.value.code == 2
     assert message in capsys.readouterr().err
+
+
+@pytest.mark.parametrize('extra, steps', [
+    ([], 7 + 1),                                              # the steadier baseline is the default: one more step
+    (['--baseline-images', '1'], 7),                          # the single before image, when asked for
+    (['--pre', 'a.tif', '--post', 'b.tif'], 7),               # given rasters cannot read earlier scenes: no baseline, no error
+    (['--model', 'm.pt'], 7),
+])
+def test_the_three_image_baseline_is_the_default_where_it_can_work(monkeypatch, extra, steps):
+    import run
+
+    class Stop(Exception):
+        pass
+
+    def progress(total):
+        assert total == steps
+        raise Stop
+    monkeypatch.setattr(run, 'Progress', progress)
+    monkeypatch.setattr('sys.argv', ['run.py', '--bbox', '85.1,27.9,85.3,28.1', '--event', '2026-08-26', *extra])
+    with pytest.raises(Stop):
+        run.main()

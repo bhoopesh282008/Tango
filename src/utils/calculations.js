@@ -228,6 +228,13 @@ export function computeStats({ floodZones, buildings, roads, settlements, infras
     // Cut-off settlements whose population the source does not record
     populationUnknown: cutOff.filter((s) => s.population == null).length,
     cutOff,
+    // Of the cut-off settlements (no road to a hospital), whether a town can still be reached by road;
+    // `known` is false when the run mapped no town, so there is nothing to say
+    townAccess: {
+      known: cutOff.some((s) => s.town_connected != null),
+      open: cutOff.filter((s) => s.town_connected === true).length,
+      none: cutOff.filter((s) => s.town_connected === false).length,
+    },
     connected: settlementRows.filter((s) => s.connected === true),
     // No road reached these in the pre-event map, so the flood's effect is unknown
     unknownAccess: settlementRows.filter((s) => s.connected == null),

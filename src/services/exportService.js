@@ -25,7 +25,7 @@ export function settlementsCsv(stats) {
   return toCsv([
     [
       'id', 'name', 'name_np', 'lat', 'lng', 'population', 'road_access', 'structures_total',
-      'structures_damaged', 'priority_rank', 'priority_score', 'priority_band', 'access_difficulty',
+      'structures_damaged', 'priority_rank', 'priority_score', 'priority_band', 'access_difficulty', 'road_to_town',
     ],
     ...stats.settlementRows.map((s) => {
       const p = ranked.get(s.id)
@@ -33,6 +33,7 @@ export function settlementsCsv(stats) {
         s.id, s.name, s.name_np, s.lat, s.lng, s.population,
         s.connected === true ? 'connected' : s.connected === false ? 'cut off' : 'unknown', s.total, s.damaged,
         p?.rank, p?.priority, p?.band, s.access_difficulty,
+        s.town_connected === true ? 'open' : s.town_connected === false ? 'none' : 'unknown',
       ]
     }),
   ])

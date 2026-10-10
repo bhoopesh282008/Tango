@@ -154,13 +154,22 @@ def settlements_from_places(places):
             population = None
         point = p.geometry.representative_point()   # places mapped as areas count too
         rows.append({'id': f's{i + 1:03d}', 'name': name, 'name_np': name_np,
-                     'lat': point.y, 'lng': point.x, 'population': population, 'geometry': point})
-    return gpd.GeoDataFrame(rows, columns=['id', 'name', 'name_np', 'lat', 'lng', 'population', 'geometry'],
+                     'lat': point.y, 'lng': point.x, 'population': population, 'place': text(p.get('place')),
+                     'geometry': point})
+    return gpd.GeoDataFrame(rows, columns=['id', 'name', 'name_np', 'lat', 'lng', 'population', 'place', 'geometry'],
                             geometry='geometry', crs=places.crs)
 
 
-def settlement_records(settlements, status):
-    """Rows for settlements.json. pandas holds a missing value as NaN, which is not valid JSON."""
+def towns_of(settlements):
+    """Settlements OSM maps as a town or a city: where the brief's "nearest town" can be reached."""
+    return settlements[settlements['place'].isin(TOWN_PLACES)]
+
+
+def settlement_records(settlements, status, town_status=None):
+    """Rows for settlements.json. pandas holds a missing value as NaN, which is not valid JSON.
+
+    `connected` is the road to a hospital; `town_connected` the road to a town (None: not known)."""
+    town_status = town_status or {}
     rows = []
     for s in settlements.to_dict('records'):
         population = s['population']
@@ -169,6 +178,7 @@ def settlement_records(settlements, status):
             'lat': s['lat'], 'lng': s['lng'],
             'population': None if population is None or population != population else int(population),
             'connected': status[s['id']],
+            'town_connected': town_status.get(s['id']),
         })
     return rows
 
@@ -236,6 +246,9 @@ def default_area_name(buildings, settlements):
     return f'{name} area' if isinstance(name, str) and name else None
 
 
+TOWN_PLACES = ('town', 'city')
+
+
 def hospitals_or_any(health):
     """Hospitals as destinations; any health facility where none is mapped."""
     health = health.copy()
@@ -259,10 +272,11 @@ def main():
                     help='add Sentinel-2: confirm radar detections and fill radar blind spots where the sky was clear')
     ap.add_argument('--search-days', type=int, default=20,
                     help='how many days either side of the event to look for Sentinel-1 scenes (default 20)')
-    ap.add_argument('--baseline-images', type=int, default=1, metavar='N',
+    ap.add_argument('--baseline-images', type=int, default=None, metavar='N',
                     help='compare with the median of N images on the same track (the "before" scene and N-1 earlier ones, '
                          '12 days apart) and count a change only if it exceeds 3 standard deviations of how much that '
-                         'ground varied between them. Default 1: the single "before" image. Needs N of at least 3.')
+                         f'ground varied between them. Default {C.BASELINE_IMAGES} (1 with --pre/--post or --model, which cannot '
+                         'read earlier scenes); 1 means the single "before" image. Needs 1 or at least 3.')
     ap.add_argument('--context', action='store_true',
                     help='add context beside the map (modelled population from WorldPop, river flow from GloFAS). Off by '
                          'default: the challenge lists the inputs it allows (Sentinel-1/2, Copernicus DEM, pre-event '
@@ -275,6 +289,8 @@ def main():
     args = ap.parse_args()
 
     have_rasters = bool(args.pre and args.post)
+    if args.baseline_images is None:
+        args.baseline_images = 1 if (have_rasters or args.model) else C.BASELINE_IMAGES
     if args.baseline_images == 2 or args.baseline_images < 1:
         ap.error('--baseline-images needs 1 (the single before image) or at least 3: two images give no spread to measure')
     if args.baseline_images > 1 and (have_rasters or args.model):
@@ -396,6 +412,10 @@ def main():
     buildings = damage.assign_settlement(buildings, settlements)
 
     status = cutoff.connectivity(settlements, hospitals_or_any(osm['health']), roads)
+    # The brief asks for the road to the nearest town or hospital: the hospital test is the cut-off, and
+    # whether a town can still be reached is told beside it (a run with no town mapped has no answer).
+    towns = towns_of(settlements)
+    town_status = cutoff.connectivity(settlements, towns, roads) if len(towns) else {}
     # How much of the answer rests on missing map data (pre-event OpenStreetMap only)
     quality = osm_quality.summarise(buildings, roads, status)
 
@@ -413,7 +433,7 @@ def main():
             near = settlements.loc[settlements.to_crs(crs).distance(centre).idxmin(), 'name']
         detail = {'near': near, 'width_km': round(cols * cell / 1000, 1), 'height_km': round(rows * cell / 1000, 1)}
 
-    settlement_rows = settlement_records(settlements, status)
+    settlement_rows = settlement_records(settlements, status, town_status)
     area_name = args.name or default_area_name(buildings, settlements) or f'Area {args.bbox}'
     infra = infrastructure.build(osm['bridges'], osm['health'], roads, zones, settlements)
     context_data = None

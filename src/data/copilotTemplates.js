@@ -133,6 +133,9 @@ const en = {
           moreEn,
         ),
       ),
+      s.townAccess.known
+        ? `Cut off here means no road to a hospital. Of these settlements, ${n(s.townAccess.open)} still have a road to a town and ${n(s.townAccess.none)} have none.`
+        : null,
       s.connected.length
         ? `Still connected by road (${s.connected.length}): ${capped(s.connected.map((c) => c.name), moreEn).join(', ')}.`
         : null,
@@ -239,6 +242,9 @@ const np = {
           moreNp,
         ),
       ),
+      s.townAccess.known
+        ? `यहाँ सम्पर्कविहीन भन्नाले अस्पतालसम्म सडक नभएको जनाउँछ। यी बस्तीमध्ये ${n(s.townAccess.open)} मा अझै सहरसम्म सडक छ र ${n(s.townAccess.none)} मा छैन।`
+        : null,
       s.connected.length
         ? `सडक सम्पर्कमा रहेका (${s.connected.length}): ${capped(s.connected.map((c) => c.name_np ?? c.name), moreNp).join(', ')}।`
         : null,

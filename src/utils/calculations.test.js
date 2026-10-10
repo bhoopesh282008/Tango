@@ -309,3 +309,37 @@ describe('copilot answers', () => {
     expect(buildAnswer('cut-off', 'np', stats).answer).toContain('स्याफ्रुबेसी')
   })
 })
+
+describe('road to a town, beside the road to a hospital', () => {
+  const build = (rows) =>
+    computeStats({
+      floodZones: demo.floodZones,
+      roads: demo.roads,
+      buildings: { type: 'FeatureCollection', features: [] },
+      infrastructure: [],
+      satelliteData: { before: { date: '2026-08-24' }, after: { date: '2026-09-05' } },
+      settlements: rows.map(([id, connected, town_connected]) => ({
+        id, name: id.toUpperCase(), lat: 28, lng: 85, population: 100, connected, town_connected,
+      })),
+    })
+
+  test('counts the cut-off settlements that can and cannot still reach a town', () => {
+    const run = build([['a', false, true], ['b', false, false], ['c', false, null], ['d', true, true]])
+    expect(run.townAccess).toEqual({ known: true, open: 1, none: 1 })   // only cut-off settlements, and unknown is neither
+  })
+
+  test('a run that mapped no town has nothing to say, and says nothing', () => {
+    const run = build([['a', false, undefined], ['b', false, null]])
+    expect(run.townAccess).toEqual({ known: false, open: 0, none: 0 })
+    expect(buildAnswer('cut-off', 'en', run).answer).not.toMatch(/road to a town/)
+    expect(stats.townAccess.known).toBe(false)           // the demo data has none either
+  })
+
+  test('the cut-off answer names the definition and the split, in English and Nepali', () => {
+    const run = build([['a', false, true], ['b', false, true], ['c', false, false]])
+    expect(buildAnswer('cut-off', 'en', run).answer).toContain(
+      'Cut off here means no road to a hospital. Of these settlements, 2 still have a road to a town and 1 have none.',
+    )
+    expect(buildAnswer('cut-off', 'np', run).answer).toContain('यी बस्तीमध्ये 2 मा अझै सहरसम्म सडक छ र 1 मा छैन')
+  })
+})
