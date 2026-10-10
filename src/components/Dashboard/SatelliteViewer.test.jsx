@@ -137,6 +137,21 @@ describe('outlines of the mapped flood', () => {
     expect(screen.queryByRole('button', { name: 'Mapped flood' })).not.toBeInTheDocument()
   })
 
+  test('the picture fills one square box, the outlines are fitted the same way, and a trim is stated', () => {
+    showWith({}, [100, 120])                     // taller than wide, like the whole-area picture
+    fireEvent.click(screen.getByRole('button', { name: 'Whole area' }))
+    fireEvent.load(screen.getByAltText('Satellite image after the flood'))
+    expect(document.querySelector('.compare-stage')).toHaveClass('aspect-square')
+    expect(screen.getByAltText('Satellite image after the flood')).toHaveClass('object-cover')
+    expect(screen.getByTestId('zone-outlines')).toHaveAttribute('preserveAspectRatio', 'xMidYMid slice')
+    expect(screen.getByText(/trimmed at its edges to fill the box/)).toBeInTheDocument()
+  })
+
+  test('a square picture is not trimmed, so nothing is said about it', () => {
+    showWith({}, [80, 80])
+    expect(screen.queryByText(/trimmed at its edges/)).not.toBeInTheDocument()
+  })
+
   test('a run without outlines shows the pictures as before, with no button', () => {
     showWith({ outlines: null }, [80, 80])
     expect(screen.queryByRole('button', { name: 'Mapped flood' })).not.toBeInTheDocument()

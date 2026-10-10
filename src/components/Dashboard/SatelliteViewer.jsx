@@ -87,8 +87,8 @@ function Scene({ url, flooded, zoom, origin, svgRef, onShape }) {
           // A picture that is already in the cache can finish before the load handler is attached.
           ref={(img) => img?.complete && img.naturalWidth && onShape?.(img.naturalWidth / img.naturalHeight)}
           onLoad={(e) => onShape?.(e.currentTarget.naturalWidth / e.currentTarget.naturalHeight)}
-          // The whole area is shown uncropped; no-data pixels are transparent over the stage's hatch.
-          className="h-full w-full object-contain"
+          // The picture fills the box; no-data pixels are transparent over the stage's hatch.
+          className="h-full w-full object-cover"
         />
       ) : (
         <SarScene flooded={flooded} uid={flooded ? 'after' : 'before'} svgRef={svgRef} />
@@ -188,6 +188,8 @@ function ZoneOutlines({ outline, zoom, origin }) {
     >
       <svg
         viewBox={`0 0 ${outline.width} ${outline.height}`}
+        // The picture is drawn to fill the box, so the outlines are fitted the same way
+        preserveAspectRatio="xMidYMid slice"
         className="h-full w-full"
         fill="none"
         strokeLinejoin="round"
@@ -231,6 +233,8 @@ export default function SatelliteViewer({ before, after, detail, outlines, compa
   // grid, so the whole-area outlines fit them too). Only if they are the picture's shape: a file
   // from another run would draw the zones in the wrong place, which is worse than not drawing them.
   const [showOutline, setShowOutline] = useState(true)
+  // The box is square and the picture fills it, so a picture that is not square loses a little at two edges
+  const trimmed = !placeholder && shape && Math.abs(shape - 1) > 0.02
   const candidate = closeUp ? outlines?.detail : outlines?.whole
   const outline =
     candidate && shape && Math.abs(candidate.width / candidate.height / shape - 1) < 0.01 ? candidate : null
@@ -352,24 +356,12 @@ export default function SatelliteViewer({ before, after, detail, outlines, compa
 
       <div className="flex">
       {/* One box for every picture, so switching between the whole area and the close-up never
-          changes its size. The picture sits inside it at its own shape, centred, so the slider
-          and the outlines run across the picture and not across the empty margin beside it. */}
-      <div
-        className={
-          placeholder
-            ? 'w-full'
-            : 'flex aspect-square w-full max-w-[560px] items-center justify-center border border-line bg-[var(--surface-2)]'
-        }
-      >
+          changes its size. The picture fills it (the whole area is a little taller than wide, so
+          its top and bottom edges are trimmed; the caption says so). */}
       <div
         className={`compare-stage relative select-none overflow-hidden ${
-          placeholder ? 'h-[220px] w-full bg-black sm:h-[320px] lg:h-[360px]' : shape ? 'no-data' : 'h-full w-full'
+          placeholder ? 'h-[220px] w-full bg-black sm:h-[320px] lg:h-[360px]' : 'no-data aspect-square w-full max-w-[560px]'
         }`}
-        style={
-          !placeholder && shape
-            ? { aspectRatio: shape, ...(shape >= 1 ? { width: '100%' } : { height: '100%' }) }
-            : undefined
-        }
         onPointerMove={lookAt}
       >
         <div className="absolute inset-0">
@@ -415,7 +407,6 @@ export default function SatelliteViewer({ before, after, detail, outlines, compa
         )}
       </div>
       </div>
-      </div>
 
       {!placeholder && (
         <Legend
@@ -439,6 +430,7 @@ export default function SatelliteViewer({ before, after, detail, outlines, compa
           }. `}
         {outline && showOutline &&
           'The outlines are the flood zones mapped from this pair, drawn in the same place over both pictures. '}
+        {trimmed && 'The picture is trimmed at its edges to fill the box; the download button opens it whole. '}
         Drag to compare.{!placeholder && ' Zoom in, then move the pointer over the picture to look around.'}
         {placeholder && ' Placeholder rendering: no satellite scene is loaded in demo mode.'}
       </p>
