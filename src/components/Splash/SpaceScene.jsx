@@ -1,7 +1,7 @@
 import { lazy, Suspense, useEffect, useLayoutEffect, useRef, useState } from 'react'
 import { asset } from '../../config/assets'
 import { hasWebGL } from '../../utils/webgl'
-import { EARTH, formatCoordinates, locate } from './earth'
+import { EARTH, locate } from './earth'
 import SpinningEarth from './SpinningEarth'
 
 // The satellite needs a 3D library and a model, so it loads after the text is on screen.
@@ -33,9 +33,6 @@ const SPLIT_FROM = 1025
 const EARTH_DIAMETER_KM = 12742
 // Sentinel-1 images a strip about 250 km wide (interferometric wide swath)
 const SWATH_KM = 250
-// Where the name sits: this far from the top of the window, up the line of the radar track
-const LABEL_TOP = 170
-
 // Where everything sits, in pixels, for a window of this size. The planet is larger than the
 // frame and rises from its lower edge, so it reads as a horizon, not as an object in a box.
 function layout(width, height) {
@@ -86,13 +83,9 @@ export default function SpaceScene({ target, settled }) {
   const [live] = useState(hasWebGL)
   const [satelliteShown, setSatelliteShown] = useState(false)
   const [turning, setTurning] = useState(false)
-  const { wide, planet, orbit, satellite } = layout(width, height)
+  const { planet, orbit, satellite } = layout(width, height)
 
   // Things drawn on the Earth are moved directly on every frame: re-rendering React sixty times a second would be waste.
-  const markRef = useRef(null)
-  const leaderRef = useRef(null)
-  const leaderLineRef = useRef(null)
-  const labelRef = useRef(null)
   const stripRef = useRef(null)
   const longitude = useRef(EARTH.longitude0)
   const swathWidth = SWATH_KM * (planet.diameter / EARTH_DIAMETER_KM)
@@ -106,23 +99,6 @@ export default function SpaceScene({ target, settled }) {
     const x = planet.left + spot.x * planet.image
     const y = planet.top + spot.y * planet.image
     const opacity = spot.visible ? '1' : '0'
-    const lean = (trackAngle * Math.PI) / 180
-    // The name goes where the track's line meets the dark sky
-    const length = Math.max(0, (y - LABEL_TOP) / Math.cos(lean))
-
-    if (markRef.current) {
-      markRef.current.style.transform = `translate(${x - 9}px, ${y - 9}px)`
-      markRef.current.style.opacity = opacity
-    }
-    if (leaderRef.current) {
-      leaderRef.current.style.transform = `translate(${x}px, ${y}px)`
-      leaderRef.current.style.opacity = opacity
-      if (leaderLineRef.current) leaderLineRef.current.style.height = `${length}px`
-    }
-    if (labelRef.current) {
-      labelRef.current.style.transform = `translate(${x + length * Math.sin(lean)}px, ${y - length - 8}px)`
-      labelRef.current.style.opacity = opacity
-    }
     if (stripRef.current) {
       stripRef.current.style.left = `${x - (planet.centre.x - planet.radius)}px`
       stripRef.current.style.top = `${y - (planet.centre.y - planet.radius)}px`
@@ -193,41 +169,6 @@ export default function SpaceScene({ target, settled }) {
             }}
           />
         </div>
-      )}
-
-      {target && (
-        <div ref={markRef} className="absolute left-0 top-0 opacity-0 transition-opacity duration-500">
-          <span className="splash-mark relative block h-[18px] w-[18px] rounded-full border-[1.5px] border-[#ff6b6b]">
-            <span className="absolute left-1/2 top-1/2 h-1 w-1 -translate-x-1/2 -translate-y-1/2 rounded-full bg-[#ff6b6b]" />
-          </span>
-        </div>
-      )}
-
-      {target && wide && (
-        <>
-          {/* A hairline from the mark up the line of the track, out over the dark sky to the name:
-              the name sits on the black, where it can be read, not on the bright land. */}
-          <div ref={leaderRef} className="absolute left-0 top-0 opacity-0 transition-opacity duration-500">
-            <div className="splash-in" style={{ '--i': 9 }}>
-              <span
-                ref={leaderLineRef}
-                className="absolute bottom-0 left-0 block w-px origin-bottom bg-[rgba(242,241,237,0.5)]"
-                style={{ transform: `rotate(${trackAngle}deg)` }}
-              />
-            </div>
-          </div>
-          <div ref={labelRef} className="absolute left-0 top-0 opacity-0 transition-opacity duration-500">
-            <div className="splash-in pl-3 text-xs leading-snug text-[#c9cbc8]" style={{ '--i': 9 }}>
-              <p className="text-sm font-semibold text-[#f2f1ed]">{target.name}</p>
-              <p className="num">{formatCoordinates(target.latitude, target.longitude)}</p>
-              {target.track && (
-                <p>
-                  Sentinel-1, track {target.track.orbit}, {target.track.state}
-                </p>
-              )}
-            </div>
-          </div>
-        </>
       )}
 
       {withSatellite && settled && satellite.shown && (
