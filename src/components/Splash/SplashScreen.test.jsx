@@ -33,6 +33,16 @@ test('each line says what was loaded, in inputs and never in findings', async ()
   expect(screen.queryByText(/damaged|cut off|flooded/i)).not.toBeInTheDocument()
 })
 
+test('the labels say what was done with the data, not what was found', async () => {
+  render(<SplashScreen onReady={() => {}} />)
+  await screen.findByRole('button', { name: /launch monitoring/i }, { timeout: 5000 })
+  for (const label of ['Radar images compared', 'Buildings and roads mapped', 'Villages checked for road access']) {
+    expect(screen.getByText(label)).toBeInTheDocument()
+  }
+  // the old labels claimed an assessment and a ranking, which a lower-bound map cannot promise
+  expect(screen.queryByText(/damage assessed|priorities ranked|extent mapped/i)).not.toBeInTheDocument()
+})
+
 test('language toggle switches the splash text and the copilot language', async () => {
   render(<SplashScreen onReady={() => {}} />)
   fireEvent.click(screen.getByRole('button', { name: 'नेपाली' }))
