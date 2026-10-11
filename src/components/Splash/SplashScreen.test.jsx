@@ -106,10 +106,10 @@ describe('with motion allowed', () => {
   })
 })
 
-test('without a keyboard to speak of (a phone) there is no Enter hint', async () => {
+test('the splash carries no keyboard hint: the button is the only invitation', async () => {
   render(<SplashScreen onReady={() => {}} />)
   await screen.findByRole('button', { name: /launch monitoring/i }, { timeout: 5000 })
-  expect(screen.queryByText('Enter')).not.toBeInTheDocument()
+  expect(screen.queryByText(/press|Enter/)).not.toBeInTheDocument()
 })
 
 describe('with a mouse or trackpad, so most likely a keyboard', () => {
@@ -120,11 +120,11 @@ describe('with a mouse or trackpad, so most likely a keyboard', () => {
     delete window.matchMedia
   })
 
-  test('the Enter hint is shown once Launch is on offer, and Enter launches from anywhere on the page', async () => {
+  test('Enter launches from anywhere on the page, and still nothing on the page says so', async () => {
     const onReady = vi.fn()
     render(<SplashScreen onReady={onReady} />)
     await screen.findByRole('button', { name: /launch monitoring/i }, { timeout: 5000 })
-    expect(screen.getByText('Enter')).toBeInTheDocument()
+    expect(screen.queryByText(/press|Enter/)).not.toBeInTheDocument()
 
     fireEvent.keyDown(document.body, { key: 'a' })
     expect(onReady).not.toHaveBeenCalled()

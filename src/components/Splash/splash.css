@@ -4,7 +4,6 @@
   --paper: #f2f1ed;
   --muted: #a9aba8;
   --line: rgba(242, 241, 237, 0.18);
-  --line-strong: rgba(242, 241, 237, 0.38);
   --ink: #0b0c0d;
   --coral: #ff6b6b;
   background: var(--ink);
@@ -157,15 +156,6 @@
 .splash-cta:hover .splash-cta__arrow,
 .splash-cta:focus-visible .splash-cta__arrow {
   transform: translateX(4px);
-}
-.splash-key {
-  padding: 2px 6px;
-  border: 1px solid var(--line-strong);
-  border-radius: 4px;
-  color: var(--paper);
-  font: inherit;
-  font-size: 11px;
-  font-weight: 600;
 }
 
 /* Leaving (Launch pressed): the words go, the view closes in on the place the run is about,

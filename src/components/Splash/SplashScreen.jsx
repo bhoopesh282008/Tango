@@ -35,7 +35,6 @@ const TEXT = {
     start: 'Launch monitoring',
     done: 'loaded',
     pending: 'loading',
-    orPress: ['or press', ''],
   },
   np: {
     subtitle: 'बाढी प्रतिकार्य प्रणाली',
@@ -50,7 +49,6 @@ const TEXT = {
     start: 'अनुगमन सुरु गर्नुहोस्',
     done: 'लोड भयो',
     pending: 'लोड हुँदैछ',
-    orPress: ['वा', 'थिच्नुहोस्'],
   },
 }
 
@@ -83,7 +81,7 @@ export default function SplashScreen({ onReady, onSettled, onLeave }) {
   const setLanguage = useCopilotStore((s) => s.setLanguage)
   const startButton = useRef(null)
   const [leaving, setLeaving] = useState(false)
-  // A keyboard is likely there: the Enter hint is shown, and Enter works from anywhere
+  // A keyboard is likely there: Enter then works from anywhere on the page
   const [keyboard] = useState(() => !!window.matchMedia?.('(pointer: fine)').matches)
   // Where the block of words ends, so the scene can keep the planet and the satellite off it
   const wordsRef = useRef(null)
@@ -225,9 +223,7 @@ export default function SplashScreen({ onReady, onSettled, onLeave }) {
           {error ? t.failed : ready ? t.ready : t.loading}
         </p>
 
-        {/* The Enter hint goes beside the button only on a wide window; on a narrower one that
-            spot is over the planet, where small grey text cannot be read */}
-        <div className="splash-in mt-10 flex flex-col items-start gap-3 lg:flex-row lg:items-center lg:gap-5" style={{ '--i': 4 }}>
+        <div className="splash-in mt-10 flex flex-col items-start gap-3" style={{ '--i': 4 }}>
           {error ? (
             <>
               <p className="w-full text-sm text-[#f2f1ed]">{t.failed}</p>
@@ -255,11 +251,6 @@ export default function SplashScreen({ onReady, onSettled, onLeave }) {
               {ready ? t.start : t.loading}
               {ready && <ArrowRight size={17} strokeWidth={2.25} className="splash-cta__arrow" aria-hidden />}
             </button>
-          )}
-          {ready && !error && keyboard && (
-            <p className="text-[12px] text-[#a9aba8]">
-              {t.orPress[0]} <kbd className="splash-key">Enter</kbd> {t.orPress[1]}
-            </p>
           )}
         </div>
       </main>
