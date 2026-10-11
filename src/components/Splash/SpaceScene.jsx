@@ -118,6 +118,13 @@ export default function SpaceScene({ target, settled, leaving = false, words }) 
   const [live] = useState(hasWebGL)
   const [satelliteShown, setSatelliteShown] = useState(false)
   const [turning, setTurning] = useState(false)
+  // True once the Earth's picture is in: its haze of air must not arrive before the planet does
+  const [pictured, setPictured] = useState(false)
+  const pictureRef = useRef(null)
+  useEffect(() => {
+    // a picture already in the cache may have loaded before React was listening
+    if (pictureRef.current?.complete && pictureRef.current.naturalWidth > 0) setPictured(true)
+  }, [])
   const { planet, orbit, satellite } = layout(width, height, words ?? undefined)
 
   // Things drawn on the Earth are moved directly on every frame: re-rendering React sixty times a second would be waste.
@@ -177,8 +184,12 @@ export default function SpaceScene({ target, settled, leaving = false, words }) 
 
         <div className="splash-rise absolute" style={{ left: planet.left, top: planet.top, width: planet.image, height: planet.image }}>
           {/* Air: a thin blue haze just outside the limb, strongest on the sunlit side */}
-          <div className="splash-air absolute -inset-[4%] rounded-full" />
+          <div
+            className={`splash-air absolute -inset-[4%] rounded-full transition-opacity duration-700 ${pictured ? 'opacity-100' : 'opacity-0'}`}
+          />
           <img
+            ref={pictureRef}
+            onLoad={() => setPictured(true)}
             src={EARTH.src}
             alt=""
             width="1800"
