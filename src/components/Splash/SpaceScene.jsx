@@ -33,9 +33,11 @@ const SPLIT_FROM = 1025
 const EARTH_DIAMETER_KM = 12742
 // Sentinel-1 images a strip about 250 km wide (interferometric wide swath)
 const SWATH_KM = 250
+// Where the satellite's pass ends, in degrees round the planet (-90 is the top of the orbit)
+const PASS_ENDS_AT = -82
 // Where everything sits, in pixels, for a window of this size. The planet is larger than the
 // frame and rises from its lower edge, so it reads as a horizon, not as an object in a box.
-function layout(width, height) {
+export function layout(width, height) {
   const wide = width >= SPLIT_FROM
   const diameter = wide ? Math.min(height * 1.5, width * 0.9) : Math.min(width * 1.25, height * 0.72)
   const radius = diameter / 2
@@ -46,20 +48,40 @@ function layout(width, height) {
   const orbit = radius * 1.2
   const angle = ((wide ? -128 : -118) * Math.PI) / 180
   const size = wide ? Math.min(width, height) * 0.26 : Math.min(width * 0.34, 150)
+  // How high the orbit is above a point x across the window (never off the top of it)
+  const onOrbit = (x) => {
+    const across = Math.min(orbit, Math.abs(x - centre.x))
+    return Math.max(size / 2 + 16, centre.y - Math.sqrt(orbit * orbit - across * across))
+  }
+  const wordmark = Math.min(Math.max(width * 0.11, 72), 152) // the name's font size
   let satelliteX = centre.x + orbit * Math.cos(angle)
   if (wide) {
     // Never over the name: keep it right of where the wordmark ends (it is about 3.3 times its
     // font size wide, and starts at 6vw), and slide along the orbit to do so.
-    const wordmarkEnd = width * 0.06 + 3.3 * Math.min(width * 0.11, 152) + 24
+    const wordmarkEnd = width * 0.06 + 3.3 * wordmark + 24
     satelliteX = Math.max(satelliteX, wordmarkEnd + size / 2)
+  } else {
+    // Below that width the words are a block at the top left, 26rem wide after a 40 px margin
+    // and about this tall. In a short window the orbit crosses it, so the satellite starts
+    // further along, to the right of the block.
+    const textRight = 40 + 416
+    const textBottom = 446 + 0.88 * wordmark
+    if (onOrbit(satelliteX) - size / 2 < textBottom) satelliteX = Math.max(satelliteX, textRight + 16 + size / 2)
   }
-  const across = Math.min(orbit, Math.abs(satelliteX - centre.x))
-  const satelliteY = Math.max(size / 2 + 16, centre.y - Math.sqrt(orbit * orbit - across * across))
+  const satelliteY = onOrbit(satelliteX)
+
+  // It then glides along the orbit, clockwise (away from the text), to just past the top of the
+  // arc, or 10 degrees if it starts beyond that, and never as far as the window's right edge.
+  const degrees = (radians) => (radians * 180) / Math.PI
+  const from = degrees(Math.atan2(satelliteY - centre.y, satelliteX - centre.x))
+  const reach = Math.hypot(satelliteX - centre.x, satelliteY - centre.y)
+  const rightmost = -degrees(Math.acos(Math.min(1, Math.max(-1, (width - 8 - size / 2 - centre.x) / reach))))
+  const sweep = Math.max(0, Math.min(Math.max(PASS_ENDS_AT, from + 10), from + 34, rightmost) - from)
   return {
     wide,
     planet: { centre, radius, diameter, image, left: centre.x - image / 2, top: centre.y - image / 2 },
     orbit,
-    satellite: { x: satelliteX, y: satelliteY, size, shown: wide || width >= 640 },
+    satellite: { x: satelliteX, y: satelliteY, size, sweep, shown: wide || width >= 640 },
   }
 }
 
@@ -76,8 +98,9 @@ function useWindowSize() {
 // `target` is where the run is: { latitude, longitude, name, track } or null. It is marked on
 // the Earth while that place faces us, with the radar strip drawn across it, and both follow the
 // Earth as it turns. `settled` is true once the data has arrived: the satellite waits for that so
-// it never competes with the data for the connection.
-export default function SpaceScene({ target, settled }) {
+// it never competes with the data for the connection. `leaving` is true once Launch has been
+// pressed: the view then closes in on that place while the page hands over to the dashboard.
+export default function SpaceScene({ target, settled, leaving = false }) {
   const { width, height } = useWindowSize()
   const [withSatellite] = useState(satelliteAllowed)
   const [live] = useState(hasWebGL)
@@ -88,6 +111,8 @@ export default function SpaceScene({ target, settled }) {
   // Things drawn on the Earth are moved directly on every frame: re-rendering React sixty times a second would be waste.
   const stripRef = useRef(null)
   const longitude = useRef(EARTH.longitude0)
+  // Where the run's place is in the window right now, or null while it is round the back
+  const spotRef = useRef(null)
   const swathWidth = SWATH_KM * (planet.diameter / EARTH_DIAMETER_KM)
   // Sentinel-1 climbs the sky heading a little west of north when ascending, and descends a little west of south.
   const trackAngle = target?.track?.state === 'descending' ? 12 : -12
@@ -99,6 +124,7 @@ export default function SpaceScene({ target, settled }) {
     const x = planet.left + spot.x * planet.image
     const y = planet.top + spot.y * planet.image
     const opacity = spot.visible ? '1' : '0'
+    spotRef.current = spot.visible ? { x, y } : null
     if (stripRef.current) {
       stripRef.current.style.left = `${x - (planet.centre.x - planet.radius)}px`
       stripRef.current.style.top = `${y - (planet.centre.y - planet.radius)}px`
@@ -108,87 +134,104 @@ export default function SpaceScene({ target, settled }) {
   // After every render (a resize moves the planet) the marks are put where the Earth now is
   useLayoutEffect(() => place(longitude.current))
 
+  // Leaving closes in on the run's place; if that is round the back, on the planet itself
+  const focus = spotRef.current ?? { x: planet.centre.x, y: Math.min(planet.centre.y, height * 0.8) }
+
   return (
     <div className="absolute inset-0 -z-10 overflow-hidden bg-[#0b0c0d]" aria-hidden>
-      {/* The map is dim as shipped; lift it a little so the stars read on a bright screen. */}
       <div
-        className="absolute inset-0 bg-cover bg-center [filter:brightness(1.5)_contrast(1.1)]"
-        style={{ backgroundImage: `url(${STAR_MAP})` }}
-      />
-
-      <svg className="absolute inset-0 h-full w-full" width={width} height={height}>
-        <circle
-          cx={planet.centre.x}
-          cy={planet.centre.y}
-          r={orbit}
-          fill="none"
-          stroke="rgba(242,241,237,0.45)"
-          strokeWidth="1.5"
-          strokeLinecap="round"
-          strokeDasharray="0.1 8"
+        className={`splash-scene absolute inset-0 ${leaving ? 'splash-scene--leaving' : ''}`}
+        style={leaving ? { transformOrigin: `${focus.x}px ${focus.y}px` } : undefined}
+      >
+        {/* The map is dim as shipped; lift it a little so the stars read on a bright screen.
+            It is a little larger than the window, so it can drift without showing an edge. */}
+        <div
+          className="splash-sky absolute -inset-[3%] bg-cover bg-center [filter:brightness(1.5)_contrast(1.1)]"
+          style={{ backgroundImage: `url(${STAR_MAP})` }}
         />
-      </svg>
 
-      <div className="splash-rise absolute" style={{ left: planet.left, top: planet.top, width: planet.image, height: planet.image }}>
-        <img
-          src={EARTH.src}
-          alt=""
-          width="1800"
-          height="1800"
-          decoding="async"
-          // lowercase: React 18 passes it through as the HTML attribute (camelCase is React 19)
-          // eslint-disable-next-line react/no-unknown-property -- the rule expects React 19's spelling
-          fetchpriority="high"
-          className="block h-full w-full select-none"
-          draggable={false}
-        />
-        {live && (
-          <div className={`absolute inset-0 transition-opacity duration-700 ${turning ? 'opacity-100' : 'opacity-0'}`}>
-            <SpinningEarth onTurn={place} onShown={() => setTurning(true)} />
+        <svg className="absolute inset-0 h-full w-full" width={width} height={height}>
+          <circle
+            cx={planet.centre.x}
+            cy={planet.centre.y}
+            r={orbit}
+            fill="none"
+            stroke="rgba(242,241,237,0.45)"
+            strokeWidth="1.5"
+            strokeLinecap="round"
+            strokeDasharray="0.1 8"
+          />
+        </svg>
+
+        <div className="splash-rise absolute" style={{ left: planet.left, top: planet.top, width: planet.image, height: planet.image }}>
+          <img
+            src={EARTH.src}
+            alt=""
+            width="1800"
+            height="1800"
+            decoding="async"
+            // lowercase: React 18 passes it through as the HTML attribute (camelCase is React 19)
+            // eslint-disable-next-line react/no-unknown-property -- the rule expects React 19's spelling
+            fetchpriority="high"
+            className="block h-full w-full select-none"
+            draggable={false}
+          />
+          {live && (
+            <div className={`absolute inset-0 transition-opacity duration-700 ${turning ? 'opacity-100' : 'opacity-0'}`}>
+              <SpinningEarth onTurn={place} onShown={() => setTurning(true)} />
+            </div>
+          )}
+        </div>
+
+        {target?.track && (
+          // The strip is clipped to the planet, so it never spills onto the sky
+          <div
+            className="absolute overflow-hidden rounded-full"
+            style={{ left: planet.centre.x - planet.radius, top: planet.centre.y - planet.radius, width: planet.diameter, height: planet.diameter }}
+          >
+            <div
+              ref={stripRef}
+              className="absolute opacity-0 transition-opacity duration-500"
+              style={{
+                width: swathWidth,
+                height: planet.diameter * 1.4,
+                transform: `translate(-50%, -50%) rotate(${trackAngle}deg)`,
+                background:
+                  'linear-gradient(90deg, rgba(242,241,237,0.55) 0 1px, rgba(242,241,237,0.08) 1px calc(100% - 1px), rgba(242,241,237,0.55) calc(100% - 1px))',
+                maskImage: 'linear-gradient(to bottom, transparent, #000 30%, #000 70%, transparent)',
+                WebkitMaskImage: 'linear-gradient(to bottom, transparent, #000 30%, #000 70%, transparent)',
+              }}
+            />
           </div>
         )}
-      </div>
 
-      {target?.track && (
-        // The strip is clipped to the planet, so it never spills onto the sky
-        <div
-          className="absolute overflow-hidden rounded-full"
-          style={{ left: planet.centre.x - planet.radius, top: planet.centre.y - planet.radius, width: planet.diameter, height: planet.diameter }}
-        >
+        {withSatellite && settled && satellite.shown && (
+          // Turned about the planet's centre, so the satellite follows the orbit line and keeps
+          // the same side to the Earth as it goes
           <div
-            ref={stripRef}
-            className="absolute opacity-0 transition-opacity duration-500"
+            className="splash-pass absolute"
             style={{
-              width: swathWidth,
-              height: planet.diameter * 1.4,
-              transform: `translate(-50%, -50%) rotate(${trackAngle}deg)`,
-              background:
-                'linear-gradient(90deg, rgba(242,241,237,0.55) 0 1px, rgba(242,241,237,0.08) 1px calc(100% - 1px), rgba(242,241,237,0.55) calc(100% - 1px))',
-              maskImage: 'linear-gradient(to bottom, transparent, #000 30%, #000 70%, transparent)',
-              WebkitMaskImage: 'linear-gradient(to bottom, transparent, #000 30%, #000 70%, transparent)',
+              left: satellite.x - satellite.size / 2,
+              top: satellite.y - satellite.size / 2,
+              width: satellite.size,
+              height: satellite.size,
+              transformOrigin: `${planet.centre.x - (satellite.x - satellite.size / 2)}px ${planet.centre.y - (satellite.y - satellite.size / 2)}px`,
+              '--sweep': `${satellite.sweep}deg`,
+            // the same turning speed whatever the length of the pass
+            '--pass': `${Math.max(20, Math.round(satellite.sweep * 1.6))}s`,
             }}
-          />
-        </div>
-      )}
+          >
+            <div className={`h-full w-full transition-opacity duration-1000 ${satelliteShown ? 'opacity-100' : 'opacity-0'}`}>
+              <Suspense fallback={null}>
+                <SatelliteModel onShown={() => setSatelliteShown(true)} />
+              </Suspense>
+            </div>
+          </div>
+        )}
 
-      {withSatellite && settled && satellite.shown && (
-        <div
-          className={`splash-float absolute transition-opacity duration-1000 ${satelliteShown ? 'opacity-100' : 'opacity-0'}`}
-          style={{
-            left: satellite.x - satellite.size / 2,
-            top: satellite.y - satellite.size / 2,
-            width: satellite.size,
-            height: satellite.size,
-          }}
-        >
-          <Suspense fallback={null}>
-            <SatelliteModel onShown={() => setSatelliteShown(true)} />
-          </Suspense>
-        </div>
-      )}
-
-      {/* A little darker on the text side, so the words keep their contrast over the stars */}
-      <div className="absolute inset-0 bg-[linear-gradient(90deg,rgba(11,12,13,0.55),rgba(11,12,13,0)_55%)]" />
+        {/* A little darker on the text side, so the words keep their contrast over the stars */}
+        <div className="absolute inset-0 bg-[linear-gradient(90deg,rgba(11,12,13,0.55),rgba(11,12,13,0)_55%)]" />
+      </div>
     </div>
   )
 }

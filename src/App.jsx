@@ -32,6 +32,9 @@ function RouteBoundary({ children }) {
 
 export default function App() {
   const [entered, setEntered] = useState(hasEntered)
+  // True while the splash plays its way out: the app is drawn under it, so the splash fades
+  // off a dashboard that is already there instead of cutting to an empty page.
+  const [opening, setOpening] = useState(false)
   const darkMode = useUIStore((s) => s.darkMode)
 
   useEffect(() => {
@@ -41,38 +44,43 @@ export default function App() {
     if (background) document.querySelector('meta[name="theme-color"]')?.setAttribute('content', background)
   }, [darkMode])
 
-  if (!entered) {
-    return (
-      <SplashScreen
-        onReady={() => {
-          try {
-            sessionStorage.setItem(ENTERED_KEY, '1')
-          } catch {
-            // Storage unavailable: the splash simply shows again next load.
-          }
-          setEntered(true)
-        }}
-      />
-    )
-  }
-
   return (
-    // "user": with the system's reduce-motion setting on, movement is dropped and only fades remain.
-    <MotionConfig reducedMotion="user">
-      <MainLayout>
-        <RouteBoundary>
-          <Suspense fallback={<Spinner label="Loading" />}>
-            <Routes>
-              <Route path="/" element={<DashboardPage />} />
-              <Route path="/copilot" element={<CopilotPage />} />
-              <Route path="/about" element={<AboutPage />} />
-              <Route path="/report" element={<ReportPage />} />
-              <Route path="/404" element={<ErrorPage />} />
-              <Route path="*" element={<Navigate to="/" replace />} />
-            </Routes>
-          </Suspense>
-        </RouteBoundary>
-      </MainLayout>
-    </MotionConfig>
+    <>
+      {!entered && (
+        <SplashScreen
+          // The dashboard's code is fetched as soon as the data is in, so Launch opens it at once
+          onSettled={() => import('./pages/DashboardPage').catch(() => {})}
+          onLeave={() => setOpening(true)}
+          onReady={() => {
+            try {
+              sessionStorage.setItem(ENTERED_KEY, '1')
+            } catch {
+              // Storage unavailable: the splash simply shows again next load.
+            }
+            setEntered(true)
+          }}
+        />
+      )}
+
+      {(entered || opening) && (
+        // "user": with the system's reduce-motion setting on, movement is dropped and only fades remain.
+        <MotionConfig reducedMotion="user">
+          <MainLayout>
+            <RouteBoundary>
+              <Suspense fallback={<Spinner label="Loading" />}>
+                <Routes>
+                  <Route path="/" element={<DashboardPage />} />
+                  <Route path="/copilot" element={<CopilotPage />} />
+                  <Route path="/about" element={<AboutPage />} />
+                  <Route path="/report" element={<ReportPage />} />
+                  <Route path="/404" element={<ErrorPage />} />
+                  <Route path="*" element={<Navigate to="/" replace />} />
+                </Routes>
+              </Suspense>
+            </RouteBoundary>
+          </MainLayout>
+        </MotionConfig>
+      )}
+    </>
   )
 }

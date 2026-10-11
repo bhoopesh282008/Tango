@@ -1,5 +1,5 @@
-import { Check } from 'lucide-react'
-import { useEffect, useRef } from 'react'
+import { ArrowRight, Check } from 'lucide-react'
+import { useEffect, useRef, useState } from 'react'
 import { MAP_DEFAULTS } from '../../config/mapConfig'
 import { useDamageData } from '../../hooks/useDamageData'
 import { useCopilotStore } from '../../store/copilotStore'
@@ -16,6 +16,10 @@ const SOURCES = [
   { id: 'settlements', parts: ['settlements', 'infrastructure'] },
 ]
 const PART_COUNT = SOURCES.reduce((total, source) => total + source.parts.length, 0)
+
+// How long the way out takes after Launch is pressed: the words go, the view closes in on the
+// Earth, and the whole screen fades off the app. Must cover the transitions under ".splash--leaving".
+export const LEAVE_MS = 720
 
 const TEXT = {
   en: {
@@ -67,11 +71,19 @@ function targetOf(data) {
   }
 }
 
-export default function SplashScreen({ onReady }) {
+// `onReady` is called when the splash is done with and can be taken away. Two more are optional:
+// `onSettled`, once the data has arrived (the app fetches the dashboard's code then, while the
+// reader is still here), and `onLeave`, when the way out begins (the app draws itself underneath,
+// and the splash, now fixed over the window, fades off it).
+export default function SplashScreen({ onReady, onSettled, onLeave }) {
   const { data, error, reload } = useDamageData()
   const language = useCopilotStore((s) => s.language)
   const setLanguage = useCopilotStore((s) => s.setLanguage)
   const startButton = useRef(null)
+  const [leaving, setLeaving] = useState(false)
+  // The latest handlers, so a re-render of the app cannot restart the way out
+  const handlers = useRef({ onReady, onSettled })
+  handlers.current = { onReady, onSettled }
 
   const t = TEXT[language] ?? TEXT.en
   const ready = data.loaded
@@ -83,14 +95,36 @@ export default function SplashScreen({ onReady }) {
     if (ready && window.matchMedia?.('(pointer: fine)').matches) startButton.current?.focus()
   }, [ready])
 
+  useEffect(() => {
+    if (ready) handlers.current.onSettled?.()
+  }, [ready])
+
+  // With motion allowed the splash plays its way out first; otherwise it hands over at once.
+  const launch = () => {
+    if (leaving) return
+    if (window.matchMedia?.('(prefers-reduced-motion: no-preference)').matches) {
+      setLeaving(true)
+      onLeave?.()
+    } else onReady()
+  }
+  useEffect(() => {
+    if (!leaving) return undefined
+    const timer = setTimeout(() => handlers.current.onReady(), LEAVE_MS)
+    return () => clearTimeout(timer)
+  }, [leaving])
+
   return (
     <div
       lang={language === 'np' ? 'ne' : 'en'}
-      className="splash relative isolate flex min-h-[100dvh] flex-col px-6 pb-16 pt-20 sm:px-10 lg:justify-center lg:pl-[6vw] lg:pt-16"
+      // On its way out it is only a picture over the app, which is the page from then on
+      aria-hidden={leaving || undefined}
+      className={`splash relative isolate flex min-h-[100dvh] flex-col px-6 pb-16 pt-20 sm:px-10 lg:justify-center lg:pl-[6vw] lg:pt-16 ${
+        leaving ? 'splash--leaving' : ''
+      }`}
     >
-      <SpaceScene target={targetOf(data)} settled={ready} />
+      <SpaceScene target={targetOf(data)} settled={ready} leaving={leaving} />
 
-      <div role="group" aria-label="Language" className="absolute right-4 top-3 flex sm:right-6">
+      <div role="group" aria-label="Language" className="splash-ui absolute right-4 top-3 flex sm:right-6">
         {LANGUAGES.map((option) => (
           <button
             key={option.id}
@@ -108,7 +142,7 @@ export default function SplashScreen({ onReady }) {
         ))}
       </div>
 
-      <main className="w-full max-w-[26rem]">
+      <main className="splash-ui w-full max-w-[26rem]">
         <p className="splash-in text-[13px] font-medium uppercase tracking-[0.16em] text-[#a9aba8]" style={{ '--i': 0 }}>
           {t.subtitle}
         </p>
@@ -134,7 +168,7 @@ export default function SplashScreen({ onReady }) {
               >
                 <span className="font-medium">{t[source.id]}</span>
                 <span className="flex justify-end" aria-hidden>
-                  {done && <Check size={14} strokeWidth={2.5} />}
+                  {done && <Check size={14} strokeWidth={2.5} className="splash-tick" />}
                 </span>
                 <span className="sr-only">{done ? t.done : t.pending}</span>
               </li>
@@ -164,8 +198,8 @@ export default function SplashScreen({ onReady }) {
               ref={startButton}
               type="button"
               disabled={!ready}
-              onClick={onReady}
-              className={`splash-cta h-12 min-w-[15rem] rounded-[4px] border px-7 text-[15px] font-semibold ${
+              onClick={launch}
+              className={`splash-cta inline-flex h-12 min-w-[15rem] items-center justify-center gap-2.5 rounded-[4px] border px-7 text-[15px] font-semibold ${
                 ready
                   ? 'border-[#f2f1ed] bg-[#f2f1ed] text-[#0b0c0d] hover:bg-white active:scale-[0.98]'
                   : 'border-[var(--line)] text-[#f2f1ed]'
@@ -173,12 +207,16 @@ export default function SplashScreen({ onReady }) {
             >
               {!ready && <span className="splash-cta__fill" style={{ width: `${Math.max(progress, 0.04) * 100}%` }} />}
               {ready ? t.start : t.loading}
+              {ready && <ArrowRight size={17} strokeWidth={2.25} className="splash-cta__arrow" aria-hidden />}
             </button>
           )}
         </div>
       </main>
 
-      <p className="absolute bottom-4 left-6 text-[11px] leading-relaxed text-[#a9aba8] sm:left-10 lg:left-[6vw]" lang="en">
+      <p
+        className="splash-ui absolute bottom-4 left-6 text-[11px] leading-relaxed text-[#a9aba8] sm:left-10 lg:left-[6vw]"
+        lang="en"
+      >
         Earth: NASA Blue Marble. Star map and satellite model: NASA.
       </p>
     </div>

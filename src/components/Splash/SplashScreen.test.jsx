@@ -1,6 +1,9 @@
-import { fireEvent, render, screen } from '@testing-library/react'
+import { fireEvent, render, screen, waitFor } from '@testing-library/react'
 import { useCopilotStore } from '../../store/copilotStore'
-import SplashScreen from './SplashScreen'
+import SplashScreen, { LEAVE_MS } from './SplashScreen'
+
+// The language is kept in a store, so a test that switches it would leak into the next
+beforeEach(() => useCopilotStore.getState().setLanguage('en'))
 
 test('lists what is loading, then offers Launch and hands over', async () => {
   const onReady = vi.fn()
@@ -62,4 +65,43 @@ test('language toggle switches the splash text and the copilot language', async 
 
   expect(await screen.findByRole('button', { name: 'अनुगमन सुरु गर्नुहोस्' }, { timeout: 5000 })).toBeInTheDocument()
   expect(useCopilotStore.getState().language).toBe('np')
+})
+
+test('the app is told when the data has arrived, once', async () => {
+  const onSettled = vi.fn()
+  const { rerender } = render(<SplashScreen onReady={() => {}} onSettled={onSettled} />)
+  await screen.findByRole('button', { name: /launch monitoring/i }, { timeout: 5000 })
+  expect(onSettled).toHaveBeenCalledTimes(1)
+  // a re-render (the app's theme changing, say) does not tell it again
+  rerender(<SplashScreen onReady={() => {}} onSettled={onSettled} />)
+  expect(onSettled).toHaveBeenCalledTimes(1)
+})
+
+describe('with motion allowed', () => {
+  beforeEach(() => {
+    window.matchMedia = (query) => ({ matches: query.includes('no-preference'), addEventListener() {}, removeEventListener() {} })
+  })
+  afterEach(() => {
+    delete window.matchMedia
+  })
+
+  test('Launch plays the way out first, then hands over once, however often it is pressed', async () => {
+    const onReady = vi.fn()
+    const onLeave = vi.fn()
+    const { container } = render(<SplashScreen onReady={onReady} onLeave={onLeave} />)
+    const start = await screen.findByRole('button', { name: /launch monitoring/i }, { timeout: 5000 })
+
+    fireEvent.click(start)
+    fireEvent.click(start)
+    // the app is told at once, so it can draw itself underneath; the splash stays for now
+    expect(onLeave).toHaveBeenCalledTimes(1)
+    expect(onReady).not.toHaveBeenCalled()
+    // and is from then on a picture, not a second page for a screen reader
+    expect(container.querySelector('.splash')).toHaveAttribute('aria-hidden', 'true')
+    expect(container.querySelector('.splash')).toHaveClass('splash--leaving')
+
+    await waitFor(() => expect(onReady).toHaveBeenCalledTimes(1), { timeout: LEAVE_MS + 1000 })
+    await new Promise((resolve) => setTimeout(resolve, 200))
+    expect(onReady).toHaveBeenCalledTimes(1)
+  })
 })
