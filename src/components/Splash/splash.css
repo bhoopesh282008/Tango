@@ -4,6 +4,7 @@
   --paper: #f2f1ed;
   --muted: #a9aba8;
   --line: rgba(242, 241, 237, 0.18);
+  --line-strong: rgba(242, 241, 237, 0.38);
   --ink: #0b0c0d;
   --coral: #ff6b6b;
   background: var(--ink);
@@ -75,10 +76,44 @@
   animation: splash-pass var(--pass, 50s) linear infinite;
 }
 
-/* The ledger: a row is dim until its data has arrived, then it comes up to full strength
-   and its tick is drawn */
-.splash-row {
-  transition: opacity 400ms ease;
+/* The air round the planet. The picture's disc ends at 87% of this element's radius (the
+   element is 8% larger than the picture, whose disc is 94% of it). */
+.splash-air {
+  background: radial-gradient(closest-side, transparent 85.5%, rgba(96, 165, 255, 0.34) 87.5%, rgba(96, 165, 255, 0.1) 93%, transparent 100%);
+  -webkit-mask-image: linear-gradient(125deg, #000 25%, rgba(0, 0, 0, 0.2) 72%);
+  mask-image: linear-gradient(125deg, #000 25%, rgba(0, 0, 0, 0.2) 72%);
+}
+.splash-vignette {
+  background: radial-gradient(120% 95% at 62% 58%, transparent 55%, rgba(0, 0, 0, 0.5) 100%);
+  pointer-events: none;
+}
+
+/* The checklist: a ring turns beside a line while its files are on the way, and becomes a
+   filled tick when they are in */
+@keyframes splash-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+.splash-state {
+  display: grid;
+  place-items: center;
+  flex: none;
+  width: 20px;
+  height: 20px;
+  border: 1.5px solid var(--line);
+  border-top-color: var(--paper);
+  border-radius: 999px;
+  animation: splash-spin 900ms linear infinite;
+  transition:
+    background-color 300ms ease,
+    border-color 300ms ease;
+}
+.splash-state--done {
+  border-color: var(--paper);
+  background: var(--paper);
+  color: var(--ink);
+  animation: none;
 }
 @keyframes splash-tick {
   from {
@@ -123,6 +158,15 @@
 .splash-cta:focus-visible .splash-cta__arrow {
   transform: translateX(4px);
 }
+.splash-key {
+  padding: 2px 6px;
+  border: 1px solid var(--line-strong);
+  border-radius: 4px;
+  color: var(--paper);
+  font: inherit;
+  font-size: 11px;
+  font-weight: 600;
+}
 
 /* Leaving (Launch pressed): the words go, the view closes in on the place the run is about,
    and the whole screen, now fixed over the app that has been drawn underneath, fades off it.
@@ -165,6 +209,7 @@
   .splash-rise,
   .splash-sky,
   .splash-pass,
+  .splash-state,
   .splash-tick {
     animation: none;
   }

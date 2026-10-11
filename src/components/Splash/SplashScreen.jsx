@@ -1,5 +1,5 @@
 import { ArrowRight, Check } from 'lucide-react'
-import { useEffect, useRef, useState } from 'react'
+import { useEffect, useLayoutEffect, useRef, useState } from 'react'
 import { MAP_DEFAULTS } from '../../config/mapConfig'
 import { useDamageData } from '../../hooks/useDamageData'
 import { useCopilotStore } from '../../store/copilotStore'
@@ -35,6 +35,7 @@ const TEXT = {
     start: 'Launch monitoring',
     done: 'loaded',
     pending: 'loading',
+    orPress: ['or press', ''],
   },
   np: {
     subtitle: 'बाढी प्रतिकार्य प्रणाली',
@@ -49,6 +50,7 @@ const TEXT = {
     start: 'अनुगमन सुरु गर्नुहोस्',
     done: 'लोड भयो',
     pending: 'लोड हुँदैछ',
+    orPress: ['वा', 'थिच्नुहोस्'],
   },
 }
 
@@ -81,6 +83,11 @@ export default function SplashScreen({ onReady, onSettled, onLeave }) {
   const setLanguage = useCopilotStore((s) => s.setLanguage)
   const startButton = useRef(null)
   const [leaving, setLeaving] = useState(false)
+  // A keyboard is likely there: the Enter hint is shown, and Enter works from anywhere
+  const [keyboard] = useState(() => !!window.matchMedia?.('(pointer: fine)').matches)
+  // Where the block of words ends, so the scene can keep the planet and the satellite off it
+  const wordsRef = useRef(null)
+  const [words, setWords] = useState(null)
   // The latest handlers, so a re-render of the app cannot restart the way out
   const handlers = useRef({ onReady, onSettled })
   handlers.current = { onReady, onSettled }
@@ -113,6 +120,37 @@ export default function SplashScreen({ onReady, onSettled, onLeave }) {
     return () => clearTimeout(timer)
   }, [leaving])
 
+  // Enter launches from anywhere on the page, not only with the button in focus (a button or
+  // link in focus keeps Enter for itself)
+  const launchRef = useRef(launch)
+  launchRef.current = launch
+  useEffect(() => {
+    if (!ready || !keyboard) return undefined
+    const onKey = (event) => {
+      if (event.key !== 'Enter' || event.repeat || event.target.closest?.('button, a, input, select, textarea')) return
+      launchRef.current()
+    }
+    window.addEventListener('keydown', onKey)
+    return () => window.removeEventListener('keydown', onKey)
+  }, [ready, keyboard])
+
+  useLayoutEffect(() => {
+    const element = wordsRef.current
+    if (!element || typeof ResizeObserver === 'undefined') return undefined
+    const measure = () => {
+      const next = { right: element.offsetLeft + element.offsetWidth, bottom: element.offsetTop + element.offsetHeight }
+      setWords((now) => (now && now.right === next.right && now.bottom === next.bottom ? now : next))
+    }
+    measure()
+    const observer = new ResizeObserver(measure)
+    observer.observe(element)
+    window.addEventListener('resize', measure)
+    return () => {
+      observer.disconnect()
+      window.removeEventListener('resize', measure)
+    }
+  }, [])
+
   return (
     <div
       lang={language === 'np' ? 'ne' : 'en'}
@@ -122,7 +160,7 @@ export default function SplashScreen({ onReady, onSettled, onLeave }) {
         leaving ? 'splash--leaving' : ''
       }`}
     >
-      <SpaceScene target={targetOf(data)} settled={ready} leaving={leaving} />
+      <SpaceScene target={targetOf(data)} settled={ready} leaving={leaving} words={words} />
 
       <div role="group" aria-label="Language" className="splash-ui absolute right-4 top-3 flex sm:right-6">
         {LANGUAGES.map((option) => (
@@ -142,33 +180,39 @@ export default function SplashScreen({ onReady, onSettled, onLeave }) {
         ))}
       </div>
 
-      <main className="splash-ui w-full max-w-[26rem]">
-        <p className="splash-in text-[13px] font-medium uppercase tracking-[0.16em] text-[#a9aba8]" style={{ '--i': 0 }}>
+      <main ref={wordsRef} className="splash-ui w-full max-w-[24rem]">
+        {/* Wide letter-spacing pulls Devanagari apart, so only the English line is spaced out */}
+        <p
+          className={`splash-in flex items-center gap-3 font-semibold uppercase text-[#a9aba8] ${
+            language === 'np' ? 'text-[13px]' : 'text-[12px] tracking-[0.2em]'
+          }`}
+          style={{ '--i': 0 }}
+        >
+          <span className="h-px w-7 flex-none bg-[#a9aba8]/60" aria-hidden />
           {t.subtitle}
         </p>
         <h1
-          className="splash-in mt-3 text-[clamp(4.5rem,11vw,9.5rem)] font-extrabold leading-[0.88] tracking-[-0.045em] text-[#f2f1ed]"
+          className="splash-in mt-4 text-[clamp(4.5rem,11vw,9.5rem)] font-extrabold leading-[0.88] tracking-[-0.045em] text-[#f2f1ed]"
           style={{ '--i': 1 }}
         >
           {APP.name}
         </h1>
-        <p className="splash-in mt-5 max-w-[22rem] text-lg leading-snug text-[#f2f1ed]/85" style={{ '--i': 2 }}>
+        <p className="splash-in mt-6 max-w-[21rem] text-[1.2rem] leading-[1.35] text-[#f2f1ed]/90" style={{ '--i': 2 }}>
           {t.tagline}
         </p>
 
-        <ul className="splash-in mt-9 border-t border-[var(--line)]" style={{ '--i': 3 }}>
+        {/* A checklist: each line has a ring that turns while its files are on the way, and
+            becomes a tick when they are in */}
+        <ul className="splash-in mt-10 grid gap-3" style={{ '--i': 3 }}>
           {SOURCES.map((source) => {
             const done = source.parts.every((part) => data.loadedParts[part])
             return (
-              <li
-                key={source.id}
-                className={`splash-row grid grid-cols-[1fr_1.1rem] items-center gap-3 border-b border-[var(--line)] py-2.5 text-[13px] ${
-                  done ? 'opacity-100' : 'opacity-45'
-                }`}
-              >
-                <span className="font-medium">{t[source.id]}</span>
-                <span className="flex justify-end" aria-hidden>
-                  {done && <Check size={14} strokeWidth={2.5} className="splash-tick" />}
+              <li key={source.id} className="splash-row flex items-center gap-3 text-[14px] leading-tight">
+                <span className={`splash-state ${done ? 'splash-state--done' : ''}`} aria-hidden>
+                  {done && <Check size={11} strokeWidth={3.5} className="splash-tick" />}
+                </span>
+                <span className={`font-medium transition-colors duration-300 ${done ? 'text-[#f2f1ed]' : 'text-[#a9aba8]'}`}>
+                  {t[source.id]}
                 </span>
                 <span className="sr-only">{done ? t.done : t.pending}</span>
               </li>
@@ -181,10 +225,12 @@ export default function SplashScreen({ onReady, onSettled, onLeave }) {
           {error ? t.failed : ready ? t.ready : t.loading}
         </p>
 
-        <div className="splash-in mt-8" style={{ '--i': 4 }}>
+        {/* The Enter hint goes beside the button only on a wide window; on a narrower one that
+            spot is over the planet, where small grey text cannot be read */}
+        <div className="splash-in mt-10 flex flex-col items-start gap-3 lg:flex-row lg:items-center lg:gap-5" style={{ '--i': 4 }}>
           {error ? (
             <>
-              <p className="mb-3 text-sm text-[#f2f1ed]">{t.failed}</p>
+              <p className="w-full text-sm text-[#f2f1ed]">{t.failed}</p>
               <button
                 type="button"
                 onClick={reload}
@@ -199,7 +245,7 @@ export default function SplashScreen({ onReady, onSettled, onLeave }) {
               type="button"
               disabled={!ready}
               onClick={launch}
-              className={`splash-cta inline-flex h-12 min-w-[15rem] items-center justify-center gap-2.5 rounded-[4px] border px-7 text-[15px] font-semibold ${
+              className={`splash-cta inline-flex h-12 w-full min-w-[15rem] sm:w-auto items-center justify-center gap-2.5 rounded-[4px] border px-7 text-[15px] font-semibold ${
                 ready
                   ? 'border-[#f2f1ed] bg-[#f2f1ed] text-[#0b0c0d] hover:bg-white active:scale-[0.98]'
                   : 'border-[var(--line)] text-[#f2f1ed]'
@@ -209,6 +255,11 @@ export default function SplashScreen({ onReady, onSettled, onLeave }) {
               {ready ? t.start : t.loading}
               {ready && <ArrowRight size={17} strokeWidth={2.25} className="splash-cta__arrow" aria-hidden />}
             </button>
+          )}
+          {ready && !error && keyboard && (
+            <p className="text-[12px] text-[#a9aba8]">
+              {t.orPress[0]} <kbd className="splash-key">Enter</kbd> {t.orPress[1]}
+            </p>
           )}
         </div>
       </main>

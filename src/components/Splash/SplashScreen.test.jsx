@@ -105,3 +105,38 @@ describe('with motion allowed', () => {
     expect(onReady).toHaveBeenCalledTimes(1)
   })
 })
+
+test('without a keyboard to speak of (a phone) there is no Enter hint', async () => {
+  render(<SplashScreen onReady={() => {}} />)
+  await screen.findByRole('button', { name: /launch monitoring/i }, { timeout: 5000 })
+  expect(screen.queryByText('Enter')).not.toBeInTheDocument()
+})
+
+describe('with a mouse or trackpad, so most likely a keyboard', () => {
+  beforeEach(() => {
+    window.matchMedia = (query) => ({ matches: query.includes('pointer: fine'), addEventListener() {}, removeEventListener() {} })
+  })
+  afterEach(() => {
+    delete window.matchMedia
+  })
+
+  test('the Enter hint is shown once Launch is on offer, and Enter launches from anywhere on the page', async () => {
+    const onReady = vi.fn()
+    render(<SplashScreen onReady={onReady} />)
+    await screen.findByRole('button', { name: /launch monitoring/i }, { timeout: 5000 })
+    expect(screen.getByText('Enter')).toBeInTheDocument()
+
+    fireEvent.keyDown(document.body, { key: 'a' })
+    expect(onReady).not.toHaveBeenCalled()
+    fireEvent.keyDown(document.body, { key: 'Enter' })
+    expect(onReady).toHaveBeenCalledTimes(1)
+  })
+
+  test('Enter on the language switch changes the language and does not launch', async () => {
+    const onReady = vi.fn()
+    render(<SplashScreen onReady={onReady} />)
+    await screen.findByRole('button', { name: /launch monitoring/i }, { timeout: 5000 })
+    fireEvent.keyDown(screen.getByRole('button', { name: 'नेपाली' }), { key: 'Enter' })
+    expect(onReady).not.toHaveBeenCalled()
+  })
+})

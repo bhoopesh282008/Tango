@@ -1,4 +1,4 @@
-import { layout } from './SpaceScene'
+import { layout, wordsEstimate } from './SpaceScene'
 
 // Where the satellite's centre is at the end of its pass: its start turned about the planet's
 // centre by the sweep, clockwise on the screen (the same turn the stylesheet makes).
@@ -46,11 +46,28 @@ test.each(WINDOWS)('at %i x %i the pass moves to the right, away from the words,
 test.each(WINDOWS.filter(([width]) => width < 1025))(
   'at %i x %i the satellite starts clear of the block of words at the top left',
   (width, height) => {
+    const words = wordsEstimate(width)
     const { satellite } = layout(width, height)
     const half = satellite.size / 2
-    // the block is 26rem wide after a 40 px margin; its height is taken from the same estimate
-    const beside = satellite.x - half >= 40 + 416
-    const below = satellite.y - half >= 446 + 0.88 * Math.min(Math.max(width * 0.11, 72), 152)
-    expect(beside || below).toBe(true)
+    expect(satellite.x - half >= words.right || satellite.y - half >= words.bottom).toBe(true)
   },
 )
+
+test('the satellite keeps off the words as measured on the page, not only as estimated', () => {
+  // a taller block than the estimate (a longer translation, say) in a window where the orbit would cross it
+  const words = { right: 424, bottom: 640 }
+  const { satellite } = layout(768, 1024, words)
+  expect(satellite.x - satellite.size / 2).toBeGreaterThanOrEqual(words.right)
+})
+
+test.each([
+  [390, 800],
+  [360, 640],
+  [414, 896],
+])('on a %i x %i phone the planet rises below the words, not behind the button', (width, height) => {
+  for (const words of [wordsEstimate(width), { right: width - 24, bottom: 560 }]) {
+    const { planet, satellite } = layout(width, height, words)
+    expect(planet.centre.y - planet.radius).toBeGreaterThanOrEqual(words.bottom + 24)
+    expect(satellite.shown).toBe(false)
+  }
+})

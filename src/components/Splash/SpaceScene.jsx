@@ -35,13 +35,27 @@ const EARTH_DIAMETER_KM = 12742
 const SWATH_KM = 250
 // Where the satellite's pass ends, in degrees round the planet (-90 is the top of the orbit)
 const PASS_ENDS_AT = -82
+// Below this width the words span the window and the planet sits under them (the `sm` breakpoint)
+const STACKED_BELOW = 640
+
+// Where the block of words ends below the lg breakpoint, for when it has not been measured yet
+// (the first paint, and tests): it starts at the page margin, is 24rem wide and about this tall.
+export function wordsEstimate(width) {
+  const margin = width >= STACKED_BELOW ? 40 : 24
+  const wordmark = Math.min(Math.max(width * 0.11, 72), 152) // the name's font size
+  return { right: Math.min(width - margin, margin + 384), bottom: 440 + 0.88 * wordmark }
+}
+
 // Where everything sits, in pixels, for a window of this size. The planet is larger than the
 // frame and rises from its lower edge, so it reads as a horizon, not as an object in a box.
-export function layout(width, height) {
+// `words` is where the block of words ends ({ right, bottom }), as measured on the page.
+export function layout(width, height, words = wordsEstimate(width)) {
   const wide = width >= SPLIT_FROM
   const diameter = wide ? Math.min(height * 1.5, width * 0.9) : Math.min(width * 1.25, height * 0.72)
   const radius = diameter / 2
-  const centre = { x: wide ? width * 0.74 : width * 0.62, y: (wide ? height * 0.3 : height * 0.6) + radius }
+  // On a phone the planet's top stays clear of the button, however tall the words turn out
+  const top = wide ? height * 0.3 : width < STACKED_BELOW ? Math.max(height * 0.6, words.bottom + 28) : height * 0.6
+  const centre = { x: wide ? width * 0.74 : width * 0.62, y: top + radius }
   const image = diameter / EARTH.disc
 
   // The satellite rides an orbit just outside the planet, up and to the left of it.
@@ -61,12 +75,9 @@ export function layout(width, height) {
     const wordmarkEnd = width * 0.06 + 3.3 * wordmark + 24
     satelliteX = Math.max(satelliteX, wordmarkEnd + size / 2)
   } else {
-    // Below that width the words are a block at the top left, 26rem wide after a 40 px margin
-    // and about this tall. In a short window the orbit crosses it, so the satellite starts
-    // further along, to the right of the block.
-    const textRight = 40 + 416
-    const textBottom = 446 + 0.88 * wordmark
-    if (onOrbit(satelliteX) - size / 2 < textBottom) satelliteX = Math.max(satelliteX, textRight + 16 + size / 2)
+    // Below that width the words are a block at the top left. In a short window the orbit
+    // crosses it, so the satellite starts further along, to the right of the block.
+    if (onOrbit(satelliteX) - size / 2 < words.bottom + 16) satelliteX = Math.max(satelliteX, words.right + 16 + size / 2)
   }
   const satelliteY = onOrbit(satelliteX)
 
@@ -81,7 +92,7 @@ export function layout(width, height) {
     wide,
     planet: { centre, radius, diameter, image, left: centre.x - image / 2, top: centre.y - image / 2 },
     orbit,
-    satellite: { x: satelliteX, y: satelliteY, size, sweep, shown: wide || width >= 640 },
+    satellite: { x: satelliteX, y: satelliteY, size, sweep, shown: wide || width >= STACKED_BELOW },
   }
 }
 
@@ -100,13 +111,14 @@ function useWindowSize() {
 // Earth as it turns. `settled` is true once the data has arrived: the satellite waits for that so
 // it never competes with the data for the connection. `leaving` is true once Launch has been
 // pressed: the view then closes in on that place while the page hands over to the dashboard.
-export default function SpaceScene({ target, settled, leaving = false }) {
+// `words` is where the block of words ends on the page, once measured (see layout).
+export default function SpaceScene({ target, settled, leaving = false, words }) {
   const { width, height } = useWindowSize()
   const [withSatellite] = useState(satelliteAllowed)
   const [live] = useState(hasWebGL)
   const [satelliteShown, setSatelliteShown] = useState(false)
   const [turning, setTurning] = useState(false)
-  const { planet, orbit, satellite } = layout(width, height)
+  const { planet, orbit, satellite } = layout(width, height, words ?? undefined)
 
   // Things drawn on the Earth are moved directly on every frame: re-rendering React sixty times a second would be waste.
   const stripRef = useRef(null)
@@ -164,6 +176,8 @@ export default function SpaceScene({ target, settled, leaving = false }) {
         </svg>
 
         <div className="splash-rise absolute" style={{ left: planet.left, top: planet.top, width: planet.image, height: planet.image }}>
+          {/* Air: a thin blue haze just outside the limb, strongest on the sunlit side */}
+          <div className="splash-air absolute -inset-[4%] rounded-full" />
           <img
             src={EARTH.src}
             alt=""
@@ -173,7 +187,7 @@ export default function SpaceScene({ target, settled, leaving = false }) {
             // lowercase: React 18 passes it through as the HTML attribute (camelCase is React 19)
             // eslint-disable-next-line react/no-unknown-property -- the rule expects React 19's spelling
             fetchpriority="high"
-            className="block h-full w-full select-none"
+            className="relative block h-full w-full select-none"
             draggable={false}
           />
           {live && (
@@ -197,7 +211,7 @@ export default function SpaceScene({ target, settled, leaving = false }) {
                 height: planet.diameter * 1.4,
                 transform: `translate(-50%, -50%) rotate(${trackAngle}deg)`,
                 background:
-                  'linear-gradient(90deg, rgba(242,241,237,0.55) 0 1px, rgba(242,241,237,0.08) 1px calc(100% - 1px), rgba(242,241,237,0.55) calc(100% - 1px))',
+                  'linear-gradient(90deg, rgba(242,241,237,0.34) 0 1px, rgba(242,241,237,0.07) 1px calc(100% - 1px), rgba(242,241,237,0.34) calc(100% - 1px))',
                 maskImage: 'linear-gradient(to bottom, transparent, #000 30%, #000 70%, transparent)',
                 WebkitMaskImage: 'linear-gradient(to bottom, transparent, #000 30%, #000 70%, transparent)',
               }}
@@ -229,8 +243,10 @@ export default function SpaceScene({ target, settled, leaving = false }) {
           </div>
         )}
 
-        {/* A little darker on the text side, so the words keep their contrast over the stars */}
-        <div className="absolute inset-0 bg-[linear-gradient(90deg,rgba(11,12,13,0.55),rgba(11,12,13,0)_55%)]" />
+        {/* A little darker on the text side, so the words keep their contrast over the stars,
+            and towards the corners, so the eye stays on the planet */}
+        <div className="absolute inset-0 bg-[linear-gradient(90deg,rgba(11,12,13,0.6),rgba(11,12,13,0)_55%)]" />
+        <div className="splash-vignette absolute inset-0" />
       </div>
     </div>
   )
