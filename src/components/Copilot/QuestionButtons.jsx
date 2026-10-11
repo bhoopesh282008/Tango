@@ -21,20 +21,21 @@ export default function QuestionButtons({ language, disabled, compact, onAsk, on
 
   if (compact) {
     return (
-      // One row that scrolls sideways on a narrow screen, so the thread keeps the height
-      <div className="-mx-3 flex gap-1.5 overflow-x-auto px-3 pb-1 sm:-mx-5 sm:px-5 [&>button]:shrink-0 [&>button]:whitespace-nowrap">
+      // One row that scrolls sideways on a phone, so the thread keeps the height; on anything
+      // wider the buttons all show, on a second line if a language needs it
+      <div className="-mx-3 flex gap-1.5 overflow-x-auto px-3 pb-1 sm:mx-0 sm:flex-wrap sm:gap-1 sm:overflow-visible sm:px-0 sm:pb-0 [&>button]:shrink-0 [&>button]:whitespace-nowrap">
         {QUESTIONS.map((question) => (
           <button
             key={question.id}
             type="button"
             aria-disabled={disabled}
             onClick={() => ask(question.id)}
-            className={`btn min-h-[36px] px-2.5 text-[13px] ${paused}`}
+            className={`btn min-h-[36px] px-2.5 text-[13px] sm:px-2 ${paused}`}
           >
             {question[language] ?? question.en}
           </button>
         ))}
-        <button type="button" aria-disabled={disabled} onClick={report} className={`btn min-h-[36px] px-2.5 text-[13px] ${paused}`}>
+        <button type="button" aria-disabled={disabled} onClick={report} className={`btn min-h-[36px] px-2.5 text-[13px] sm:px-2 ${paused}`}>
           <FileText size={14} aria-hidden /> {REPORT_SHORT[language] ?? REPORT_SHORT.en}
         </button>
       </div>
@@ -45,12 +46,13 @@ export default function QuestionButtons({ language, disabled, compact, onAsk, on
     'group flex min-h-[64px] w-full items-center gap-4 py-3 text-left transition-colors hover:bg-[var(--surface-2)] sm:px-3 sm:-mx-3 sm:w-[calc(100%+1.5rem)] ' +
     paused
   return (
-    <ul className="mt-10 divide-y divide-line border-y border-line">
+    <ul className="mt-3 divide-y divide-line border-y border-line">
       {QUESTIONS.map((question) => (
         <li key={question.id}>
           <button type="button" aria-disabled={disabled} onClick={() => ask(question.id)} className={row}>
             <span className="min-w-0 flex-1 text-[17px] font-medium leading-snug">{question[language] ?? question.en}</span>
-            {hints[question.id] && <span className="num shrink-0 text-sm text-ink-soft">{hints[question.id]}</span>}
+            {/* The figure the answer starts from, in ink: it is the content, the arrow is the chrome */}
+            {hints[question.id] && <span className="num shrink-0 text-[15px] font-semibold text-ink">{hints[question.id]}</span>}
             <ArrowUpRight
               size={16}
               className="shrink-0 text-ink-muted transition-transform duration-200 group-hover:-translate-y-0.5 group-hover:translate-x-0.5"

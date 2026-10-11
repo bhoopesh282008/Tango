@@ -2,6 +2,7 @@
 // separated by blank lines, "• " bullets, "1. " numbered rows and, in the full
 // report, a section title over a rule of dashes. This lays that text out as
 // headings and lists. Copy and Download still use the plain text.
+import { isCoverageNote } from '../../data/copilotTemplates'
 
 function parseLine(line) {
   if (/^-{5,}$/.test(line)) return { kind: 'rule' }
@@ -29,10 +30,14 @@ function groupLines(lines) {
   return groups
 }
 
-// "Betrawati: 1,217 mapped buildings" reads better with the name set apart.
-function Lead({ text }) {
+// "Betrawati: 1,217 mapped buildings" reads better with the name set apart. So does a
+// paragraph that opens with what it is about ("Still connected by road (73): ...").
+function Lead({ text, paragraph = false }) {
   const cut = text.indexOf(': ')
-  if (cut < 1 || cut > 40) return text
+  // In a paragraph a colon can also sit inside an ordinary sentence, so there the opening must be
+  // short, or end in a count in brackets
+  const fits = paragraph ? cut <= 30 || (cut <= 64 && text[cut - 1] === ')') : cut <= 40
+  if (cut < 1 || !fits) return text
   return (
     <>
       <span className="font-semibold text-ink">{text.slice(0, cut)}</span>
@@ -77,7 +82,20 @@ function Group({ group }) {
       </ol>
     )
   }
-  return <p>{group.text}</p>
+  // How far to trust the figures: set apart the way the dashboard sets its own note apart,
+  // with a rule at the edge, so it is not read as one more line of the answer.
+  if (isCoverageNote(group.text)) {
+    return (
+      <p role="note" className="border-l-2 border-l-warning py-0.5 pl-3.5 text-sm leading-relaxed text-ink-soft">
+        <Lead text={group.text} />
+      </p>
+    )
+  }
+  return (
+    <p>
+      <Lead text={group.text} paragraph />
+    </p>
+  )
 }
 
 export default function AnswerBody({ text }) {
@@ -85,7 +103,7 @@ export default function AnswerBody({ text }) {
   return (
     <div className="space-y-4 text-[15px] leading-relaxed">
       {blocks.map((groups, i) => (
-        <div key={i} className="space-y-2">
+        <div key={i} className="space-y-2.5">
           {groups.map((group, j) => (
             <Group key={j} group={group} />
           ))}

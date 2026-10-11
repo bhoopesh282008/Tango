@@ -60,19 +60,29 @@ const urgent = (s) => s.priority.filter((p) => p.band === 'critical' || p.band =
 // The counts are what the map found, not everything that happened. With a reference check the
 // note carries its figures; a run that was never checked says so; the demo data says nothing.
 const range = ([low, high]) => (pct(low) === pct(high) ? `${pct(low)}%` : `${pct(low)}% to ${pct(high)}%`)
+// How a note opens, in each language: with a reference check, and without one. The copilot page
+// knows a note by these, to set it apart from the answer it follows.
+const NOTE_LEAD = { en: 'Lower bound', np: 'न्यूनतम अनुमान' }
+const NOT_CHECKED = {
+  en: 'This map has not been checked against a reference.',
+  np: 'यो नक्सा कुनै सन्दर्भ नक्सासँग तुलना गरिएको छैन।',
+}
+export const isCoverageNote = (text) =>
+  [...Object.values(NOTE_LEAD).map((lead) => `${lead}: `), ...Object.values(NOT_CHECKED)].some((opening) => text.startsWith(opening))
+
 export const coverageNote = {
   en: ({ validation: v }) =>
     v
-      ? `Lower bound: checked against ${v.reference} in ${v.areas} ${v.areas === 1 ? 'area' : 'areas'}, this map found ${range(v.recall)} of the affected area. An area with nothing marked is not known to be safe.`
+      ? `${NOTE_LEAD.en}: checked against ${v.reference} in ${v.areas} ${v.areas === 1 ? 'area' : 'areas'}, this map found ${range(v.recall)} of the affected area. An area with nothing marked is not known to be safe.`
       : USE_MOCK
         ? null
-        : 'This map has not been checked against a reference. An area with nothing marked is not known to be safe.',
+        : `${NOT_CHECKED.en} An area with nothing marked is not known to be safe.`,
   np: ({ validation: v }) =>
     v
-      ? `न्यूनतम अनुमान: ${v.reference} सँग ${v.areas} क्षेत्रमा तुलना गर्दा यस नक्साले प्रभावित क्षेत्रको ${range(v.recall).replace(' to ', ' देखि ')} मात्र पत्ता लगाएको छ। नक्सामा चिन्ह नलागेको क्षेत्र सुरक्षित छ भन्ने निश्चित छैन।`
+      ? `${NOTE_LEAD.np}: ${v.reference} सँग ${v.areas} क्षेत्रमा तुलना गर्दा यस नक्साले प्रभावित क्षेत्रको ${range(v.recall).replace(' to ', ' देखि ')} मात्र पत्ता लगाएको छ। नक्सामा चिन्ह नलागेको क्षेत्र सुरक्षित छ भन्ने निश्चित छैन।`
       : USE_MOCK
         ? null
-        : 'यो नक्सा कुनै सन्दर्भ नक्सासँग तुलना गरिएको छैन। नक्सामा चिन्ह नलागेको क्षेत्र सुरक्षित छ भन्ने निश्चित छैन।',
+        : `${NOT_CHECKED.np} नक्सामा चिन्ह नलागेको क्षेत्र सुरक्षित छ भन्ने निश्चित छैन।`,
 }
 
 const en = {

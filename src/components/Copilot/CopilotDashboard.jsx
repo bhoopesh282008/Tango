@@ -106,6 +106,7 @@ export default function CopilotDashboard() {
               Answers are filled in from the figures on the dashboard, using fixed templates, in English or Nepali. This is not a
               language model, so it only answers the topics below.
             </p>
+            <p className="label mt-10">Start with one of these</p>
             <QuestionButtons
               language={copilot.language}
               disabled={busy}
@@ -117,8 +118,9 @@ export default function CopilotDashboard() {
         )}
       </div>
 
-      {/* Stays within reach at the bottom of the screen while the thread scrolls. */}
-      <div className={`no-print sticky bottom-0 z-10 -mx-3 mt-6 flex flex-col gap-3 bg-surface px-3 pb-4 pt-3 sm:-mx-5 sm:px-5 ${started ? 'border-t border-line' : ''}`}>
+      {/* Stays within reach at the bottom of the screen while the thread scrolls. The thread
+          fades out under it (the strip above its top edge) instead of being cut by a line. */}
+      <div className="composer no-print sticky bottom-0 z-10 -mx-3 mt-6 flex flex-col gap-3 bg-surface px-3 pb-3 pt-2 sm:-mx-5 sm:px-5">
         {started && (
           <QuestionButtons
             language={copilot.language}
@@ -147,15 +149,22 @@ export default function CopilotDashboard() {
             autoComplete="off"
             className="min-h-[52px] min-w-0 flex-1 bg-transparent text-[15px] text-ink outline-none placeholder:text-ink-muted"
           />
+          {/* Ink once there is something to send; until then only the outline of the arrow */}
           <button
             type="submit"
-            className="btn btn-primary w-10 px-0"
+            className="btn btn-primary w-10 px-0 disabled:border-transparent disabled:bg-transparent disabled:text-ink-muted disabled:opacity-100"
             disabled={busy || !input.trim()}
             aria-label="Send question"
           >
             <SendHorizontal size={17} aria-hidden />
           </button>
         </form>
+        {/* Said on the opening screen too; kept in sight once that has scrolled away */}
+        {started && (
+          <p className="text-center text-[11px] leading-snug text-ink-muted">
+            Answers are templates filled from this run&rsquo;s figures, not a language model.
+          </p>
+        )}
       </div>
     </div>
   )

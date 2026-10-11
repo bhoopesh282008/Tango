@@ -331,6 +331,18 @@ summary,
   }
 }
 
+/* The copilot's composer sits over the thread: the thread fades out under its top edge */
+.composer::before {
+  content: '';
+  position: absolute;
+  right: 0;
+  bottom: 100%;
+  left: 0;
+  height: 28px;
+  background: linear-gradient(to top, var(--bg-primary), transparent);
+  pointer-events: none;
+}
+
 /* The header is the same surface as the cards, separated by its hairline */
 .app-header {
   background: var(--bg-primary);
