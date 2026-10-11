@@ -488,7 +488,11 @@ summary,
   }
   .report-sheet {
     border: 0;
-    padding: 0;
+    padding: 0 !important;
+    /* The squares, the bar and the table's heading row are backgrounds, which browsers leave
+       out of a print unless told the colours matter */
+    -webkit-print-color-adjust: exact;
+    print-color-adjust: exact;
   }
   body {
     background: #ffffff;

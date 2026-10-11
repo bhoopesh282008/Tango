@@ -7,7 +7,7 @@ import { USE_MOCK } from '../config/apiConfig'
 import { coverageNote } from '../data/copilotTemplates'
 import { useDamageData } from '../hooks/useDamageData'
 import { useCopilotStore } from '../store/copilotStore'
-import { ATTRIBUTION, DAMAGE_TYPES, EVENT, PRIORITY_BANDS } from '../utils/constants'
+import { APP, ATTRIBUTION, DAMAGE_TYPES, EVENT, PRIORITY_BANDS } from '../utils/constants'
 import { formatDate, formatNumber, formatPercent } from '../utils/formatters'
 import { WORDING } from '../utils/wording'
 import ErrorPage from './ErrorPage'
@@ -26,10 +26,14 @@ const TEXT = {
     imagery: 'Satellite images',
     generated: 'Generated',
     demo: 'Demo data: figures are illustrative.',
-    where: 'Where the flood hit',
     flooded: 'Mapped flood area',
+    figCutOff: 'Settlements cut off',
+    of: (total) => `of ${total}`,
+    inThem: (buildings) => (buildings ? 'Buildings in them' : 'People in them'),
+    notRecorded: 'population not recorded',
+    inZone: 'Buildings in a flood zone',
+    ofMapped: (total) => `of ${total} mapped`,
     damaged: 'What was damaged',
-    buildings: (n, total) => `${n} of ${total} mapped buildings in a flood zone`,
     roads: (km) => `${km} km of road ${USE_MOCK ? 'destroyed' : 'in a flood zone'}`,
     bridges: (n) => `${n} ${USE_MOCK ? 'bridges destroyed' : 'bridges in a flood zone'}`,
     health: (n) => `${n} health facilities unreachable by road`,
@@ -38,9 +42,7 @@ const TEXT = {
     cutOffLine: (n, total) => `${n} of ${total} settlements have lost their road connection to a hospital.`,
     unknown: (n) => `${n} more had no mapped road before the event, so their access is unknown.`,
     priority: 'Rescue priority',
-    columns: ['#', 'Settlement', 'Score', 'Band', 'Size', 'Damaged', 'Also'],
-    buildingsUnit: 'buildings',
-    peopleUnit: 'people',
+    columns: (buildings) => ['#', 'Settlement', 'Band', 'Score', buildings ? 'Buildings' : 'People', 'Damaged', 'Also'],
     noData: 'no data',
     more: (n) => `and ${n} more cut-off settlements, in the ranking on the dashboard.`,
     none: 'No settlement is cut off in the mapped data.',
@@ -48,6 +50,7 @@ const TEXT = {
     bridgeIssue: WORDING.en.bridgeIssue,
     waterIssue: 'water supply cut',
     map: 'North up. Red: cut off, numbered by priority. Green: connected. Grey: access unknown.',
+    key: { cutOff: 'Cut off, numbered by priority', connected: 'Connected', unknown: 'Access unknown' },
     limits:
       'From Sentinel-1 radar change between the two images, pre-event OpenStreetMap and the Copernicus DEM. A satellite estimate from an educational prototype: confirm on the ground before acting on it.',
     print: 'Print or save as PDF',
@@ -59,10 +62,14 @@ const TEXT = {
     imagery: 'भू-उपग्रह तस्बिर',
     generated: 'तयार मिति',
     demo: 'नमुना तथ्याङ्क: सङ्ख्याहरू उदाहरणका लागि मात्र हुन्।',
-    where: 'बाढीले कहाँ असर गर्‍यो',
     flooded: 'नक्साङ्कित बाढी क्षेत्र',
+    figCutOff: 'सम्पर्कविहीन बस्ती',
+    of: (total) => `${total} मध्ये`,
+    inThem: (buildings) => (buildings ? 'तिनमा रहेका भवन' : 'तिनमा रहेका मानिस'),
+    notRecorded: 'जनसङ्ख्या अभिलेख छैन',
+    inZone: 'बाढी क्षेत्रभित्रका भवन',
+    ofMapped: (total) => `नक्साङ्कित ${total} मध्ये`,
     damaged: 'के-के क्षति भयो',
-    buildings: (n, total) => `नक्साङ्कित ${total} भवनमध्ये ${n} बाढी क्षेत्रभित्र`,
     roads: (km) => `${km} ${WORDING.np.roadKm}`,
     bridges: (n) => `${WORDING.np.bridges}: ${n}`,
     health: (n) => `सडकबाट पहुँच नभएका स्वास्थ्य संस्था: ${n}`,
@@ -71,9 +78,7 @@ const TEXT = {
     cutOffLine: (n, total) => `${total} बस्तीमध्ये ${n} बस्तीको अस्पतालसम्मको सडक सम्पर्क टुटेको छ।`,
     unknown: (n) => `थप ${n} बस्तीमा घटनाअघि नै नक्साङ्कित सडक थिएन, त्यसैले तिनको पहुँच अज्ञात छ।`,
     priority: 'उद्धार प्राथमिकता',
-    columns: ['क्रम', 'बस्ती', 'अङ्क', 'तह', 'आकार', 'क्षति', 'थप'],
-    buildingsUnit: 'भवन',
-    peopleUnit: 'जना',
+    columns: (buildings) => ['क्रम', 'बस्ती', 'तह', 'अङ्क', buildings ? 'भवन' : 'जना', 'क्षति', 'थप'],
     noData: 'तथ्याङ्क छैन',
     more: (n) => `र थप ${n} सम्पर्कविहीन बस्ती ड्यासबोर्डको सूचीमा छन्।`,
     none: 'नक्साङ्कित तथ्याङ्कमा कुनै बस्ती सम्पर्कविहीन छैन।',
@@ -81,6 +86,7 @@ const TEXT = {
     bridgeIssue: WORDING.np.bridgeIssue,
     waterIssue: 'खानेपानी आपूर्ति अवरुद्ध',
     map: 'माथि उत्तर। रातो: सम्पर्कविहीन, प्राथमिकता क्रमसहित। हरियो: सम्पर्कमा। खैरो: पहुँच अज्ञात।',
+    key: { cutOff: 'सम्पर्कविहीन, प्राथमिकता क्रमसहित', connected: 'सम्पर्कमा', unknown: 'पहुँच अज्ञात' },
     limits:
       'दुई तस्बिरबीचको Sentinel-1 राडार परिवर्तन, घटनाअघिको OpenStreetMap र Copernicus DEM बाट तयार। यो शैक्षिक प्रोटोटाइपको भू-उपग्रह अनुमान हो: कारबाही गर्नुअघि स्थलगत रूपमा पुष्टि गर्नुहोस्।',
     print: 'छाप्नुहोस् वा PDF मा सुरक्षित गर्नुहोस्',
@@ -89,12 +95,38 @@ const TEXT = {
 }
 
 const ZONE_COLOUR = { water: 'var(--water)', debris: 'var(--debris)', uncertain: 'var(--uncertain)' }
+const DOT = { cutOff: '#e03131', connected: '#1f9d55', unknown: '#868e96' }
+// Each band is told apart by its name as well as its colour, as on the dashboard
+const BAND_FILL = { critical: 'bg-critical', high: 'bg-danger', medium: 'bg-warning', low: 'bg-success' }
 const firstPoint = (geometry) =>
   geometry.type === 'Polygon' ? geometry.coordinates[0][0] : geometry.coordinates[0][0][0]
 
+const KM_PER_DEGREE = 111.32
+// The longest round length that is no more than a third of the map's width
+export const scaleLength = (widthKm) => [50, 20, 10, 5, 2, 1, 0.5].find((km) => km <= widthKm / 3) ?? 0.5
+
+// The map's frame: the area's box, widened or heightened about its middle when it is a sliver
+// (settlements strung along one valley), so the picture is never more than about one and a half
+// times as tall as it is wide, or the other way about. The scale stays true: only the frame grows.
+const MAX_ASPECT = 1.45
+export function framed([west, south, east, north], squeeze) {
+  const aspect = (north - south) / ((east - west) * squeeze)
+  if (aspect > MAX_ASPECT) {
+    const grow = ((east - west) * (aspect / MAX_ASPECT - 1)) / 2
+    return [west - grow, south, east + grow, north]
+  }
+  if (aspect < 1 / MAX_ASPECT) {
+    const grow = ((north - south) * (1 / (MAX_ASPECT * aspect) - 1)) / 2
+    return [west, south - grow, east, north + grow]
+  }
+  return [west, south, east, north]
+}
+
 // A small locator: flood zones and settlements placed by longitude and latitude.
-// It is a sketch of where things are, drawn from the data; it has no basemap.
-function Locator({ data, stats, caption }) {
+// It is a sketch of where things are, drawn from the data; it has no basemap. North is up
+// (the arrow), the bar is a true length at the middle latitude, and the key under it uses the
+// same marks as the map.
+function Locator({ data, stats, caption, labels, language }) {
   const points = data.settlements.map((s) => [s.lng, s.lat])
   const box = data.satelliteData.area?.bbox ?? [
     Math.min(...points.map((p) => p[0])),
@@ -102,16 +134,21 @@ function Locator({ data, stats, caption }) {
     Math.max(...points.map((p) => p[0])),
     Math.max(...points.map((p) => p[1])),
   ]
-  const [west, south, east, north] = box
-  if (![west, south, east, north].every(Number.isFinite) || east <= west || north <= south) return null
+  if (!box.every(Number.isFinite) || box[2] <= box[0] || box[3] <= box[1]) return null
 
   // A degree of longitude is shorter than a degree of latitude away from the equator.
-  const squeeze = Math.cos((((south + north) / 2) * Math.PI) / 180)
+  const squeeze = Math.cos((((box[1] + box[3]) / 2) * Math.PI) / 180)
+  const [west, south, east, north] = framed(box, squeeze)
   const width = 300
   const height = Math.round((width * (north - south)) / ((east - west) * squeeze))
   const x = (lng) => ((lng - west) / (east - west)) * width
   const y = (lat) => ((north - lat) / (north - south)) * height
   const ranked = new Map(stats.priority.slice(0, TOP_ROWS).map((p) => [p.id, p.rank]))
+
+  const widthKm = (east - west) * KM_PER_DEGREE * squeeze
+  const barKm = scaleLength(widthKm)
+  const bar = (barKm / widthKm) * width
+  const types = Object.keys(DAMAGE_TYPES).filter((type) => stats.areaByType[type] > 0)
 
   return (
     <figure className="m-0">
@@ -123,11 +160,11 @@ function Locator({ data, stats, caption }) {
         {stats.settlementRows
           .filter((s) => s.connected !== false)
           .map((s) => (
-            <circle key={s.id} cx={x(s.lng)} cy={y(s.lat)} r="1.6" fill={s.connected ? '#1f9d55' : '#868e96'} />
+            <circle key={s.id} cx={x(s.lng)} cy={y(s.lat)} r="1.6" fill={s.connected ? DOT.connected : DOT.unknown} />
           ))}
         {stats.cutOff.map((s) => (
           <g key={s.id}>
-            <circle cx={x(s.lng)} cy={y(s.lat)} r={ranked.has(s.id) ? 5.5 : 2.6} fill="#e03131" stroke="#ffffff" strokeWidth="0.8" />
+            <circle cx={x(s.lng)} cy={y(s.lat)} r={ranked.has(s.id) ? 5.5 : 2.6} fill={DOT.cutOff} stroke="#ffffff" strokeWidth="0.8" />
             {ranked.has(s.id) && (
               <text x={x(s.lng)} y={y(s.lat) + 2.4} textAnchor="middle" fontSize="6.5" fontWeight="700" fill="#ffffff">
                 {ranked.get(s.id)}
@@ -135,9 +172,66 @@ function Locator({ data, stats, caption }) {
             )}
           </g>
         ))}
+        {/* North, and a length to judge distances by, each on a patch of the map's ground so a
+            dot under it cannot be mistaken for part of it */}
+        <g fill="var(--surface-2)" opacity="0.88" aria-hidden>
+          <rect x={width - 20} y="4" width="16" height="25" />
+          <rect x="4" y={height - 23} width={bar + 8} height="19" />
+        </g>
+        <g fill="var(--text-secondary)" stroke="none" aria-hidden>
+          <path d={`M ${width - 12} 8 l 3.5 9 l -3.5 -2 l -3.5 2 z`} />
+          <text x={width - 12} y="25" textAnchor="middle" fontSize="6.5" fontWeight="700">
+            N
+          </text>
+          <rect x="8" y={height - 9} width={bar} height="1.6" />
+          <rect x="8" y={height - 12} width="0.8" height="4.6" />
+          <rect x={8 + bar - 0.8} y={height - 12} width="0.8" height="4.6" />
+          <text x={8 + bar / 2} y={height - 13.5} textAnchor="middle" fontSize="6.5" fontWeight="600">
+            {barKm} km
+          </text>
+        </g>
       </svg>
-      <figcaption className="mt-1 text-[10px] leading-snug text-ink-soft">{caption}</figcaption>
+      <figcaption className="mt-1.5">
+        <ul className="flex flex-wrap gap-x-3 gap-y-0.5 text-[10px] leading-snug text-ink-soft">
+          {[
+            ['cutOff', labels.cutOff],
+            ['connected', labels.connected],
+            ['unknown', labels.unknown],
+          ].map(([id, label]) => (
+            <li key={id} className="flex items-center gap-1">
+              <span className="h-2 w-2 shrink-0 rounded-full" style={{ background: DOT[id] }} aria-hidden />
+              {label}
+            </li>
+          ))}
+          {types.map((type) => (
+            <li key={type} className="flex items-center gap-1">
+              <span className="h-2 w-2 shrink-0" style={{ background: DAMAGE_TYPES[type].color }} aria-hidden />
+              {language === 'np' ? DAMAGE_TYPES[type].label_np : DAMAGE_TYPES[type].label}
+            </li>
+          ))}
+        </ul>
+      </figcaption>
     </figure>
+  )
+}
+
+// One of the four headline figures: what it is, the number, and one line under it
+function Figure({ label, value, unit, note, children }) {
+  return (
+    <div className="min-w-0 py-2.5">
+      <dt className="text-[11px] font-medium leading-tight text-ink-soft">{label}</dt>
+      <dd className="mt-1">
+        <span className="num text-[26px] font-semibold leading-none tracking-tight">{value}</span>
+        {unit && (
+          <>
+            {' '}
+            <span className="text-xs text-ink-soft">{unit}</span>
+          </>
+        )}
+        {children}
+        {note && <span className="mt-1 block text-[11px] leading-snug text-ink-soft">{note}</span>}
+      </dd>
+    </div>
   )
 }
 
@@ -145,7 +239,7 @@ function Section({ title, children }) {
   return (
     <section>
       <h2 className="border-b border-line pb-1 text-[11px] font-semibold uppercase tracking-wide text-ink-soft">{title}</h2>
-      <div className="mt-1.5 space-y-1 text-[13px] leading-snug">{children}</div>
+      <div className="mt-2 space-y-1 text-[13px] leading-snug">{children}</div>
     </section>
   )
 }
@@ -177,6 +271,7 @@ export default function ReportPage() {
   const n = formatNumber
   const top = stats.priority.slice(0, TOP_ROWS)
   const buildings = stats.sizeBasis === 'buildings'
+  const types = Object.keys(DAMAGE_TYPES).filter((type) => stats.areaByType[type] > 0)
   const note = (coverageNote[language] ?? coverageNote.en)(stats)
   const bandLabel = (id) => {
     const band = PRIORITY_BANDS.find((b) => b.id === id)
@@ -202,11 +297,13 @@ export default function ReportPage() {
         </div>
       </div>
 
-      <article lang={np ? 'ne' : 'en'} className="report-sheet card flex flex-col gap-3 p-6 text-ink">
-        <header className="flex flex-wrap items-end justify-between gap-x-6 gap-y-1 border-b-2 border-ink pb-2">
+      <article lang={np ? 'ne' : 'en'} className="report-sheet card flex flex-col gap-3.5 p-6 text-ink sm:p-8">
+        <header className="flex flex-wrap items-end justify-between gap-x-6 gap-y-2 border-b-2 border-ink pb-2.5">
           <div>
-            <p className="text-[11px] font-semibold uppercase tracking-wide text-ink-soft">{t.title}</p>
-            <h1 className="text-xl font-semibold leading-tight tracking-tight">{stats.areaName ?? EVENT.location}</h1>
+            <p className="text-[11px] font-semibold uppercase tracking-wide text-ink-soft">
+              {APP.name} · {t.title}
+            </p>
+            <h1 className="mt-0.5 text-2xl font-semibold leading-tight tracking-tight">{stats.areaName ?? EVENT.location}</h1>
           </div>
           <dl className="grid grid-cols-[auto_auto] gap-x-3 text-[11px] leading-snug text-ink-soft">
             {data.satelliteData.event && (
@@ -228,29 +325,45 @@ export default function ReportPage() {
           </dl>
         </header>
 
-        {USE_MOCK && <p className="border-l-2 border-l-warning pl-2 text-xs font-medium">{t.demo}</p>}
-        {note && <p className="border-l-2 border-l-warning pl-2 text-xs leading-snug">{note}</p>}
+        {USE_MOCK && <p className="border-l-2 border-l-warning pl-2.5 text-xs font-medium">{t.demo}</p>}
 
-        <div className="grid grid-cols-1 gap-4 sm:grid-cols-[minmax(0,1fr)_minmax(0,0.9fr)] print:grid-cols-[minmax(0,1fr)_minmax(0,0.9fr)]">
-          <div className="flex flex-col gap-3">
-            <Section title={t.where}>
-              <p>
-                <span className="num text-2xl font-semibold leading-none">{n(stats.floodedAreaKm2, 1)}</span> km²{' '}
-                <span className="text-ink-soft">{t.flooded}</span>
-              </p>
-              <ul className="flex flex-wrap gap-x-4 gap-y-0.5 text-xs">
-                {Object.entries(DAMAGE_TYPES).map(([type, meta]) => (
-                  <li key={type} className="flex items-center gap-1.5">
-                    <span className="h-2 w-2 rounded-[2px]" style={{ background: meta.color }} aria-hidden />
-                    {np ? meta.label_np : meta.label}{' '}
-                    <span className="num font-medium">{n(stats.areaByType[type], 1)} km²</span>
-                  </li>
-                ))}
-              </ul>
-            </Section>
+        <div className="grid grid-cols-1 gap-5 sm:grid-cols-[minmax(0,1fr)_minmax(0,0.82fr)] print:grid-cols-[minmax(0,1fr)_minmax(0,0.82fr)]">
+          <div className="flex flex-col gap-3.5">
+            {/* The four figures the dashboard leads with, as a two-by-two panel ruled by hairlines */}
+            <dl className="grid grid-cols-2 border-y border-line [&>*:nth-child(-n+2)]:border-b [&>*:nth-child(-n+2)]:border-line [&>*:nth-child(even)]:pl-3 [&>*:nth-child(odd)]:border-r [&>*:nth-child(odd)]:border-line [&>*:nth-child(odd)]:pr-3">
+              <Figure label={t.flooded} value={n(stats.floodedAreaKm2, 1)} unit="km²">
+                {types.length > 0 && (
+                  <>
+                    <span className="mt-2 flex h-1.5 gap-px overflow-hidden" aria-hidden>
+                      {types.map((type) => (
+                        <span key={type} style={{ flexGrow: stats.areaByType[type], background: DAMAGE_TYPES[type].color }} />
+                      ))}
+                    </span>
+                    <span className="mt-1.5 flex flex-wrap gap-x-2.5 gap-y-0.5 text-[11px] leading-snug text-ink-soft">
+                      {types.map((type) => (
+                        <span key={type} className="flex items-center gap-1 whitespace-nowrap">
+                          <span className="h-1.5 w-1.5 shrink-0" style={{ background: DAMAGE_TYPES[type].color }} aria-hidden />
+                          {np ? DAMAGE_TYPES[type].label_np : DAMAGE_TYPES[type].label}{' '}
+                          <span className="num font-medium text-ink">{n(stats.areaByType[type], 1)} km²</span>
+                        </span>
+                      ))}
+                    </span>
+                  </>
+                )}
+              </Figure>
+              <Figure label={t.figCutOff} value={n(stats.cutOff.length)} unit={t.of(n(stats.settlementRows.length))} />
+              <Figure
+                label={t.inThem(buildings)}
+                value={n(buildings ? stats.buildingsInCutOff : stats.populationAffected)}
+                note={buildings ? t.notRecorded : undefined}
+              />
+              <Figure label={t.inZone} value={n(stats.damagedStructures)} note={t.ofMapped(n(stats.totalStructures))} />
+            </dl>
+
+            {/* How far to trust them, beside the figures as on the dashboard */}
+            {note && <p className="border-l-2 border-l-warning pl-2.5 text-xs leading-snug text-ink-soft">{note}</p>}
 
             <Section title={t.damaged}>
-              <p>{t.buildings(n(stats.damagedStructures), n(stats.totalStructures))}</p>
               <p>{t.roads(n(stats.damagedRoadKm, 1))}</p>
               {stats.infrastructureAssessed ? (
                 <>
@@ -267,7 +380,7 @@ export default function ReportPage() {
               {stats.unknownAccess.length > 0 && <p className="text-ink-soft">{t.unknown(stats.unknownAccess.length)}</p>}
             </Section>
           </div>
-          <Locator data={data} stats={stats} caption={t.map} />
+          <Locator data={data} stats={stats} caption={t.map} labels={t.key} language={language} />
         </div>
 
         <Section title={t.priority}>
@@ -283,36 +396,37 @@ export default function ReportPage() {
               tabIndex={0}
               className="overflow-x-auto print:overflow-visible"
             >
-            <table className="w-full border-collapse text-left text-xs">
-              <thead>
-                <tr className="text-[10px] uppercase tracking-wide text-ink-soft">
-                  {t.columns.map((column) => (
-                    <th key={column} className="border-b border-line py-1 pr-2 font-medium">
-                      {column}
-                    </th>
-                  ))}
-                </tr>
-              </thead>
-              <tbody>
-                {top.map((p) => (
-                  <tr key={p.id} className="border-b border-line align-top">
-                    <td className="num py-1 pr-2 text-ink-soft">{p.rank}</td>
-                    <td className="py-1 pr-2 font-semibold">{name(p)}</td>
-                    <td className="num py-1 pr-2 font-semibold">{p.priority}</td>
-                    <td className="py-1 pr-2">{bandLabel(p.band)}</td>
-                    <td className="num py-1 pr-2">
-                      {buildings
-                        ? `${n(p.total)} ${t.buildingsUnit}`
-                        : p.population != null
-                          ? `${n(p.population)} ${t.peopleUnit}`
-                          : t.noData}
-                    </td>
-                    <td className="num py-1 pr-2">{formatPercent(p.damageRatio)}</td>
-                    <td className="py-1 text-ink-soft">{issues(p)}</td>
+              {/* never narrower than its columns need: on a phone it scrolls rather than wrap a cell into a tall row */}
+              <table className="w-full min-w-[34rem] border-collapse text-left text-xs">
+                <thead>
+                  <tr className="bg-[var(--surface-2)] text-[10px] uppercase tracking-wide text-ink-soft">
+                    {t.columns(buildings).map((column, i) => (
+                      // the three figures are read down their columns, so they are set to the right
+                      <th key={column} className={`border-y border-line px-2 py-1 font-medium ${i >= 3 && i <= 5 ? 'text-right' : ''}`}>
+                        {column}
+                      </th>
+                    ))}
                   </tr>
-                ))}
-              </tbody>
-            </table>
+                </thead>
+                <tbody>
+                  {top.map((p) => (
+                    <tr key={p.id} className="border-b border-line align-top">
+                      <td className="num px-2 py-1 text-ink-soft">{p.rank}</td>
+                      <td className="px-2 py-1 font-semibold">{name(p)}</td>
+                      <td className="whitespace-nowrap px-2 py-1">
+                        <span className={`mr-1.5 inline-block h-2 w-2 ${BAND_FILL[p.band]}`} aria-hidden />
+                        {bandLabel(p.band)}
+                      </td>
+                      <td className="num px-2 py-1 text-right font-semibold">{p.priority}</td>
+                      <td className="num px-2 py-1 text-right">
+                        {buildings ? n(p.total) : p.population != null ? n(p.population) : <span className="text-ink-soft">{t.noData}</span>}
+                      </td>
+                      <td className="num px-2 py-1 text-right">{formatPercent(p.damageRatio)}</td>
+                      <td className="px-2 py-1 text-ink-soft">{issues(p)}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
             </div>
           )}
           {stats.priority.length > top.length && (
