@@ -40,6 +40,14 @@ test('a checked run states its figures as a lower bound, from the data', () => {
   expect(note).toHaveTextContent('An area with nothing marked is not known to be safe.')
 })
 
+test('the note is a headline and one check to a line, with the safety sentence last', () => {
+  show({ validation: checked.validation })
+  const lines = [...screen.getByRole('note').querySelectorAll('p')].map((p) => p.textContent)
+  expect(lines[0]).toBe('These figures are a lower bound.')
+  expect(lines).toHaveLength(4)
+  expect(lines.at(-1)).toMatch(/^An area with nothing marked is not known to be safe\./)
+})
+
 test('copilot answers that count damage end with the note, in both languages', () => {
   expect(coverageNote.en(plain)).toBeNull()
   for (const topic of ['flood-extent', 'infrastructure', 'cut-off']) {

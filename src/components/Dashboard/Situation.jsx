@@ -6,6 +6,10 @@ import { WORDING } from '../../utils/wording'
 // The status colour appears once per figure, as a small square beside its label.
 const KEY = { water: 'bg-water', cutOff: 'bg-critical', damaged: 'bg-debris' }
 
+// One cell of the row of figures. From the medium breakpoint the cells are columns of one
+// panel, told apart by a hairline; the first sits on the page margin.
+const CELL = 'min-w-0 md:border-l md:border-line md:px-6 md:first:border-l-0 md:first:pl-0 md:last:pr-0'
+
 function Figure({ label, value, unit, note, tone }) {
   return (
     <div className="min-w-0">
@@ -13,8 +17,8 @@ function Figure({ label, value, unit, note, tone }) {
         {tone && <span className={`h-2 w-2 shrink-0 ${KEY[tone]}`} aria-hidden />}
         {label}
       </dt>
-      <dd className="mt-2">
-        <span className="num text-[32px] font-semibold leading-none tracking-tight text-ink">{value}</span>
+      <dd className="mt-2.5">
+        <span className="num text-[34px] font-semibold leading-none tracking-tight text-ink">{value}</span>
         {/* A real space, so the number and its unit are two words to a screen reader as well */}
         {unit && (
           <>
@@ -50,13 +54,13 @@ export default function Situation({ stats, children }) {
   return (
     <section aria-labelledby="figures-heading" className="border-b border-line">
       <div className="mx-auto grid max-w-[110rem] xl:grid-cols-[minmax(0,1fr)_minmax(22rem,28rem)]">
-        <div className="px-3 py-4 sm:px-5">
+        <div className="px-3 py-5 sm:px-5">
           <h2 id="figures-heading" className="sr-only">
             Key figures
           </h2>
 
-          <dl className="grid grid-cols-2 gap-x-8 gap-y-5 md:grid-cols-4">
-            <div className="col-span-2 min-w-0 md:col-span-1">
+          <dl className="grid grid-cols-2 gap-x-8 gap-y-5 md:grid-cols-4 md:gap-x-0">
+            <div className={`col-span-2 md:col-span-1 ${CELL}`}>
               <Figure label="Flooded area" tone="water" value={formatNumber(stats.floodedAreaKm2, 1)} unit="km²" />
               {types.length > 0 && (
                 <>
@@ -75,36 +79,42 @@ export default function Situation({ stats, children }) {
               )}
             </div>
 
-            <Figure
-              label="Settlements cut off"
-              tone="cutOff"
-              value={formatNumber(stats.cutOff.length)}
-              unit={`of ${formatNumber(stats.settlementRows.length)}`}
-              note={stats.unknownAccess.length > 0 ? `${formatNumber(stats.unknownAccess.length)} with road access unknown` : undefined}
-            />
-            <Figure
-              label={buildings ? 'Buildings in them' : 'People in them'}
-              value={formatNumber(buildings ? stats.buildingsInCutOff : stats.populationAffected)}
-              note={buildings ? 'population not recorded' : undefined}
-            />
-            <Figure
-              label="Structures in the flood zone"
-              tone="damaged"
-              value={formatNumber(stats.damagedStructures)}
-              unit={stats.totalStructures ? formatPercent(stats.damagedStructures / stats.totalStructures) : undefined}
-              note={`of ${formatNumber(stats.totalStructures)} mapped`}
-            />
+            <div className={CELL}>
+              <Figure
+                label="Settlements cut off"
+                tone="cutOff"
+                value={formatNumber(stats.cutOff.length)}
+                unit={`of ${formatNumber(stats.settlementRows.length)}`}
+                note={stats.unknownAccess.length > 0 ? `${formatNumber(stats.unknownAccess.length)} with road access unknown` : undefined}
+              />
+            </div>
+            <div className={CELL}>
+              <Figure
+                label={buildings ? 'Buildings in them' : 'People in them'}
+                value={formatNumber(buildings ? stats.buildingsInCutOff : stats.populationAffected)}
+                note={buildings ? 'population not recorded' : undefined}
+              />
+            </div>
+            <div className={CELL}>
+              <Figure
+                label="Structures in the flood zone"
+                tone="damaged"
+                value={formatNumber(stats.damagedStructures)}
+                unit={stats.totalStructures ? formatPercent(stats.damagedStructures / stats.totalStructures) : undefined}
+                note={`of ${formatNumber(stats.totalStructures)} mapped`}
+              />
+            </div>
           </dl>
 
           {stats.infrastructureAssessed ? (
-            <dl className="mt-4 flex flex-wrap gap-x-8 gap-y-1 border-t border-line pt-3 text-sm">
+            <dl className="mt-5 flex flex-wrap gap-x-8 gap-y-1 border-t border-line pt-3.5 text-sm">
               <Count label={WORDING.road} value={`${formatNumber(stats.damagedRoadKm, 1)} km`} />
               <Count label={WORDING.bridges} value={stats.bridgesDestroyed.length} />
               <Count label="Health posts unreachable" value={stats.healthPostsUnreachable.length} />
               {stats.powerLinesAssessed && <Count label="Power lines down" value={`${formatNumber(stats.powerLineKmDown, 1)} km`} />}
             </dl>
           ) : (
-            <div className="mt-4 space-y-1 border-t border-line pt-3 text-sm">
+            <div className="mt-5 space-y-1 border-t border-line pt-3.5 text-sm">
               <dl>
                 <Count label={WORDING.road} value={`${formatNumber(stats.damagedRoadKm, 1)} km`} />
               </dl>
@@ -114,7 +124,7 @@ export default function Situation({ stats, children }) {
         </div>
 
         {children && (
-          <div className="flex items-center border-t border-line px-3 py-4 sm:px-5 xl:border-l xl:px-6 xl:border-t-0">{children}</div>
+          <div className="flex items-center border-t border-line px-3 py-5 sm:px-5 xl:border-l xl:border-t-0 xl:px-6">{children}</div>
         )}
       </div>
     </section>

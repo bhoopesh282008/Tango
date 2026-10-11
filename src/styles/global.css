@@ -320,6 +320,10 @@ summary,
   .section-title {
     @apply text-[15px] font-semibold tracking-tight text-ink;
   }
+  /* The name of a whole section of a page (Rescue priority, Evidence); .section-title is for the parts inside one */
+  .page-section-title {
+    @apply text-xl font-semibold tracking-tight text-ink;
+  }
   /* Panels floating over the map: a raised surface with a stronger hairline */
   .panel-glass {
     border-color: var(--border-strong);

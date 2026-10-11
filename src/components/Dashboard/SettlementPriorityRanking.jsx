@@ -1,3 +1,4 @@
+import { MapPin } from 'lucide-react'
 import { useState } from 'react'
 import { USE_MOCK } from '../../config/apiConfig'
 import { useMapStore } from '../../store/mapStore'
@@ -37,9 +38,11 @@ const SORTS = [
 const BAND_FILL = { critical: 'bg-critical', high: 'bg-danger', medium: 'bg-warning', low: 'bg-success' }
 
 // One grid for the heading row and every settlement row, so the columns line up. Below the
-// medium breakpoint a row is a name and score with the details stacked under the name.
+// medium breakpoint a row is a name and score with the details stacked under the name. From it,
+// the columns are: rank, name, band, score, size, damage, notes, and a pin that shows on hover.
+// The figures are in narrow right-aligned columns side by side, so they can be read down.
 const ROW =
-  'grid grid-cols-[1.75rem_minmax(0,1fr)_auto] items-baseline gap-x-3 gap-y-1 px-3 sm:px-5 md:grid-cols-[2.5rem_minmax(9rem,1.3fr)_8rem_minmax(7rem,1fr)_6rem_minmax(0,2.2fr)_3rem] md:items-center md:gap-x-5'
+  'grid grid-cols-[1.75rem_minmax(0,1fr)_auto] items-baseline gap-x-3 gap-y-1 px-3 sm:px-5 md:grid-cols-[2rem_minmax(8rem,1fr)_6.5rem_3rem_5rem_5rem_minmax(0,1.5fr)_1rem] md:items-center md:gap-x-4 lg:grid-cols-[2rem_minmax(9rem,0.8fr)_6.5rem_3.5rem_6rem_5.5rem_minmax(0,2fr)_1.25rem] lg:gap-x-6'
 
 function RiskSummary({ priority }) {
   return (
@@ -68,7 +71,9 @@ function PriorityRow({ settlement: s, buildings, selected, people }) {
     s.town_connected === true && 'Road to a town still open',
     s.town_connected === false && 'No road to a town either',
   ].filter(Boolean)
-  const size = buildings ? `${formatNumber(s.total)} buildings` : s.population != null ? `${formatNumber(s.population)} people` : 'population not recorded'
+  // The unit is in the column's heading from md up, so there it is kept for screen readers only
+  const sized = buildings ? s.total : s.population
+  const unit = buildings ? 'buildings' : 'people'
 
   return (
     // Off-screen rows are not laid out until they are near: a run can have well over a hundred.
@@ -80,35 +85,57 @@ function PriorityRow({ settlement: s, buildings, selected, people }) {
         onMouseLeave={() => setHighlighted(null)}
         aria-current={selected ? 'true' : undefined}
         title="Show on the map"
-        className={`${ROW} w-full py-3.5 text-left transition-colors hover:bg-[var(--surface-2)] ${
+        className={`${ROW} group w-full py-3.5 text-left transition-colors hover:bg-[var(--surface-2)] md:py-2.5 ${
           selected ? 'bg-[var(--surface-2)] shadow-[inset_3px_0_0_0_var(--text-primary)]' : ''
         }`}
       >
-        <span className="num text-sm text-ink-muted" aria-label={`Rank ${s.rank}`}>
+        <span className="num text-sm text-ink-muted md:order-1" aria-label={`Rank ${s.rank}`}>
           {s.rank}
         </span>
-        <span className="truncate text-[15px] font-semibold leading-snug">{s.name}</span>
-        {/* On a phone the score stays beside the name; from md it is the last column */}
-        <span className="num col-start-3 row-start-1 text-right text-[15px] font-semibold md:order-last md:col-auto md:row-auto">
+        <span className="truncate text-[15px] font-semibold leading-snug md:order-2">{s.name}</span>
+        {/* On a phone the score stays beside the name; from md it has its own column after the band */}
+        <span className="num col-start-3 row-start-1 text-right text-[15px] font-semibold md:order-4 md:col-auto md:row-auto">
           <span className="sr-only">Score </span>
           {s.priority}
         </span>
         <span className="col-span-2 col-start-2 flex flex-wrap items-center gap-x-3 gap-y-0.5 text-[13px] text-ink-soft md:contents">
-          <span className="flex items-center gap-2">
+          <span className="flex items-center gap-2 md:order-3 md:text-sm md:text-ink">
             <span className={`h-2 w-2 shrink-0 ${BAND_FILL[s.band]}`} aria-hidden />
             {band.label}
           </span>
-          <span className="num">
-            {size}
+          <span className="num md:order-5 md:text-right md:text-sm">
+            {sized != null ? (
+              <>
+                {formatNumber(sized)}
+                <span className="md:sr-only"> {unit}</span>
+              </>
+            ) : (
+              <span className="text-ink-muted">
+                <span className="md:sr-only">population </span>not recorded
+              </span>
+            )}
             {/* A modelled figure from outside the map's data, said to be one, and not part of the score */}
             {people != null && <span className="block text-xs text-ink-muted">about {modelledPeople(people)} people, modelled</span>}
           </span>
-          <span className="num">{formatPercent(s.damageRatio)} damaged</span>
+          <span className="num md:order-6 md:text-right md:text-sm">
+            {formatPercent(s.damageRatio)}
+            <span className="md:sr-only"> damaged</span>
+          </span>
         </span>
-        {/* Kept as an empty cell from md up so the score stays in its column */}
-        <span className={`col-span-2 col-start-2 text-[13px] leading-snug text-ink-muted md:col-auto ${notes.length ? '' : 'max-md:hidden'}`}>
+        {/* Kept as an empty cell from md up so the columns after it stay in place */}
+        <span
+          className={`col-span-2 col-start-2 text-[13px] leading-snug text-ink-muted md:order-7 md:col-auto ${notes.length ? '' : 'max-md:hidden'}`}
+        >
           {notes.join(' · ')}
         </span>
+        {/* What a press does, shown when the row is pointed at or is the one on the map */}
+        <MapPin
+          size={15}
+          aria-hidden
+          className={`max-md:hidden md:order-8 ${
+            selected ? 'text-ink' : 'text-ink-muted opacity-0 transition-opacity group-hover:opacity-100 group-focus-visible:opacity-100'
+          }`}
+        />
       </button>
     </li>
   )
@@ -129,7 +156,7 @@ export default function SettlementPriorityRanking({ stats }) {
     return (
       <section aria-labelledby="priority-heading" className="border-t border-line">
         <div className={`${shell} px-3 py-8 sm:px-5`}>
-          <h2 id="priority-heading" className="section-title">
+          <h2 id="priority-heading" className="page-section-title">
             Rescue priority
           </h2>
           <p className="mt-1 text-sm text-ink-soft">No settlement is cut off in this run, so there is nothing to rank.</p>
@@ -143,17 +170,20 @@ export default function SettlementPriorityRanking({ stats }) {
 
   return (
     <section aria-labelledby="priority-heading" className="border-t border-line">
-      <div className={`${shell} px-3 pb-3 pt-8 sm:px-5`}>
+      <div className={`${shell} px-3 pb-4 pt-9 sm:px-5`}>
         <div className="flex flex-wrap items-end justify-between gap-x-6 gap-y-3">
           <div>
-            <h2 id="priority-heading" className="text-xl font-semibold tracking-tight">
+            <h2 id="priority-heading" className="page-section-title">
               Rescue priority
             </h2>
             <p className="mt-1 text-sm text-ink-soft">
               <span className="num">{settlements.length}</span> cut-off settlements. Choose one to see it on the map.
             </p>
           </div>
-          <div className="no-print -mr-2.5 flex flex-wrap" role="group" aria-label="Sort settlements by">
+          <div className="no-print -mr-2.5 flex flex-wrap items-center" role="group" aria-label="Sort settlements by">
+            <span className="label mr-1.5" aria-hidden>
+              Sort by
+            </span>
             {sorts.map((option) => (
               <button
                 key={option.id}
@@ -174,14 +204,15 @@ export default function SettlementPriorityRanking({ stats }) {
 
       <div className={shell}>
         {/* Column names, drawn only where the rows are a table; each row carries its own labels for a screen reader */}
-        <div aria-hidden className={`${ROW} border-y border-line py-2 text-xs font-medium text-ink-soft max-md:hidden`}>
+        <div aria-hidden className={`${ROW} border-y border-line bg-[var(--surface-2)] py-2 text-xs font-medium text-ink-soft max-md:hidden`}>
           <span>#</span>
           <span>Settlement</span>
           <span>Priority</span>
-          <span>{buildings ? 'Buildings' : 'Population'}</span>
-          <span>Damaged</span>
-          <span>Notes</span>
           <span className="text-right">Score</span>
+          <span className="text-right">{buildings ? 'Buildings' : 'Population'}</span>
+          <span className="text-right">Damaged</span>
+          <span>Notes</span>
+          <span />
         </div>
         <ol className="divide-y divide-line border-t border-line md:border-t-0">
           {settlements.map((settlement) => (

@@ -59,6 +59,21 @@ describe('the rescue list', () => {
     expect(screen.getByRole('button', { name: 'Damage' })).toHaveAttribute('aria-pressed', 'true')
   })
 
+  test('each row still says its units, which the eye gets from the column headings', () => {
+    show(<SettlementPriorityRanking stats={stats} />)
+    const first = screen.getAllByRole('button').find((b) => b.hasAttribute('title'))
+    expect(first).toHaveTextContent(/Score \d+/)
+    expect(first).toHaveTextContent(/[\d,]+ people/)
+    expect(first).toHaveTextContent(/\d+% damaged/)
+  })
+
+  test('a settlement with no recorded population says so, not zero', () => {
+    const unknown = { ...stats, priority: stats.priority.map((p, i) => (i === 0 ? { ...p, population: null } : p)) }
+    show(<SettlementPriorityRanking stats={unknown} />)
+    const first = screen.getAllByRole('button').find((b) => b.hasAttribute('title'))
+    expect(first).toHaveTextContent('population not recorded')
+  })
+
   test('the explanation of the score is there, folded away', () => {
     show(<SettlementPriorityRanking stats={stats} />)
     expect(screen.getByText('How the score is worked out').closest('details')).not.toHaveAttribute('open')

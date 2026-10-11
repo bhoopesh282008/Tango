@@ -164,20 +164,26 @@ function MapData({ quality }) {
 export default function Evidence({ stats, children }) {
   return (
     <section aria-labelledby="evidence-heading" className="border-t border-line">
-      <div className="mx-auto max-w-[110rem] px-3 py-10 sm:px-5">
-        <h2 id="evidence-heading" className="section-title">
+      <div className="mx-auto max-w-[110rem] px-3 pb-12 pt-9 sm:px-5">
+        <h2 id="evidence-heading" className="page-section-title">
           Evidence
         </h2>
         <p className="mt-1 max-w-prose text-sm text-ink-soft">
           The radar images the map was made from, and what lies inside the flood zones.
         </p>
-        <div className="mt-6 grid gap-10 lg:grid-cols-[minmax(0,3fr)_minmax(0,2fr)] lg:gap-14">
+        {/* Two columns on a laptop, the pictures and everything else; three on a wide screen,
+            where the pictures keep their own width and the lists get a column to themselves. */}
+        <div className="mt-7 grid gap-10 lg:grid-cols-[minmax(0,35rem)_minmax(0,1fr)] lg:gap-12 min-[1400px]:grid-cols-[minmax(0,35rem)_minmax(0,1fr)_minmax(0,1fr)]">
           <div className="min-w-0">{children}</div>
-          <div className="min-w-0 space-y-9">
-            <Detection stats={stats} />
-            <Infrastructure stats={stats} />
-            <MapData quality={stats.osmQuality} />
-            <ContextNote context={stats.context} />
+          <div className="min-w-0 space-y-9 min-[1400px]:contents min-[1400px]:space-y-0">
+            <div className="min-w-0 space-y-9">
+              <Detection stats={stats} />
+              <MapData quality={stats.osmQuality} />
+              <ContextNote context={stats.context} />
+            </div>
+            <div className="min-w-0">
+              <Infrastructure stats={stats} />
+            </div>
           </div>
         </div>
       </div>
