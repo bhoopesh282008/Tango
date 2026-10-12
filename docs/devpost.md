@@ -51,7 +51,7 @@ Built with: Python, rasterio, geopandas, networkx, PyTorch, Sentinel-1, Copernic
 
 ## What we learned
 
-Most of a debris corridor changes by less than 3 dB in a radar pair, so a radar-only map finds a fraction of it however the thresholds are set; the honest output is a lower bound with its false-alarm floor beside it. Our model beats thresholds on Kuro Siwo events it had not seen (flood IoU 0.55 against 0.34) and does worse than the rule on Trishuli, because that dataset has almost no steep terrain.
+Most of a debris corridor changes by less than 3 dB in a radar pair, so a radar-only map finds a fraction of it however the thresholds are set; the honest output is a lower bound with its false-alarm floor beside it. Our model beats thresholds on Kuro Siwo floods absent from its training (flood IoU 0.46 against 0.27; 0.55 against 0.34 for a smaller model trained with every test event held out) and does worse than the rule on Trishuli (it finds 2% to 14% of the reference area against 3% to 22%), because that dataset has almost no steep terrain. Both maps of the Trishuli scenes are in the dashboard's area list.
 
 ## What's next
 

@@ -6,7 +6,7 @@ An entry to Space Track, Track B (*Mapping Flood Damage from Space*) of the Mult
 
 | | |
 | --- | --- |
-| Live dashboard | <https://bhoopesh282008.github.io/Tango/> (four areas on real data; the header's **Demo** switch shows the bundled demo dataset) |
+| Live dashboard | <https://bhoopesh282008.github.io/Tango/> (six areas on real data: the case study, the flood model's map of the same scenes, a second reach and three rehearsals; the header's **Demo** switch shows the bundled demo dataset) |
 | Demo video | _added at submission_ |
 | Report (6 pages) | [docs/report.pdf](docs/report.pdf), source [docs/report.md](docs/report.md) |
 | Method and limits | the dashboard's **Method** page, and section 7 of the report |
@@ -38,9 +38,9 @@ Also: a route planner that avoids flooded road sections, with live GPS navigatio
 | Checked against Copernicus EMS EMSR927 (checking only) | Where it marks flood it is usually right (precision 0.88 to 0.99), but it finds only 3% to 22% of the reference area in the three reference areas inside the run, and 21% of the affected buildings. **Every figure is a lower bound.** |
 | False alarms | The same rule on two images that are both from before the event marks 9% to 13% of its own area (the single-image rule marked 24% to 127%), so part of every map is ordinary change (`pipeline/null_test.py`) |
 | A second reach, Lower Trishuli | 4.7 km² of flood zones, 14 of 116 settlements cut off, recall 0.22 to 0.35 at precision 0.94 to 0.97 |
-| Rehearsals on new ground | The Bhote Koshi valley and a dry-season date on it (the rule maps the real event at 3.3 times the area), and the 2021 Chamoli glacier flood, Uttarakhand. Not checked against any reference map: they show that the system runs on a new event, not how well it maps it |
+| Rehearsals on new ground | The Bhote Koshi valley and a dry-season date on it (the rule maps the real event at 3.3 times the area), the 2021 Chamoli glacier flood in Uttarakhand, and the 2023 South Lhonak glacial-lake flood down the Teesta valley in Sikkim (run from scratch in about 25 minutes, most of it waiting for the free OpenStreetMap service). Not checked against any reference map: they show that the system runs on a new event, not how well it maps it |
 | Sentinel-2 optical (`--optical`) | Clear on both sides of the event for 31% and 55% of the two Trishuli areas. As built it adds almost nothing to the flood classes; its patches off the valley floor are mostly cloud and haze (report, section 5) |
-| Flood model (AI component) | Flood IoU 0.55 against 0.34 for the threshold rule on 12 Kuro Siwo test events it had not seen. On the real Trishuli scenes it does worse than the rule, so the default map is the rule's (`--model` maps water with the network instead) |
+| Flood model (AI component) | Flood IoU 0.46 against 0.27 for the threshold rule on Kuro Siwo test floods absent from training (0.55 against 0.34 for a smaller model trained with every test event held out). On the real Trishuli scenes it finds less than the rule (2% to 14% of the reference area against 3% to 22%), so the default map is the rule's; the dashboard's area list also holds the model's map of the same scenes (`--model` makes one) |
 
 What it cannot do: warn of a flood (Sentinel-1 returns every 12 days), see steep ground in radar shadow, count damage rather than overlap with a flood zone, or tell a cut-off settlement from one whose road was never mapped. The full list is section 7 of the report.
 
@@ -55,7 +55,7 @@ npm install
 npm run dev      # http://localhost:5173
 ```
 
-A fresh clone has no run data (it is not in git), so the dashboard opens on the bundled **Demo data**; the live site shows four real areas. To make your own, run the **pipeline** (Python 3.11 to 3.13 and a free Copernicus Data Space account):
+A fresh clone has no run data (it is not in git), so the dashboard opens on the bundled **Demo data**; the live site shows six real areas. To make your own, run the **pipeline** (Python 3.11 to 3.13 and a free Copernicus Data Space account):
 
 ```bash
 py -3.13 -m venv pipeline/.venv
