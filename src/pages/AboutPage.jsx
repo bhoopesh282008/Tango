@@ -32,7 +32,7 @@ const LIMITS = [
   ],
   [
     'The flood model does worse than the thresholds here',
-    'Water can be mapped by a neural network trained on the Kuro Siwo dataset, or by fixed backscatter thresholds. On Kuro Siwo test floods absent from training the network reached an IoU of 0.46 against 0.27 for the thresholds, with large differences between events. None of that data is Himalayan, and on the Trishuli scenes the network found less of the reference damage than the thresholds did. Debris always comes from the thresholds. Wet soil, crops, snow and unrelated landslides can be mistaken for flood change.',
+    'Water can be mapped by a neural network trained on the Kuro Siwo dataset, or by fixed backscatter thresholds. On Kuro Siwo test floods absent from training the network reached an IoU of 0.46 against 0.27 for the thresholds, with large differences between events. None of that data is Himalayan, and on the Trishuli scenes the network found less of the reference damage than the thresholds did (2% to 14% of the reference area against 3% to 22%); the area selector lists its map of those scenes beside the one the thresholds make. Debris always comes from the thresholds. Wet soil, crops, snow and unrelated landslides can be mistaken for flood change.',
   ],
   [
     'Most of the damage is missed',
