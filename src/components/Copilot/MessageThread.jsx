@@ -1,7 +1,6 @@
 import { Copy, Download } from 'lucide-react'
 import { motion } from 'motion/react'
 import { useEffect, useRef } from 'react'
-import { formatPercent } from '../../utils/formatters'
 import { TypingDots } from '../Common/Animated'
 import AnswerBody from './AnswerBody'
 
@@ -44,7 +43,6 @@ function AssistantMessage({ response, onCopy, onDownload }) {
           <div className="mt-5 flex min-h-[44px] flex-wrap items-center justify-between gap-x-4 border-t border-line pt-1">
             <p className="py-1.5 text-xs text-ink-muted" lang="en">
               Source: {response.dataSource}
-              {response.confidence != null && `. Model confidence ${formatPercent(response.confidence)}`}
             </p>
             {/* Copy and Download act on the newest answer, so only that one carries them */}
             {onCopy && (

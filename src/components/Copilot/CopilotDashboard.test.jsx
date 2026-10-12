@@ -34,6 +34,10 @@ test('asking a question puts it and its answer in the thread, with Copy and Down
   expect(await within(thread).findByRole('heading', { level: 2 }, { timeout: 8000 })).toBeInTheDocument()
   expect(within(thread).getByRole('button', { name: /Copy/ })).toBeInTheDocument()
   expect(within(thread).getByRole('button', { name: /Download/ })).toBeInTheDocument()
+  // The foot names the source. It does not call a rule's mean zone score a "model confidence":
+  // the copilot is not a model and the score is not an accuracy.
+  expect(within(thread).getByText(/^Source:/)).toBeInTheDocument()
+  expect(within(thread).queryByText(/model confidence/i)).toBeNull()
   // the questions stay within reach as compact buttons beside the input
   expect(screen.getByRole('textbox', { name: 'Your question' })).toBeInTheDocument()
 })

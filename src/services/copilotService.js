@@ -81,6 +81,9 @@ export async function askFreeText(text, language, stats) {
   return mock({ kind: 'notice', language, question: text, notice: OFF_TOPIC[language] ?? OFF_TOPIC.en }, 200)
 }
 
+// The first line of the report, before the area's name (the Nepali is unreviewed)
+const FLOOD_ANALYSIS = { en: 'Flood analysis', np: 'बाढी विश्लेषण' }
+
 // All four answers combined into one document.
 export async function generateReport(language, stats) {
   // The note is given once, under the header, not after every section.
@@ -90,7 +93,8 @@ export async function generateReport(language, stats) {
   const note = LOCAL ? noteFor(language, stats) : null
   const t = templates[language] ?? templates.en
   const { before, after } = stats.imagery
-  const title = stats.areaName ? `Flood analysis: ${stats.areaName}` : `${EVENT.name}: ${EVENT.location}`
+  const heading = FLOOD_ANALYSIS[language] ?? FLOOD_ANALYSIS.en
+  const title = stats.areaName ? `${heading}: ${stats.areaName}` : `${EVENT.name}: ${EVENT.location}`
   const header = title + (before && after ? `\n${formatDate(before)} → ${formatDate(after)}` : '')
   const body = sections
     .map((s) => `${s.title.toUpperCase()}\n${'-'.repeat(40)}\n${s.answer}`)
