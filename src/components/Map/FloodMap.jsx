@@ -12,6 +12,7 @@ import {
   TERRAIN_SOURCE,
 } from '../../config/mapConfig'
 import { useRouting } from '../../hooks/useRouting'
+import { useTileHealth } from '../../hooks/useTileHealth'
 import { locateOnce } from '../../services/geolocation'
 import { useMapStore } from '../../store/mapStore'
 import { useRouteStore } from '../../store/routeStore'
@@ -140,6 +141,13 @@ export default function FloodMap({ data, settlementRows, priority, confidence })
       current = false
     }
   }, [baseMap, darkMode])
+
+  // Whether the basemap's tile server is answering; a different basemap starts afresh
+  const tiles = useTileHealth()
+  const resetTiles = tiles.reset
+  useEffect(() => {
+    resetTiles()
+  }, [baseMap, darkMode, resetTiles])
 
   // "Show on map" from the priority ranking: bring the map into view and fly to the settlement.
   useEffect(() => {
@@ -397,6 +405,8 @@ export default function FloodMap({ data, settlementRows, priority, confidence })
             setView({ lat: viewState.latitude, lng: viewState.longitude }, viewState.zoom)
           }
           onLoad={handleLoad}
+          onError={tiles.onError}
+          onData={tiles.onData}
           // Collapsed to a button: the full credit line ran under the layer panel.
           attributionControl={{ compact: true }}
         >
@@ -547,6 +557,22 @@ export default function FloodMap({ data, settlementRows, priority, confidence })
         {navigating && <NavigationHud route={route} progress={progress} />}
 
         <div className="no-print absolute bottom-3 left-3 z-[9] flex flex-col items-start gap-2">
+          {tiles.failing && (
+            <div role="status" className="card panel-glass flex max-w-xs items-start gap-1 py-2 pl-3 pr-1 text-sm shadow-md">
+              <p>
+                The basemap is not loading: the free map servers may be busy or blocked. The flood zones, roads and
+                settlements are still drawn.
+              </p>
+              <button
+                type="button"
+                className="flex h-10 w-10 shrink-0 items-center justify-center rounded-md text-ink-soft hover:bg-surface-alt"
+                onClick={tiles.dismiss}
+                aria-label="Dismiss basemap notice"
+              >
+                <X size={14} />
+              </button>
+            </div>
+          )}
           <MeasurementTool />
           <FloodPathTool />
           {coordinate && !toolActive && (
