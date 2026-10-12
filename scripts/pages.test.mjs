@@ -2,7 +2,23 @@ import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { afterEach, beforeEach, describe, expect, test } from 'vitest'
-import { checkRuns, folderSize, megabytes, pagesTarget, parseRemote, RUN_FILES } from './pages.mjs'
+import { checkRuns, commitIdentity, folderSize, megabytes, pagesTarget, parseRemote, RUN_FILES } from './pages.mjs'
+
+describe('who the deploy commit is by', () => {
+  const author = { name: 'unknown', email: 'ada@example.org' }
+
+  test('what git is configured with wins', () => {
+    expect(commitIdentity({ name: 'Ada', email: 'ada@work.org' }, author)).toEqual({ name: 'Ada', email: 'ada@work.org' })
+  })
+
+  test('a machine with an email but no name signs as the last commit does, instead of stopping', () => {
+    expect(commitIdentity({ name: '', email: 'ada@work.org' }, author)).toEqual({ name: 'unknown', email: 'ada@work.org' })
+  })
+
+  test('with nothing configured the last commit\'s author is used', () => {
+    expect(commitIdentity({ name: '', email: '' }, author)).toEqual(author)
+  })
+})
 
 describe('the repository address', () => {
   test.each([

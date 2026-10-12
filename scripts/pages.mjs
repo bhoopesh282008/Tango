@@ -67,5 +67,16 @@ export function folderSize(dir) {
 
 export const megabytes = (bytes) => (bytes / 1048576).toFixed(1)
 
+// Who the deploy commit is by. A machine can have user.email set and no user.name (git then
+// signs its commits "unknown"), and asking git for a key that is not set is an error, so the
+// deploy used to stop at the commit. What is configured wins; for what is not, the author of the
+// commit being deployed is used, which is what a plain `git commit` here would have recorded.
+export function commitIdentity(configured, author) {
+  return {
+    name: configured.name || author.name,
+    email: configured.email || author.email,
+  }
+}
+
 // GitHub Pages sites are limited to 1 GB; this warns well before that.
 export const SIZE_WARNING_MB = 500

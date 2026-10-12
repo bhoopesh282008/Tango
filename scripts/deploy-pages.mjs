@@ -15,7 +15,7 @@ import { copyFileSync, cpSync, existsSync, mkdtempSync, rmSync, writeFileSync } 
 import { tmpdir } from 'node:os'
 import { join, resolve } from 'node:path'
 import { fileURLToPath } from 'node:url'
-import { checkRuns, folderSize, megabytes, pagesTarget, parseRemote, SIZE_WARNING_MB } from './pages.mjs'
+import { checkRuns, commitIdentity, folderSize, megabytes, pagesTarget, parseRemote, SIZE_WARNING_MB } from './pages.mjs'
 
 const root = resolve(fileURLToPath(new URL('..', import.meta.url)))
 const args = process.argv.slice(2)
@@ -28,6 +28,14 @@ const remote = option('remote', 'origin')
 const branch = option('branch', 'gh-pages')
 
 const git = (...gitArgs) => execFileSync('git', gitArgs, { cwd: root, encoding: 'utf8' }).trim()
+// `git config <key>` exits with 1 when the key is not set
+const config = (key) => {
+  try {
+    return git('config', key)
+  } catch {
+    return ''
+  }
+}
 function stop(message) {
   console.error(`\nStopped: ${message}`)
   process.exit(1)
@@ -81,6 +89,10 @@ if (!push) {
 }
 
 const commit = git('rev-parse', '--short', 'HEAD')
+const identity = commitIdentity(
+  { name: config('user.name'), email: config('user.email') },
+  { name: git('log', '-1', '--format=%an'), email: git('log', '-1', '--format=%ae') },
+)
 const tmp = mkdtempSync(join(tmpdir(), 'tango-pages-'))
 try {
   cpSync(dist, tmp, { recursive: true })
@@ -90,8 +102,8 @@ try {
   inTmp('config', 'core.autocrlf', 'false')
   inTmp('add', '-A')
   inTmp(
-    '-c', `user.name=${git('config', 'user.name')}`,
-    '-c', `user.email=${git('config', 'user.email')}`,
+    '-c', `user.name=${identity.name}`,
+    '-c', `user.email=${identity.email}`,
     'commit', '-q', '-m', `Deploy ${commit}, ${new Date().toISOString().slice(0, 10)}`,
   )
   console.log(`\nPushing to ${remote}/${branch} (replacing what was there) ...`)
