@@ -1,30 +1,77 @@
-# TANGO — Flood Response System
+# TANGO: Flood Response System
 
-A system for mapping flood damage from space for rescue teams: a Python pipeline that turns Sentinel-1 radar scenes, a DEM and pre-event OpenStreetMap into a flood map, a damage overlay and a list of cut-off settlements, and a React dashboard with a situation-report copilot in English and Nepali. Case study: the Trishuli flood, Nepal, August 2026.
+**Mapping flood damage from space, for rescue teams.** Give TANGO an area and a flood date. It compares Sentinel-1 radar scenes from before and after, maps flood water and debris, overlays pre-event OpenStreetMap buildings, roads and bridges, finds the settlements that have lost their road connection to a hospital, and writes a one-page situation report in English and Nepali. Case study: the Trishuli flood, Nepal, 26 August 2026.
 
-This is an educational prototype, not an operational tool.
+An entry to Space Track, Track B (*Mapping Flood Damage from Space*) of the Multimodal AI Hackathon 2026. An educational prototype, not an operational tool.
 
-## Status
-
-| Part | State |
+| | |
 | --- | --- |
-| Dashboard and copilot | Working. Runs on bundled demo data by default, or on the output of a pipeline run. |
-| Pre-event OpenStreetMap, DEM, damage overlay, cut-off analysis, flood-path trace | Run on real data for the Trishuli area. |
-| Flood model | Trained on a sample of Kuro Siwo; results in [pipeline/MODEL.md](pipeline/MODEL.md). |
-| Sentinel-1 download, calibration, terrain correction and flood mapping | **Run end to end on real scenes** for Trishuli (16 and 28 Aug 2026): 2.07 km² of flood zones, 11 of 149 settlements cut off. **Checked against Copernicus EMS (EMSR927):** precision 0.88 to 0.99, but only 3% to 35% of the reference area is found, so every figure is a lower bound. See [docs/report.md](docs/report.md), section 5. |
-| The rule's false alarms | Run on two images that are both from before the event, the default rule (median of three images, a change must beat the ground's normal variation) marks 9% to 13% of its own mapped area; the single-image rule marked 24% to 127% (`pipeline/null_test.py`). Part of every map is ordinary change, not the flood. |
-| Before/after pictures | Produced from the real scenes and shown in the dashboard. |
-| Sentinel-2 optical evidence | Run on real scenes for both areas (31% and 55% clear on both sides of the event). As built it changes the flood classes very little; its valley-floor "uncertain" patches do match the reference, its hillside ones are mostly cloud and haze. See the report, section 5. |
-| Other areas and dates | A second area south-west of the first (Bidur, Phosretar), on the same scene pair: 4.7 km² of flood zones, 14 of 116 settlements cut off, precision 0.94 to 0.97 and recall 0.22 to 0.35 against EMSR927. A new valley (Bhote Koshi), a dry-season date on it and the 2021 Chamoli glacier flood in Uttarakhand were run as rehearsals. On Bhote Koshi the default rule maps the real event at 3.3 times the area of the dry-season date (the single-image rule could not tell them apart). The 2021 Chamoli glacier flood (Uttarakhand) straddles two image frames: the first run read one, so the radar covered 84% of the area and no baseline could be built; with the frames joined it covers 100%, the pair is track 56 three days after the event, and the default rule maps 0.22 km² of water and debris (plus 0.22 km² uncertain), no settlement cut off (30 of 61 have no mapped road). Not checked against any reference map: it shows the system runs on a new event, not how well it maps it. |
+| Live dashboard | <https://bhoopesh282008.github.io/Tango/> (four areas on real data; the header's **Demo** switch shows the bundled demo dataset) |
+| Demo video | _added at submission_ |
+| Report (6 pages) | [docs/report.pdf](docs/report.pdf), source [docs/report.md](docs/report.md) |
+| Method and limits | the dashboard's **Method** page, and section 7 of the report |
+| Licence | MIT for the code; the data keeps its own terms (see [Attribution](#attribution)) |
 
-What the system cannot do is listed in the app at `/about` (Method and limitations). The draft challenge report is [docs/report.md](docs/report.md), rendered to [docs/report.pdf](docs/report.pdf) by `docs/build_report.py`.
+![The dashboard on the Trishuli corridor: four figures, the lower-bound notice and the flood map](docs/images/dashboard.jpg)
+
+## The three questions
+
+| Question | What TANGO does | Where to look |
+| --- | --- | --- |
+| Where did the flood hit? | Compares a Sentinel-1 pair on the same orbit track (the median of three earlier images as the baseline), only on valley floors found from the Copernicus DEM and mapped rivers. Classes: water, debris, uncertain | Dashboard figures and map, the before/after viewer |
+| What was damaged? | Pre-event OpenStreetMap buildings, roads and bridges that fall inside the zones. Roads and bridges are "in flood zone", not "destroyed" | Dashboard, `/report` |
+| Who is cut off? | Settlements that could reach a hospital by road before the event and cannot now; "access unknown" where the map has no road | Rescue priority table, map markers, the Route tool |
+
+Also: a route planner that avoids flooded road sections, with live GPS navigation; the bonus flood-path trace from any point upstream; a copilot that answers four questions and writes the situation report in English and Nepali from the run's own figures (templates, not a language model; the Nepali is unreviewed); and a one-page report that prints to A4. The AI component is a flood segmentation model, a small U-Net trained on Kuro Siwo ([pipeline/MODEL.md](pipeline/MODEL.md)).
+
+<p align="center">
+  <img src="docs/images/priorities.jpg" width="32%" alt="The rescue priority table">
+  <img src="docs/images/report.jpg" width="32%" alt="The one-page situation report">
+  <img src="docs/images/copilot.jpg" width="32%" alt="The copilot answering which settlements are cut off">
+</p>
+
+## What it found, and how far to trust it
+
+| | |
+| --- | --- |
+| Trishuli corridor (case study) | 2.1 km² of flood zones (1.4 water, 0.7 debris) plus 0.1 km² uncertain; 11 of 149 settlements cut off, and 65 more with no mapped road, so their access is unknown. Sentinel-1D, track 85, 16 and 28 Aug 2026 |
+| Checked against Copernicus EMS EMSR927 (checking only) | Where it marks flood it is usually right (precision 0.88 to 0.99), but it finds only 3% to 22% of the reference area in the three reference areas inside the run, and 21% of the affected buildings. **Every figure is a lower bound.** |
+| False alarms | The same rule on two images that are both from before the event marks 9% to 13% of its own area (the single-image rule marked 24% to 127%), so part of every map is ordinary change (`pipeline/null_test.py`) |
+| A second reach, Lower Trishuli | 4.7 km² of flood zones, 14 of 116 settlements cut off, recall 0.22 to 0.35 at precision 0.94 to 0.97 |
+| Rehearsals on new ground | The Bhote Koshi valley and a dry-season date on it (the rule maps the real event at 3.3 times the area), and the 2021 Chamoli glacier flood, Uttarakhand. Not checked against any reference map: they show that the system runs on a new event, not how well it maps it |
+| Sentinel-2 optical (`--optical`) | Clear on both sides of the event for 31% and 55% of the two Trishuli areas. As built it adds almost nothing to the flood classes; its patches off the valley floor are mostly cloud and haze (report, section 5) |
+| Flood model (AI component) | Flood IoU 0.55 against 0.34 for the threshold rule on 12 Kuro Siwo test events it had not seen. On the real Trishuli scenes it does worse than the rule, so the default map is the rule's (`--model` maps water with the network instead) |
+
+What it cannot do: warn of a flood (Sentinel-1 returns every 12 days), see steep ground in radar shadow, count damage rather than overlap with a flood zone, or tell a cut-off settlement from one whose road was never mapped. The full list is section 7 of the report.
+
+## Quick start
+
+**Dashboard** (Node; the version is in `.nvmrc`):
+
+```bash
+git clone https://github.com/bhoopesh282008/Tango.git
+cd Tango
+npm install
+npm run dev      # http://localhost:5173
+```
+
+A fresh clone has no run data (it is not in git), so the dashboard opens on the bundled **Demo data**; the live site shows four real areas. To make your own, run the **pipeline** (Python 3.11 to 3.13 and a free Copernicus Data Space account):
+
+```bash
+py -3.13 -m venv pipeline/.venv
+pipeline/.venv/Scripts/python -m pip install -r pipeline/requirements.txt
+cd pipeline
+.venv/Scripts/python run.py --bbox <west,south,east,north> --event <YYYY-MM-DD> --out out/<folder> --name "<area name>" --publish
+```
+
+That is the whole system, end to end from raw Sentinel-1 data, for an area (up to about 0.2 square degrees) and a date you choose. It takes 3 to 16 minutes, longer when the free OpenStreetMap service is busy. Credentials, what each step does and what to do when it stops are under [Run the pipeline](#run-the-pipeline) and [On the day](#on-the-day-running-a-new-area).
 
 ## Run the dashboard
 
 ```bash
 npm install
 npm run dev      # http://localhost:5173
-npm run test     # 217 tests
+npm run test     # 304 tests
 npm run lint
 npm run build
 ```
@@ -47,6 +94,8 @@ It works out the address and base path from the git remote (`https://<owner>.git
 GitHub Pages cannot send response headers, so the Content-Security-Policy is a `<meta>` tag in the built page (`scripts/csp.mjs`; it lists the few map and imagery hosts the app uses). Continuous integration (`.github/workflows/ci.yml`) runs lint, the tests and a build at the Pages path; it does not deploy. Build for another path with `VITE_BASE=/other/ npm run build` (in Git Bash on Windows prefix the command with `MSYS_NO_PATHCONV=1`).
 
 Each page shows its build (version, commit, date) in the footer, so what was seen can be tied to a commit.
+
+The live site is <https://bhoopesh282008.github.io/Tango/>. GitHub Pages serves the `.geojson` files gzipped (checked: the 28.7 MB buildings file of Lower Trishuli travels as 3.6 MB), and answers a pasted deep link such as `/Tango/report` with `404.html`, which loads the app.
 
 ## Run the pipeline
 
@@ -92,7 +141,7 @@ cd pipeline
 
 Add `--optical` for the full run with Sentinel-2 where the sky was clear (about 17 minutes more per area; only 30% to 55% of the Trishuli areas had a clear view on both sides of the event, and it changed the flood classes very little, section 5 of the report).
 
-The run first checks the area, the date, the credentials and the output folder, and reports every problem at once before anything is downloaded. It then prints numbered steps with the time; reading the two Sentinel-1 scenes is the slow one. `--search-days N` widens the search for scenes around the event (default 20). Areas up to about 0.2 square degrees (the case studies are 0.15) are expected; larger ones are refused with a message.
+The run first checks the area, the date, the credentials and the output folder, and reports every problem at once before anything is downloaded. It then prints numbered steps with the time; reading the two Sentinel-1 scenes is the slow one. `--search-days N` widens the search for scenes around the event (default 20). Areas up to about 0.2 square degrees (the case studies are 0.15) are expected; from 0.2 to 0.4 the run warns that it will be long, and larger ones are refused with a message.
 
 | If it says | What it means | What to do |
 | --- | --- | --- |
@@ -150,19 +199,19 @@ Contains modified Copernicus Sentinel data 2026. Produced using Copernicus World
 
 ## Splash screen
 
-The app opens on a TANGO splash screen once per browser session: the title, a three-line checklist and a launch button. Each checklist line is ticked when its data has actually arrived (`DATA_PARTS` in `src/hooks/useDamageData.js`), not on a timer, and **Launch monitoring** appears when everything has loaded. The language chosen there is the copilot's language; the dashboard itself is in English.
+The app opens on a TANGO splash screen once per browser session: the title, a three-line checklist and a launch button. Each checklist line is ticked when its data has actually arrived (`DATA_PARTS` in `src/hooks/useDamageData.js`), not on a timer, and **Launch monitoring** appears when everything has loaded; Enter does the same. Launch draws the dashboard under the splash and fades the splash off it. The language chosen there is the copilot's language; the dashboard itself is in English.
 
 Behind the text is a space scene (`src/components/Splash/SpaceScene.jsx`) built from NASA material:
 
 | Part | What it is | Source |
 | --- | --- | --- |
 | Stars | Tycho star map, `public/images/starmap.webp` | [nasa/NASA-3D-Resources](https://github.com/nasa/NASA-3D-Resources) |
-| Satellite | Jason-1 3D model (gold body, two solar wings), `public/models/jason1.glb`, rendered live with three.js (`SatelliteModel.jsx`) | same repository |
-| Earth | Blue Marble imagery on MapLibre's globe projection (`SplashGlobe.jsx`); it turns until India faces the viewer, then drifts slowly | NASA GIBS tiles |
+| Satellite | Jason-1 3D model (gold body, two solar wings), `public/models/jason1.glb`, rendered live with three.js (`SatelliteModel.jsx`); it makes one pass along its orbit line | same repository |
+| Earth | Blue Marble drawn once as a picture (`public/images/earth.webp`), then redrawn live from the equirectangular map (`public/images/earth-map.webp`) by a small WebGL shader that sways it (`SpinningEarth.jsx`); the picture stays as the first frame and as the fallback | NASA Blue Marble, from GIBS |
 
 NASA states these assets are free and without copyright. The model is Draco-compressed, so the decoder files in `public/draco/` (copied from three.js) must ship with it. Jason-1, a radar altimeter satellite, stands in for the Sentinel-1 radar satellite the data comes from, for which NASA has no model.
 
-The scene loads after the text and costs about 1.4 MB (star map, model, decoder) plus three.js. On slow or data-saving connections and on devices without WebGL2 only the star map is shown; with reduced motion nothing moves.
+The satellite loads after the data and costs about 1.4 MB (star map, model, decoder) plus three.js. It is skipped when the browser asks to save data, on a 2G link and without WebGL2, leaving the star map and the Earth's picture; with reduced motion nothing moves and Launch opens the dashboard at once.
 
 ## Data sources for the dashboard
 
@@ -247,9 +296,9 @@ Background on the library choice is in [docs/map-library-research.md](docs/map-l
 
 ## How the numbers stay consistent
 
-`src/utils/calculations.js` derives every statistic from the loaded layers (`computeStats`). The stat cards, analysis cards, exports and copilot answers all read from that one result. In demo mode the copilot fills the templates in `src/data/copilotTemplates.js` with those figures; it does not generate free text.
+`src/utils/calculations.js` derives every statistic from the loaded layers (`computeStats`). The stat cards, analysis cards, exports and copilot answers all read from that one result. Without a backend (demo data or a pipeline run) the copilot fills the templates in `src/data/copilotTemplates.js` with those figures; it does not generate free text.
 
-The copilot page is a conversation: preset questions, or a typed question. In demo mode there is no language model behind it. A typed question is matched by keyword to one of the four topics (`matchQuestion` in `src/services/copilotService.js`), and anything else gets a notice saying it cannot be answered. With a backend configured, typed questions are sent to `POST /copilot/ask` as written.
+The copilot page is a conversation: preset questions, or a typed question. Without a backend there is no language model behind it. A typed question is matched by keyword to one of the four topics (`matchQuestion` in `src/services/copilotService.js`), and anything else gets a notice saying it cannot be answered. With a backend configured, typed questions are sent to `POST /copilot/ask` as written.
 
 The Nepali templates have not been reviewed by a native speaker.
 
@@ -257,7 +306,7 @@ The Nepali templates have not been reviewed by a native speaker.
 
 ```
 src/
-  pages/        DashboardPage, CopilotPage, AboutPage, ErrorPage
+  pages/        DashboardPage, CopilotPage, ReportPage, AboutPage, ErrorPage
   components/   Dashboard, Map, Tools, Copilot, Common, Layout, Splash
   store/        Zustand stores: map, data, copilot, ui
   services/     pipeline files, API or demo data; exports
@@ -267,7 +316,7 @@ src/
   config/       data mode and endpoints, map settings
 pipeline/       Python pipeline, model, tests (see above)
   results/      model evaluation and training log
-docs/           map library research
+docs/           the report (report.md, built to report.pdf by build_report.py), screenshots, map library research
 ```
 
 ## Not built yet
