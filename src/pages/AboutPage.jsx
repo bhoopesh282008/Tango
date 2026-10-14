@@ -13,11 +13,11 @@ const METHOD = [
   ],
   [
     'What was damaged',
-    'Buildings and roads from OpenStreetMap, as mapped before the event, are flagged as damaged where they intersect the water and debris zones.',
+    'Buildings and roads from OpenStreetMap, as mapped before the event, are marked as in a flood zone where they intersect the water and debris zones. That is an overlap, not an inspection.',
   ],
   [
     'Who is cut off',
-    'Damaged roads are removed from the road network. A settlement is cut off when it could reach a hospital by road before the event and can no longer do so. Beside that, the dashboard says whether it can still reach a town (a place mapped as a town or city), where the map has one.',
+    'Every road that touches a water or debris zone is closed. A settlement is cut off when it could reach a hospital by road before the event and can no longer do so. The dashboard also gives the firmer count, with only the stretches of road inside a zone closed, and says whether a cut-off settlement can still reach a town (a place mapped as a town or city), where the map has one.',
   ],
 ]
 
@@ -48,7 +48,7 @@ const LIMITS = [
   ],
   [
     'Damage is an overlap, not an inspection',
-    'A building inside a flood zone is counted as damaged whether or not it was. A building destroyed outside the mapped zone is not counted. At 10 m resolution single houses are not resolved.',
+    'A building inside a flood zone is counted whether or not it was damaged. A building destroyed outside the mapped zone is not counted. At 10 m resolution single houses are not resolved.',
   ],
   [
     'OpenStreetMap is incomplete',
@@ -56,7 +56,7 @@ const LIMITS = [
   ],
   [
     'Road cuts are coarse',
-    'A road segment touching a flood zone is removed whole from the road network (the road length shown is only the part inside a zone), and bridges are not assessed separately, so some settlements may be reported cut off when a passable route exists, and the reverse. Journey times on the route tool use assumed speeds by road class.',
+    'The headline count closes every road that touches a flood zone from end to end (the road length shown is only the part inside a zone), and bridges are not assessed separately, so some settlements may be reported cut off when a passable route exists, and the reverse; the firmer count, with only the flooded stretches closed, is shown beside it. Journey times on the route tool use assumed speeds by road class.',
   ],
   [
     'Priority score',

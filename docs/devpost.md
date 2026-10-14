@@ -26,7 +26,7 @@ Give TANGO an area and a flood date.
 
 The dashboard shows the result on a map with a rescue priority table, a before/after radar viewer with the mapped flood outlined, a route planner that avoids flooded road sections (with live GPS navigation), and the bonus flood-path trace from any point upstream. A copilot answers four questions and writes the situation report in English and Nepali; every number comes from the run's own figures, and the one-page report prints to A4.
 
-On the Trishuli corridor (16 and 28 August 2026): 2.1 km² of flood zones (1.4 water, 0.7 debris) plus 0.1 km² uncertain, 563 of 85,186 mapped buildings in a flood zone, 11 of 149 settlements cut off and 65 more with access unknown.
+On the Trishuli corridor (16 and 28 August 2026): 2.1 km² of flood zones (1.4 water, 0.7 debris) plus 0.1 km² uncertain, 563 of 85,186 mapped buildings in a flood zone, 12 of 149 settlements cut off (7 even if only the flooded stretches of road are closed) and 65 more with access unknown.
 
 ## How we built it
 
