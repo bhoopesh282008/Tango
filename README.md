@@ -7,7 +7,9 @@ An entry to Space Track, Track B (*Mapping Flood Damage from Space*) of the Mult
 | | |
 | --- | --- |
 | Live dashboard | <https://bhoopesh282008.github.io/Tango/> (six areas on real data: the case study, the flood model's map of the same scenes, a second reach and three rehearsals; the header's **Demo** switch shows the bundled demo dataset) |
-| Demo video | _added at submission_ |
+| Demo video (3 min) | <https://youtu.be/mF6I_xkWayw> |
+| Devpost | <https://devpost.com/software/tango-flood-response-system> |
+| Team | Melvin Raj T, Sasmitha R, Bhoopesh M, Thaniska P S |
 | Report (6 pages) | [docs/report.pdf](docs/report.pdf), source [docs/report.md](docs/report.md) |
 | Method and limits | the dashboard's **Method** page, and section 7 of the report |
 | Licence | MIT for the code; the data keeps its own terms (see [Attribution](#attribution)) |

@@ -6,9 +6,9 @@ Tagline (200 characters): From Sentinel-1 radar to cut-off villages: maps flood 
 
 Track: Space Track, Track B, *Mapping Flood Damage from Space*
 
-Links: code <https://github.com/bhoopesh282008/Tango> · live dashboard <https://bhoopesh282008.github.io/Tango/> · video [YouTube link] · report `docs/report.pdf` in the repository
+Links: code <https://github.com/bhoopesh282008/Tango> · live dashboard <https://bhoopesh282008.github.io/Tango/> · video <https://youtu.be/mF6I_xkWayw> · report `docs/report.pdf` in the repository
 
-Team: [names, up to four, with the Devpost accounts that must be added]
+Team: Melvin Raj T, Sasmitha R, Bhoopesh M, Thaniska P S
 
 ---
 
