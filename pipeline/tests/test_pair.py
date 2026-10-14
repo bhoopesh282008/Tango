@@ -45,6 +45,15 @@ def test_pair_prefers_the_earliest_image_after_the_event():
     assert before.properties['sat:relative_orbit'] == 85
 
 
+def test_a_named_track_overrides_the_earliest_image_rule():
+    items = [item('2026-08-24', 19), item('2026-09-05', 19),
+             item('2026-08-16', 85), item('2026-08-28', 85)]
+    before, after = fetch_s1.choose_pair(items, '2026-08-26', track=19)
+    assert before.properties['sat:relative_orbit'] == 19
+    assert after.properties['datetime'].startswith('2026-09-05')
+    assert fetch_s1.choose_pair(items, '2026-08-26', track=121) is None
+
+
 def test_pair_covering_the_whole_area_beats_an_earlier_partial_one():
     bbox = '85.1,27.9,85.5,28.3'
     items = [scene('2026-08-19', 121, 85.23, 88.0), scene('2026-08-31', 121, 85.23, 88.0),   # misses the west

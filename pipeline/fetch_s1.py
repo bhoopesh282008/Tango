@@ -87,7 +87,7 @@ def coverage(item, bbox):
     return shape(geometry).intersection(area).area / area.area
 
 
-def choose_pair(items, event_day, tolerance_days=3, bbox=None):
+def choose_pair(items, event_day, tolerance_days=3, bbox=None, track=None):
     """Pick (before, after) on the same track, REVISIT_DAYS apart, bracketing the event.
 
     Different tracks view the terrain from different angles and cannot be
@@ -95,13 +95,16 @@ def choose_pair(items, event_day, tolerance_days=3, bbox=None):
     Among valid pairs, those whose scenes cover the area (FULL_COVERAGE) come first, and of
     those the one with the earliest image after the event: for rescue, days matter more than a
     slightly closer "before" scene, or a sliver more coverage. If no pair covers the area,
-    the one covering most of it wins. Returns None if no pair exists.
+    the one covering most of it wins. `track` (a relative orbit number) keeps only that track,
+    so a published run can be made again on the pair it used. Returns None if no pair exists.
     """
     event_day = event_day if isinstance(event_day, date) else date.fromisoformat(event_day)
     best = None
     for before in items:
         for after in items:
             if _track(before) != _track(after) or _track(before)[0] is None:
+                continue
+            if track is not None and _track(before)[0] != track:
                 continue
             gap = (_day(after) - _day(before)).days
             if abs(gap - REVISIT_DAYS) > tolerance_days:
@@ -160,13 +163,19 @@ def describe_scenes(items):
     return '; '.join(f"{name}: {', '.join(sorted(days))}" for name, days in sorted(by_track.items()))
 
 
-def find_pair(bbox, event_day, search_days=20):
+def find_pair(bbox, event_day, search_days=20, track=None):
     """Search around the event and return the best same-track (before, after) pair."""
     event = date.fromisoformat(event_day) if isinstance(event_day, str) else event_day
     window = timedelta(days=search_days)
     items = group_passes(search(bbox, (event - window).isoformat(), (event + window).isoformat()))
-    pair = choose_pair(items, event, bbox=bbox)
+    pair = choose_pair(items, event, bbox=bbox, track=track)
     if pair is None:
+        if track is not None and items:
+            raise RuntimeError(
+                f'No Sentinel-1 pair on track {track} brackets {event} over {bbox}. '
+                f'Found {len(items)} scenes within {search_days} days: {describe_scenes(items)}. '
+                f'Leave out --track to let the pipeline choose.'
+            )
         if not items:
             raise RuntimeError(
                 f'No Sentinel-1 scenes cover {bbox} within {search_days} days of {event}. '

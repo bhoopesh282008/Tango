@@ -103,14 +103,14 @@ def read_pass(item, pol, crs, xs, ys, height, geometry=None, say=print):
     return db, first[0], first[1], (masked / weight if weight else 0.0)
 
 
-def prepare_pair(bbox, event, out, res=10.0, pols=('vv',), search_days=20, say=print):
+def prepare_pair(bbox, event, out, res=10.0, pols=('vv',), search_days=20, say=print, track=None):
     """Raw GRD scenes -> co-registered dB rasters. Returns paths and scene metadata.
 
     paths are keyed 'pre', 'post' (VV), 'pre_vh', 'post_vh' when VH is asked for, and 'slope'.
     """
     out = Path(out)
     out.mkdir(parents=True, exist_ok=True)
-    before, after = fetch_s1.find_pair(bbox, event, search_days=search_days)
+    before, after = fetch_s1.find_pair(bbox, event, search_days=search_days, track=track)
     say(f"  Pair: {before.properties['datetime'][:10]} to {after.properties['datetime'][:10]}, "
         f"track {before.properties.get('sat:relative_orbit')} {before.properties.get('sat:orbit_state')}, "
         f"{(fetch_s1._day(after) - fetch_s1.date.fromisoformat(str(event))).days} days after the event")
@@ -339,6 +339,9 @@ def main():
                          '(the map itself is the rule\'s)')
     ap.add_argument('--search-days', type=int, default=20,
                     help='how many days either side of the event to look for Sentinel-1 scenes (default 20)')
+    ap.add_argument('--track', type=int, metavar='ORBIT',
+                    help='use only this Sentinel-1 relative orbit (for example to make a published run again '
+                         'on the pair it used); default: the pipeline chooses')
     ap.add_argument('--baseline-images', type=int, default=None, metavar='N',
                     help='compare with the median of N images on the same track (the "before" scene and N-1 earlier ones, '
                          '12 days apart) and count a change only if it exceeds 3 standard deviations of how much that '
@@ -393,7 +396,7 @@ def main():
         progress.step(f'Finding the Sentinel-1 pair around {args.event} and reading the scenes')
         paths, scenes = prepare_pair(args.bbox, args.event, Path(args.out) / 'rasters',
                                      pols=('vv', 'vh') if (args.model or args.vh or wants_model_check) else ('vv',),
-                                     search_days=args.search_days)
+                                     search_days=args.search_days, track=args.track)
         args.pre, args.post, args.slope = str(paths['pre']), str(paths['post']), str(paths['slope'])
     elif args.model or args.vh:
         ap.error('--model and --vh need the VH rasters too, so they cannot be combined with --pre/--post (use --no-vh)')
