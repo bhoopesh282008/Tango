@@ -8,7 +8,7 @@ Track: Space Track, Track B, *Mapping Flood Damage from Space*
 
 Links: code <https://github.com/bhoopesh282008/Tango> · live dashboard <https://bhoopesh282008.github.io/Tango/> · video <https://youtu.be/mF6I_xkWayw> · report `docs/report.pdf` in the repository
 
-Team: Melvin Raj T, Sasmitha R, Bhoopesh M, Thaniska P S
+Team: Bhoopesh M, Thaniska P S, Melvin Raj T, Sasmitha R
 
 ---
 
