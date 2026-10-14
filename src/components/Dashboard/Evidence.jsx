@@ -47,6 +47,42 @@ function ItemList({ items }) {
   )
 }
 
+const share = (part, whole) => (whole > 0 ? `${Math.round((part / whole) * 100)}%` : 'none')
+
+// Two independent looks at the same flood, when the run made them: the trained model on the same radar
+// images, and Sentinel-2 where the sky was clear. Neither changes the map; both say how far to trust it.
+export function ChecksOnTheMap({ stats }) {
+  const model = stats.modelCheck
+  const optical = stats.optical
+  if (!model && !optical) return null
+  return (
+    <div className="mt-3 space-y-2 text-sm leading-relaxed text-ink-soft">
+      {model && (
+        <p>
+          <span className="font-medium text-ink">Checked by the flood model.</span> The trained model, run on the same
+          radar images as an independent check, also marks{' '}
+          <span className="num font-semibold text-ink">{formatNumber(model.both_water_km2, 2)} km²</span> of the{' '}
+          <span className="num">{formatNumber(model.rule_water_km2, 2)} km²</span> of water the rule found (
+          {share(model.both_water_km2, model.rule_water_km2)}), and{' '}
+          <span className="num">{formatNumber(model.model_only_km2, 2)} km²</span> the rule does not. Water both mark is the
+          firmest part of the map. The model has no debris class.
+        </p>
+      )}
+      {optical?.used && (
+        <p>
+          <span className="font-medium text-ink">Sentinel-2.</span> The sky was clear on both sides of the event over{' '}
+          {share(optical.clear_both ?? 0, 1)} of the area. There it confirmed{' '}
+          <span className="num">{formatNumber(optical.km2?.confirmed ?? 0, 2)} km²</span> of the radar&apos;s detections and
+          filled <span className="num">{formatNumber(optical.km2?.filled_blind_spots ?? 0, 2)} km²</span> the radar could not
+          see. Change it saw where the radar found none ({formatNumber(optical.km2?.optical_only ?? 0, 1)} km² on valley
+          floors) is recorded, not drawn: a later look is a lead, not a detection.
+        </p>
+      )}
+      {optical && optical.used === false && <p>Sentinel-2 had no clear pass on both sides of the event here, so this map is radar only.</p>}
+    </div>
+  )
+}
+
 // What was found, by type. The confidence is the rule's own score for each zone, a ranking of
 // how strong the radar change was, not a measured accuracy: so it is given as a range, as figures.
 function Detection({ stats }) {
@@ -90,6 +126,7 @@ function Detection({ stats }) {
         The change score says how strong the change was; it is not a measured accuracy. The check
         against a reference map is the note above the figures.
       </p>
+      <ChecksOnTheMap stats={stats} />
     </section>
   )
 }

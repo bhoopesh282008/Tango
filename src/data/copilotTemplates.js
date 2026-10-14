@@ -109,7 +109,10 @@ const en = {
         ),
       )}`,
       `Settlements with the most damaged structures: ${worst.map((w) => `${w.name} (${n(w.damaged)})`).join(', ')}.`,
-    ].join('\n\n')
+      s.modelCheck
+        ? `The trained flood model, run on the same images as a check, also marks ${n(s.modelCheck.both_water_km2, 2)} of the ${n(s.modelCheck.rule_water_km2, 2)} km² of water; where both agree is the firmest part of the map.`
+        : null,
+    ].filter(Boolean).join('\n\n')
   },
 
   infrastructure: (s) =>
@@ -221,7 +224,10 @@ const np = {
         ),
       )}`,
       `सबैभन्दा बढी संरचना क्षति भएका बस्तीहरू: ${worst.map((w) => `${w.name_np ?? w.name} (${n(w.damaged)})`).join(', ')}।`,
-    ].join('\n\n')
+      s.modelCheck
+        ? `उही तस्बिरमा जाँचका लागि चलाइएको प्रशिक्षित बाढी मोडेलले पनि ${n(s.modelCheck.rule_water_km2, 2)} वर्ग कि.मी. पानीमध्ये ${n(s.modelCheck.both_water_km2, 2)} वर्ग कि.मी. देखाउँछ; दुवै सहमत भएको भाग नक्साको सबैभन्दा भरपर्दो भाग हो।`
+        : null,
+    ].filter(Boolean).join('\n\n')
   },
 
   infrastructure: (s) =>

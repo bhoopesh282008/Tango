@@ -143,3 +143,28 @@ describe('context beside the map', () => {
     expect([modelledPeople(12), modelledPeople(437), modelledPeople(8123), modelledPeople(null)]).toEqual(['under 50', '440', '8,100', null])
   })
 })
+
+describe('the two independent looks at the map', () => {
+  test('say how much of the water the model also finds, and what Sentinel-2 added', async () => {
+    const { ChecksOnTheMap } = await import('./Evidence')
+    show(
+      <ChecksOnTheMap
+        stats={{
+          ...stats,
+          modelCheck: { rule_water_km2: 1.39, model_water_km2: 0.53, both_water_km2: 0.43, model_only_km2: 0.1 },
+          optical: { used: true, clear_both: 0.31, km2: { confirmed: 0.07, filled_blind_spots: 0.01, optical_only: 6.2 } },
+        }}
+      />,
+    )
+    expect(screen.getByText(/Checked by the flood model/)).toBeInTheDocument()
+    expect(screen.getByText('0.43 km²')).toBeInTheDocument()
+    expect(screen.getByText(/31% of the area/)).toBeInTheDocument()
+    expect(screen.getByText(/is recorded, not drawn/)).toBeInTheDocument()
+  })
+
+  test('say nothing when the run made neither', async () => {
+    const { ChecksOnTheMap } = await import('./Evidence')
+    const { container } = show(<ChecksOnTheMap stats={{ ...stats, modelCheck: null, optical: null }} />)
+    expect(container).toBeEmptyDOMElement()
+  })
+})

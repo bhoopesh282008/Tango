@@ -263,6 +263,12 @@ export function computeStats({ floodZones, buildings, roads, settlements, infras
     osmQuality: satelliteData?.osm_quality ?? null,
     // The rule's false-alarm floor: what it marks between two images from before the flood
     nullTest: satelliteData?.null_test ?? null,
+    // The trained model run on the same images as a check on the rule's water; null when not run
+    modelCheck: satelliteData?.model_check ?? null,
+    // What Sentinel-2 added where the sky was clear; null when the run was radar only
+    optical: satelliteData?.optical ?? null,
+    // The radar bands the change rule looked at
+    polarisations: satelliteData?.polarisations ?? ['VV'],
     // Modelled population and river flow from open datasets, beside the map and outside its numbers
     context: satelliteData?.context ?? null,
 

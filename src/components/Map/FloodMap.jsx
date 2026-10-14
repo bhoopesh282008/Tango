@@ -77,6 +77,8 @@ function describeFeature({ layer, properties: p }) {
         lines: [
           `${DAMAGE_TYPES[p.type].label} · ${formatNumber(p.area_km2, 1)} km²`,
           `Change score ${formatPercent(p.confidence)}`,
+          // The trained model, run as a check on the same images, marks this share of the zone as water
+          ...(p.model_share != null ? [`Flood model also marks ${formatPercent(p.model_share)} of it as water`] : []),
         ],
       }
   }
