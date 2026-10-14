@@ -148,3 +148,19 @@ def test_zone_share_is_the_part_of_each_zone_the_mask_covers():
     mask[:, :5] = True
     zones = gpd.GeoDataFrame(geometry=[box(0, 0, 10, 10), box(0, 0, 5, 5)], crs='EPSG:32645')
     assert segment.zone_share(zones, mask, transform) == [0.5, 1.0]
+
+
+def test_agreement_is_measured_against_the_zones_as_drawn():
+    from rasterio.transform import from_origin
+    from shapely.geometry import box
+    import geopandas as gpd
+    transform = from_origin(0, 1000, 100, 100)       # 100 m cells: 0.01 km2 each, a 1 x 1 km grid
+    model = np.zeros((10, 10), bool)
+    model[:, :5] = True                              # the model marks the western half: 50 cells
+    zones = gpd.GeoDataFrame({'type': ['water', 'debris'], 'area_km2': [0.16, 0.04]},
+                             geometry=[box(200, 200, 600, 600), box(700, 700, 900, 900)], crs='EPSG:32645')
+    result = segment.agreement(zones, model, transform)
+    assert result == {'rule_water_km2': 0.16,       # the zones' own area, as the dashboard shows it
+                      'model_water_km2': 0.5,
+                      'both_water_km2': 0.12,         # 3 of the water zone's 4 columns lie in the western half
+                      'model_only_km2': 0.38}         # model water outside every water or debris zone

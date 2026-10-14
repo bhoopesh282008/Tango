@@ -122,6 +122,28 @@ def classify_bands(bands, slope_deg=None, floor=None):
     return classes, conf
 
 
+def agreement(zones, other_water, transform):
+    """How a second water map (the trained model's) compares with the zones as drawn, in km2:
+    the rule's water, the other map's water, the water both mark, and what the other map marks outside
+    every water or debris zone. Pixels are cells of the raster `transform` describes."""
+    cell_km2 = abs(transform.a) * abs(transform.e) / 1e6
+
+    def drawn(types):
+        shapes = [(g, 1) for g, t in zip(zones.geometry, zones['type']) if t in types] if len(zones) else []
+        if not shapes:
+            return np.zeros(other_water.shape, bool)
+        return rasterio.features.rasterize(shapes, out_shape=other_water.shape, transform=transform, fill=0).astype(bool)
+
+    water, flood = drawn({'water'}), drawn({'water', 'debris'})
+    water_km2 = float(zones.loc[zones['type'] == 'water', 'area_km2'].sum()) if len(zones) else 0.0
+    return {
+        'rule_water_km2': round(water_km2, 3),
+        'model_water_km2': round(float(other_water.sum()) * cell_km2, 3),
+        'both_water_km2': round(float((water & other_water).sum()) * cell_km2, 3),
+        'model_only_km2': round(float((other_water & ~flood).sum()) * cell_km2, 3),
+    }
+
+
 def zone_share(zones, mask, transform):
     """For each zone, the share of its pixels where `mask` is true (zones in the raster's CRS)."""
     return [

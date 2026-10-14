@@ -32,7 +32,7 @@ test('loads the six datasets from the data folder', async () => {
     [...Object.keys(FILES), '/data/context.json', '/data/outlines.json'].sort(),
   )
   expect(loaded.satelliteData).toEqual({
-    area: null, event: '2026-08-26', before: { date: '2026-08-24' }, after: null, validation: null, detail: null, osm_quality: null, null_test: null, context: null, outlines: null,
+    area: null, event: '2026-08-26', before: { date: '2026-08-24' }, after: null, validation: null, detail: null, osm_quality: null, null_test: null, model_check: null, optical: null, polarisations: null, context: null, outlines: null,
   })
   expect(loaded.settlements[0]).toMatchObject({ population: null, connected: null })
   expect(loaded.infrastructure).toEqual([])

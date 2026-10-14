@@ -14,7 +14,7 @@ How to reply: for each problem, send the item (the heading and the line) and you
 | damaged | क्षतिग्रस्त | 51 |
 | mapped building | नक्साङ्कित भवन | 46 |
 | lower bound | न्यूनतम अनुमान | 5 |
-| flood | बाढी | 41 |
+| flood | बाढी | 43 |
 | still connected by road | सडक सम्पर्कमा रहेका | 2 |
 | access unknown | पहुँचको अवस्था अज्ञात | 2 |
 | infrastructure | पूर्वाधार | 11 |
@@ -151,13 +151,15 @@ How to reply: for each problem, send the item (the heading and the line) and you
 > Largest affected reaches:
 >
 > 1
-> Water z126: 0.1 km² (water, change score 74%)
+> Water z130: 0.1 km² (water, change score 75%)
 > 2
-> Water z192: 0.1 km² (water, change score 72%)
+> Water z198: 0.1 km² (water, change score 73%)
 > 3
-> Water z133: 0.1 km² (water, change score 69%)
+> Water z138: 0.1 km² (water, change score 79%)
 >
 > Settlements with the most damaged structures: Betrawati (144), Naubisephat (126), Bhyagute (109).
+>
+> The trained flood model, run on the same images as a check, also marks 0.45 of the 1.39 km² of water; where both agree is the firmest part of the map.
 >
 > Lower bound: checked against Copernicus EMS EMSR927 in 3 areas, this map found 3% to 22% of the affected area. An area with nothing marked is not known to be safe.
 >
@@ -178,13 +180,15 @@ How to reply: for each problem, send the item (the heading and the line) and you
 > सबैभन्दा बढी प्रभावित खण्डहरू:
 >
 > 1
-> Water z126: 0.1 वर्ग कि.मी. (पानी, परिवर्तन अङ्क 74%)
+> Water z130: 0.1 वर्ग कि.मी. (पानी, परिवर्तन अङ्क 75%)
 > 2
-> Water z192: 0.1 वर्ग कि.मी. (पानी, परिवर्तन अङ्क 72%)
+> Water z198: 0.1 वर्ग कि.मी. (पानी, परिवर्तन अङ्क 73%)
 > 3
-> Water z133: 0.1 वर्ग कि.मी. (पानी, परिवर्तन अङ्क 69%)
+> Water z138: 0.1 वर्ग कि.मी. (पानी, परिवर्तन अङ्क 79%)
 >
 > सबैभन्दा बढी संरचना क्षति भएका बस्तीहरू: बेत्रावती (144), नौविसे फाँट (126), भ्यागुते (109)।
+>
+> उही तस्बिरमा जाँचका लागि चलाइएको प्रशिक्षित बाढी मोडेलले पनि 1.39 वर्ग कि.मी. पानीमध्ये 0.45 वर्ग कि.मी. देखाउँछ; दुवै सहमत भएको भाग नक्साको सबैभन्दा भरपर्दो भाग हो।
 >
 > न्यूनतम अनुमान: Copernicus EMS EMSR927 सँग 3 क्षेत्रमा तुलना गर्दा यस नक्साले प्रभावित क्षेत्रको 3% देखि 22% मात्र पत्ता लगाएको छ। नक्सामा चिन्ह नलागेको क्षेत्र सुरक्षित छ भन्ने निश्चित छैन।
 >
@@ -453,13 +457,15 @@ How to reply: for each problem, send the item (the heading and the line) and you
 > Largest affected reaches:
 >
 > 1
-> Water z126: 0.1 km² (water, change score 74%)
+> Water z130: 0.1 km² (water, change score 75%)
 > 2
-> Water z192: 0.1 km² (water, change score 72%)
+> Water z198: 0.1 km² (water, change score 73%)
 > 3
-> Water z133: 0.1 km² (water, change score 69%)
+> Water z138: 0.1 km² (water, change score 79%)
 >
 > Settlements with the most damaged structures: Betrawati (144), Naubisephat (126), Bhyagute (109).
+>
+> The trained flood model, run on the same images as a check, also marks 0.45 of the 1.39 km² of water; where both agree is the firmest part of the map.
 >
 > DAMAGED INFRASTRUCTURE
 >
@@ -579,13 +585,15 @@ How to reply: for each problem, send the item (the heading and the line) and you
 > सबैभन्दा बढी प्रभावित खण्डहरू:
 >
 > 1
-> Water z126: 0.1 वर्ग कि.मी. (पानी, परिवर्तन अङ्क 74%)
+> Water z130: 0.1 वर्ग कि.मी. (पानी, परिवर्तन अङ्क 75%)
 > 2
-> Water z192: 0.1 वर्ग कि.मी. (पानी, परिवर्तन अङ्क 72%)
+> Water z198: 0.1 वर्ग कि.मी. (पानी, परिवर्तन अङ्क 73%)
 > 3
-> Water z133: 0.1 वर्ग कि.मी. (पानी, परिवर्तन अङ्क 69%)
+> Water z138: 0.1 वर्ग कि.मी. (पानी, परिवर्तन अङ्क 79%)
 >
 > सबैभन्दा बढी संरचना क्षति भएका बस्तीहरू: बेत्रावती (144), नौविसे फाँट (126), भ्यागुते (109)।
+>
+> उही तस्बिरमा जाँचका लागि चलाइएको प्रशिक्षित बाढी मोडेलले पनि 1.39 वर्ग कि.मी. पानीमध्ये 0.45 वर्ग कि.मी. देखाउँछ; दुवै सहमत भएको भाग नक्साको सबैभन्दा भरपर्दो भाग हो।
 >
 > क्षतिग्रस्त पूर्वाधार
 >

@@ -493,19 +493,14 @@ def main():
         model, device = predict.load_model(str(MODEL_FILE))
         probability = predict.flood_probability(model, device, post, post_vh, pre, pre_vh)
         model_water = predict.classify(probability, pre, post, slope, floor)[0] == C.CLASS_WATER
-        cell_km2 = abs(transform.a) * abs(transform.e) / 1e6
-        rule_water = classes == C.CLASS_WATER
-        rule_flood = np.isin(classes, (C.CLASS_WATER, C.CLASS_DEBRIS))
-        model_check = {
-            'model': 'U-Net trained on Kuro Siwo (water only)',
-            'rule_water_km2': round(float(rule_water.sum()) * cell_km2, 3),
-            'model_water_km2': round(float(model_water.sum()) * cell_km2, 3),
-            'both_water_km2': round(float((rule_water & model_water).sum()) * cell_km2, 3),
-            'model_only_km2': round(float((model_water & ~rule_flood).sum()) * cell_km2, 3),
-        }
     zones = segment.vectorise(classes, conf, transform, crs)
-    if model_water is not None and len(zones):
-        zones['model_share'] = segment.zone_share(zones, model_water, transform)
+    if model_water is not None:
+        # Measured against the zones as drawn (vectorise drops patches too small to be a zone), so these
+        # figures agree with the dashboard's water and flood areas
+        model_check = segment.agreement(zones, model_water, transform)
+        model_check['model'] = 'U-Net trained on Kuro Siwo (water only)'
+        if len(zones):
+            zones['model_share'] = segment.zone_share(zones, model_water, transform)
     # A full-resolution close-up of where the most flood was mapped, for the before/after viewer.
     detail_window = quicklook.detail_pngs(pre, post, np.isin(classes, (C.CLASS_WATER, C.CLASS_DEBRIS)), out)
     # The zones drawn over those pictures (in their own pixels), so the viewer can outline what was mapped

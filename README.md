@@ -39,8 +39,9 @@ Also: a route planner that avoids flooded road sections, with live GPS navigatio
 | False alarms | The same rule on two images that are both from before the event marks 9% to 13% of its own area (the single-image rule marked 24% to 127%), so part of every map is ordinary change (`pipeline/null_test.py`) |
 | A second reach, Lower Trishuli | 4.7 km² of flood zones, 16 of 116 settlements cut off (5 even if only the flooded stretches close), recall 0.22 to 0.35 at precision 0.94 to 0.97 |
 | Rehearsals on new ground | The Bhote Koshi in Sindhupalchok on the event date and on a dry-season date (the rule maps 3.3 times the area in August as in February; no flood there is confirmed, and the seasons differ), the 2021 Chamoli glacier flood in Uttarakhand, and the 2023 South Lhonak glacial-lake flood down the Teesta valley in Sikkim (run from scratch in about 25 minutes, most of it waiting for the free OpenStreetMap service). Not checked against any reference map: they show that the system runs on a new event, not how well it maps it |
-| Sentinel-2 optical (`--optical`) | Clear on both sides of the event for 31% and 55% of the two Trishuli areas. As built it adds almost nothing to the flood classes; its patches off the valley floor are mostly cloud and haze (report, section 5) |
-| Flood model (AI component) | Flood IoU 0.46 against 0.27 for the threshold rule on Kuro Siwo test floods absent from training (0.55 against 0.34 for a smaller model trained with every test event held out). On the real Trishuli scenes it finds less than the rule (2% to 14% of the reference area against 3% to 22%), so the default map is the rule's; the dashboard's area list also holds the model's map of the same scenes (`--model` makes one) |
+| Sentinel-2 optical (on by default) | Clear on both sides of the event for 31% and 55% of the two Trishuli areas. There it confirms 0.58 and 0.79 km² of the radar's detections and fills 0.07 and 0.08 km² of radar blind spots. Change only it sees (6.4 and 8.1 km² on valley floors) is recorded, not drawn; off the valley floor it was mostly cloud and haze. `--no-optical` gives a run about 17 minutes shorter |
+| Flood model (AI component) | Flood IoU 0.46 against 0.27 for the threshold rule on Kuro Siwo test floods absent from training (0.55 against 0.34 for a smaller model trained with every test event held out). On the real Trishuli scenes it finds less than the rule (2% to 14% of the reference area against 3% to 22%), so the rule makes the map and the model checks it: run on the same images, it also marks 0.45 of the rule's 1.39 km² of water (32%; Lower Trishuli 49%), shown per zone on the dashboard. Its own map of the scenes is in the area list |
+| VH band (tested, not adopted) | Adding VH to the change rule mapped 4.47 km² on Trishuli against 2.07, but also marked 14% and 16% of that between two images from before the flood, above a 15% bar set before the test. `--vh` still tries it |
 
 What it cannot do: warn of a flood (Sentinel-1 returns every 12 days), see steep ground in radar shadow, count damage rather than overlap with a flood zone, or tell a cut-off settlement from one whose road was never mapped. The full list is section 7 of the report.
 
@@ -71,7 +72,7 @@ That is the whole system, end to end from raw Sentinel-1 data, for an area (up t
 ```bash
 npm install
 npm run dev      # http://localhost:5173
-npm run test     # 315 tests
+npm run test     # 319 tests
 npm run lint
 npm run build
 ```
@@ -104,7 +105,7 @@ Python 3.11 to 3.13 (the geospatial packages have no wheels for 3.14 yet). From 
 ```bash
 py -3.13 -m venv pipeline/.venv
 pipeline/.venv/Scripts/python -m pip install -r pipeline/requirements.txt
-pipeline/.venv/Scripts/python -m pytest pipeline/tests     # 191 tests
+pipeline/.venv/Scripts/python -m pytest pipeline/tests     # 201 tests
 ```
 
 For GPU training install PyTorch from its own index first: `pip install torch --index-url https://download.pytorch.org/whl/cu124`.

@@ -30,7 +30,7 @@ On the Trishuli corridor (16 and 28 August 2026): 2.1 km² of flood zones (1.4 w
 
 ## How we built it
 
-A Python pipeline (`pipeline/`) reads only the needed window of each Sentinel-1 scene from the Copernicus Data Space, calibrates it, removes noise and speckle, and terrain-corrects it with the Copernicus DEM. It classifies change on valley floors, overlays OpenStreetMap as it was 30 days before the event, builds the road graph and finds the cut-off settlements. It writes static files that a React dashboard reads: no server. The AI component is a small U-Net trained on a sample of Kuro Siwo, with its own held-out-event evaluation.
+A Python pipeline (`pipeline/`) reads only the needed window of each Sentinel-1 scene from the Copernicus Data Space, calibrates it, removes noise and speckle, and terrain-corrects it with the Copernicus DEM. It classifies change on valley floors, overlays OpenStreetMap as it was 30 days before the event, builds the road graph and finds the cut-off settlements. It writes static files that a React dashboard reads: no server. The AI component is a small U-Net trained on a sample of Kuro Siwo, with its own held-out-event evaluation. On the real Himalayan scenes it finds less than the rule, so the rule makes the map and the model checks it, run on the same images: the water both mark is the firmest part of the map (32% of the rule's water on Trishuli, 49% on Lower Trishuli). Sentinel-2 is used where the sky was clear, to confirm detections and fill radar blind spots, and OpenStreetMap is fetched in the background while the radar is read, so a busy free service costs less time on the day. Adding the VH band was tested and rejected by a false-alarm bar set before the test.
 
 Built with: Python, rasterio, geopandas, networkx, PyTorch, Sentinel-1, Copernicus DEM, OpenStreetMap (Overpass), Kuro Siwo, React, Vite, MapLibre GL, Zustand, Tailwind, three.js, Vitest, Playwright and axe, GitHub Actions, GitHub Pages.
 
@@ -47,7 +47,7 @@ Built with: Python, rasterio, geopandas, networkx, PyTorch, Sentinel-1, Copernic
 - It runs end to end on real scenes, for areas it had not seen: the Trishuli corridor, a second reach, the Bhote Koshi valley (and a dry-season date on it), and the 2021 Chamoli glacier flood.
 - It is checked against Copernicus EMS EMSR927 and says what the check shows: precision 0.88 to 0.99, but only 3% to 22% of the reference area found on the corridor, so every figure is a lower bound.
 - The dashboard states its own limits (the lower-bound notice, "access unknown", "population not recorded", "not assessed") instead of filling gaps.
-- 315 frontend tests, 191 pipeline tests, lint, accessibility checks and a build run in CI on every push to the main branch and every pull request.
+- 319 frontend tests, 201 pipeline tests, lint, accessibility checks and a build run in CI on every push to the main branch and every pull request.
 
 ## What we learned
 
@@ -55,7 +55,7 @@ Most of a debris corridor changes by less than 3 dB in a radar pair, so a radar-
 
 ## What's next
 
-Raising recall with evidence the rules allow (Sentinel-2 where the sky is clear, radar coherence), more events and valleys, a native speaker's review of the Nepali text, and offline use for field teams.
+Raising recall with evidence the rules allow (radar coherence from SLC scenes, a second viewing track for the slopes radar cannot see), testing more events and valleys, a native speaker's review of the Nepali text, and offline use for field teams.
 
 ## Data and rules
 

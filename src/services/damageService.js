@@ -69,7 +69,10 @@ export async function getSatellite() {
   if (USE_MOCK) return mock((await demo()).satellite)
   if (PIPELINE) {
     // A run from existing rasters records no scenes, so either side may be missing.
-    const { before, after, validation, detail, area, event, osm_quality: osmQuality, null_test: nullTest } = record(
+    const {
+      before, after, validation, detail, area, event, osm_quality: osmQuality, null_test: nullTest,
+      model_check: modelCheck, optical, polarisations,
+    } = record(
       await getFile(PIPELINE_FILES.satellite),
       'The satellite scene record',
     )
@@ -87,6 +90,12 @@ export async function getSatellite() {
       osm_quality: osmQuality ?? null,
       // What the same rule marks between two images from before the flood, when that was measured
       null_test: nullTest ?? null,
+      // The trained model run on the same images as a check on the rule's water, when it was
+      model_check: modelCheck ?? null,
+      // What Sentinel-2 added where the sky was clear, when the run used it
+      optical: optical ?? null,
+      // The radar bands the change rule looked at
+      polarisations: polarisations ?? null,
       context: await getContext(),
       outlines: await getOutlines(),
     }
