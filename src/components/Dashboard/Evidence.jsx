@@ -57,12 +57,12 @@ function Detection({ stats }) {
         What was detected
       </h3>
       <table className="mt-2 w-full text-sm">
-        <caption className="sr-only">Flooded area and detection confidence by type</caption>
+        <caption className="sr-only">Flooded area and change score by type</caption>
         <thead>
           <tr className="text-left text-xs text-ink-soft">
             <th scope="col" className="pb-1.5 font-medium">Type</th>
             <th scope="col" className="pb-1.5 text-right font-medium">Area</th>
-            <th scope="col" className="pb-1.5 text-right font-medium">Confidence</th>
+            <th scope="col" className="pb-1.5 text-right font-medium">Change score</th>
           </tr>
         </thead>
         <tbody className="divide-y divide-line border-t border-line">
@@ -87,7 +87,7 @@ function Detection({ stats }) {
       <p className="mt-2 text-xs leading-relaxed text-ink-soft">
         Water is open water or wet sediment: the radar cannot tell them apart on a valley floor. Debris
         is sediment, a landslide or a debris deposit. Uncertain is change that needs checking.
-        Confidence is a score for how strong the change was, not a measured accuracy; the check
+        The change score says how strong the change was; it is not a measured accuracy. The check
         against a reference map is the note above the figures.
       </p>
     </section>

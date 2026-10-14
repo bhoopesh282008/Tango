@@ -27,8 +27,11 @@ export default function LayerControl({ confidence }) {
               <span className="block text-xs leading-tight text-ink-soft">{layer.hint}</span>
             </span>
             {layer.id === 'damage' && confidence != null && (
-              <span className="shrink-0 rounded bg-primary-soft px-1.5 py-0.5 text-[11px] font-semibold">
-                {formatPercent(confidence)} confidence
+              <span
+                className="shrink-0 rounded bg-primary-soft px-1.5 py-0.5 text-[11px] font-semibold"
+                title="How strong the change was, averaged over the mapped area: a score, not a measured accuracy"
+              >
+                {formatPercent(confidence)} change score
               </span>
             )}
           </label>

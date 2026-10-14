@@ -62,7 +62,7 @@ test('Launch draws the dashboard under the splash, then takes the splash away', 
       </MemoryRouter>,
     )
     expect(screen.queryByRole('navigation')).not.toBeInTheDocument()
-    fireEvent.click(await screen.findByRole('button', { name: /launch monitoring/i }, { timeout: 5000 }))
+    fireEvent.click(await screen.findByRole('button', { name: /open the analysis/i }, { timeout: 5000 }))
 
     expect(container.querySelector('.splash')).toBeInTheDocument()
     expect(await screen.findByRole('heading', { level: 1, name: /Flood damage dashboard/ }, { timeout: 8000 })).toBeInTheDocument()

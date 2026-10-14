@@ -27,7 +27,7 @@ export default function FilterControls({ onApplied }) {
       }}
     >
       <label htmlFor="confidence" className="flex justify-between font-medium">
-        Confidence threshold
+        Change score threshold
         <span className="font-semibold text-primary">{draft.confidence}%</span>
       </label>
       <input

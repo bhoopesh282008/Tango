@@ -54,7 +54,7 @@ function describeFeature({ layer, properties: p }) {
           p.connected === true
             ? 'Road access intact'
             : p.connected === false
-              ? 'Cut off: no road access'
+              ? 'Cut off: no road to a hospital'
               : 'Road access unknown: no road to it in the pre-event map',
           ...(p.rank ? [`Rescue priority #${p.rank} · ${p.priority}/100`] : []),
         ],
@@ -76,7 +76,7 @@ function describeFeature({ layer, properties: p }) {
         title: p.name,
         lines: [
           `${DAMAGE_TYPES[p.type].label} · ${formatNumber(p.area_km2, 1)} km²`,
-          `Confidence ${formatPercent(p.confidence)}`,
+          `Change score ${formatPercent(p.confidence)}`,
         ],
       }
   }
