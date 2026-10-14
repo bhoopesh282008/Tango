@@ -3,7 +3,7 @@
 Space Track challenge report. Case study: Trishuli flood, Rasuwa, Nepal, 26 August 2026.
 Repository: https://github.com/bhoopesh282008/Tango
 
-> **Draft, 10 October 2026.** The pipeline has run end to end on real Sentinel-1 scenes for three areas and its output has been compared with the EMSR927 reference (section 5). In short: **what it maps is almost always right, but it finds only a small part of the damage**, between 3% and 35% of the reference area depending on the reach. The flood figures below are therefore lower bounds.
+> **14 October 2026.** The pipeline has run end to end on real Sentinel-1 scenes for five areas in Nepal and India, and its output for the case study has been compared with the EMSR927 reference (section 5). Live dashboard: https://bhoopesh282008.github.io/Tango/. In short: **what it maps is almost always right, but it finds only a small part of the damage**, between 3% and 35% of the reference area depending on the reach. The flood figures below are therefore lower bounds.
 
 ## 1. What the system does
 
@@ -36,7 +36,7 @@ No published damage map and no post-event OpenStreetMap edit is used as an input
 
 **Flood map.** A flood fills valley floors, so change counts as flood only on ground within 30 m above and 600 m of a river (from pre-event OpenStreetMap, or from DEM-derived channels where no river is mapped). There, a drop of more than 3 dB is water or wet sediment and a rise of more than 3 dB is debris. Elsewhere only strong change (4.5 dB) over at least a hectare is kept, as "uncertain". The first version required water to be darker than -18 dB; on the real scenes only 5% of darkened river pixels are that dark, because a river tens of metres wide in a gorge never looks like open water at 10 m. The 30 m and 600 m limits are our assumptions; they were not tuned against any reference map. The alternative method uses the trained model for water (section 4) and the same rule for debris.
 
-**Steadier baseline (the default).** A fixed threshold on one "before" image cannot tell ordinary change from flood: run on two scenes that are both from before the event, the rule marks as much as 24% to 30% of the mapped area in the two weeks before the flood and 94% to 127% in the monsoon onset. So "before" is the median of three images on the same track (the "before" scene and the two 12 days apart before it), and a change counts only if it also exceeds 3 robust standard deviations of that pixel's variation across the three; the 3 was fixed in advance, not tuned on a map. On the same pre-event pairs it marks 9% to 13% of its own area. On the Bhote Koshi valley, with a real event and a dry-season date, the single-image rule maps the same area for both (0.19 and 0.18 km²), while the baseline separates them (0.16 and 0.05 km², with 8 and 0 settlements cut off). `--baseline-images 1` gives the single-image rule. It needs three scenes on one track; with fewer it warns and falls back.
+**Steadier baseline (the default).** A fixed threshold on one "before" image cannot tell ordinary change from flood: run on two scenes that are both from before the event, the rule marks as much as 24% to 30% of the mapped area in the two weeks before the flood and 94% to 127% in the monsoon onset. So "before" is the median of three images on the same track (the "before" scene and the two 12 days apart before it), and a change counts only if it also exceeds 3 robust standard deviations of that pixel's variation across the three; the 3 was fixed in advance, not tuned on a map. On the same pre-event pairs it marks 9% to 13% of its own area. On the Bhote Koshi valley, with a real event and a dry-season date, the single-image rule maps the same area for both (0.19 and 0.18 km²), while the baseline separates them (0.16 and 0.05 km², with 8 and 0 settlements cut off). It needs three scenes on one track; with fewer it warns and falls back (`--baseline-images 1` forces the single image).
 
 **Optical evidence.** With `--optical` the pipeline adds Sentinel-2 composites per pixel (the latest clear look before the event and the earliest after, with cloud, shadow and snow rejected by the scene classification layer). New water is a water index (MNDWI) turning positive; debris is vegetation (NDVI) disappearing. Optical never removes a radar detection and follows the same valley-floor rule; it raises confidence where both agree, fills radar blind spots at lower confidence, and marks change that only it sees as "uncertain".
 
@@ -101,7 +101,7 @@ The model column is from the single-image main run. The baseline costs little: r
 
 **Reading.** The map can be trusted where it says "flood" and cannot be trusted where it says nothing. Recall is poor because of what the radar pair shows, not mainly because of hidden slopes: inside the reference corridor under 7% of pixels are in layover or shadow, but 57% to 81% changed by less than 3 dB between the two dates. Only 15% of the corridor in the two gorge areas, 29% at Bidur and 43% at Phosretar crosses the 3 dB threshold in either direction, which caps what any rule of this kind can find; recall rises down the valley as the floor widens. Fresh debris over a gravel river bed or bare ground looks much the same to C-band radar at 10 m, while it is obvious in a 0.3 m optical image. Roads do better than buildings because a long segment needs only one detected crossing.
 
-**Optical evidence on real scenes.** Both areas were also run with `--optical` (on the single-image maps). Four Sentinel-2 passes either side of the event gave a clear view before and after for 31% of the main area and 55% of the second. As designed, optical adds almost nothing to the flood classes: it confirms 0.07 km² of radar detections and fills about 0.01 km² of radar blind spots. Its other output is "uncertain" patches where radar saw no change. On valley floors these carry real signal (counting them, recall against the reference would be 0.33 to 0.65, at precision 0.70 to 0.96); away from them they are noise, 58 to 82 km² per run, mostly thin cloud and haze. We have not promoted them to a flood class, because that rule would have been chosen after looking at the reference.
+**Optical evidence on real scenes.** With `--optical` (on the single-image maps), Sentinel-2 gave a clear view before and after for 31% and 55% of the two areas. It confirms 0.07 km² of radar detections and fills about 0.01 km² of radar blind spots. Its "uncertain" patches, where radar saw no change, carry real signal on valley floors (counting them, recall against the reference would be 0.33 to 0.65, at precision 0.70 to 0.96) and are mostly thin cloud and haze elsewhere (58 to 82 km² per run). We have not promoted them to a flood class, because that rule would have been chosen after looking at the reference.
 
 Other results on real data:
 
@@ -114,7 +114,7 @@ Other results on real data:
 
 With population recorded for one settlement, the dashboard reports mapped buildings instead of people and does not convert one into the other.
 
-**A second Himalayan event.** To test an area, year and orbit track the system had not seen, the 2021 Chamoli glacier flood (Uttarakhand, 7 February 2021) was run with the same code. Its area straddles two image frames: read as one, the radar covered 84% of it and the baseline could not be built; with the frames joined it covers 100% and the pair, track 56 on 29 January and 10 February, is three days after the event. It maps 0.22 km² of water and debris (and 0.22 km² uncertain), no building in a flood zone and no settlement cut off, but 30 of 61 settlements have no mapped road and the map has 256 buildings. It was not compared with a reference map, so it shows that the system runs on a new event, not how well it maps it.
+**Two more Himalayan events.** To test areas, years and orbit tracks the system had not seen, two glacier floods in India were run with the same code. Chamoli (Uttarakhand, 7 February 2021) straddles two image frames: read as one, the radar covered 84% of it and the baseline could not be built; with the frames joined it covers 100% (track 56, 29 January and 10 February) and the run maps 0.22 km² of water and debris, no building in a flood zone and no settlement cut off (30 of 61 have no mapped road). The South Lhonak glacial-lake flood down the Teesta valley (Sikkim, 4 October 2023; track 12, 25 September and 7 October) maps 2.9 km² of water and debris, 172 of 8,829 buildings in a flood zone and 1 of 31 settlements cut off. Neither was compared with a reference map, so they show that the system runs on a new event, not how well it maps it.
 
 ## 6. Dashboard and situation report
 
@@ -124,7 +124,7 @@ The dashboard shows the flood zones, buildings, roads, settlements and infrastru
 
 **Missing is not zero.** Where the data lacks something the dashboard says so: unknown road access, population not recorded, power lines not assessed. The priority score uses only the factors recorded for every cut-off settlement, so a gap in the data cannot lift one settlement above another.
 
-By default the dashboard opens on a bundled demo dataset, labelled "Demo data", whose geometry and figures are illustrative.
+The live dashboard opens on the case study; its area selector also holds the model's map, the second reach and the rehearsals. A copy built without run data shows an illustrative demo dataset, labelled "Demo data".
 
 ## 7. Limitations
 
@@ -148,12 +148,6 @@ No images of people affected by the disaster are used anywhere in the system or 
 
 ## 8. Attribution
 
-Contains modified Copernicus Sentinel data 2026.
-
-Produced using Copernicus WorldDEM-30 © DLR e.V. 2010–2014 and © Airbus Defence and Space GmbH 2014–2018 provided under COPERNICUS by the European Union and ESA; all rights reserved.
-
-© OpenStreetMap contributors.
+Contains modified Copernicus Sentinel data 2026. Produced using Copernicus WorldDEM-30 © DLR e.V. 2010–2014 and © Airbus Defence and Space GmbH 2014–2018 provided under COPERNICUS by the European Union and ESA; all rights reserved. © OpenStreetMap contributors. The run data published with the dashboard contains OpenStreetMap data and is available under the ODbL. Reference maps for checking: European Union, Copernicus Emergency Management Service data (EMSR927).
 
 Bountos, N. I., Sdraka, M., Zavras, A., Karavias, A., Karasante, I., Herekakis, T., Thanasou, A., Michail, D., Papoutsis, I. (2024). Kuro Siwo: 33 billion m² under the water. A global multi-temporal satellite dataset for rapid flood mapping. Advances in Neural Information Processing Systems 37.
-
-Reference maps for checking: European Union, Copernicus Emergency Management Service data (EMSR927).

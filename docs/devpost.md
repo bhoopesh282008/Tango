@@ -47,7 +47,7 @@ Built with: Python, rasterio, geopandas, networkx, PyTorch, Sentinel-1, Copernic
 - It runs end to end on real scenes, for areas it had not seen: the Trishuli corridor, a second reach, the Bhote Koshi valley (and a dry-season date on it), and the 2021 Chamoli glacier flood.
 - It is checked against Copernicus EMS EMSR927 and says what the check shows: precision 0.88 to 0.99, but only 3% to 22% of the reference area found on the corridor, so every figure is a lower bound.
 - The dashboard states its own limits (the lower-bound notice, "access unknown", "population not recorded", "not assessed") instead of filling gaps.
-- 304 frontend tests, 191 pipeline tests, lint, accessibility checks and a build run in CI on every push to the main branch and every pull request.
+- 315 frontend tests, 191 pipeline tests, lint, accessibility checks and a build run in CI on every push to the main branch and every pull request.
 
 ## What we learned
 

@@ -71,7 +71,7 @@ That is the whole system, end to end from raw Sentinel-1 data, for an area (up t
 ```bash
 npm install
 npm run dev      # http://localhost:5173
-npm run test     # 304 tests
+npm run test     # 315 tests
 npm run lint
 npm run build
 ```
@@ -195,7 +195,7 @@ The ohsome API, which the challenge names for the OpenStreetMap snapshot, answer
 
 ### Attribution
 
-Contains modified Copernicus Sentinel data 2026. Produced using Copernicus WorldDEM-30 © DLR e.V. 2010–2014 and © Airbus Defence and Space GmbH 2014–2018 provided under COPERNICUS by the European Union and ESA; all rights reserved. © OpenStreetMap contributors (ODbL). Flood model trained on Kuro Siwo (Bountos et al., NeurIPS 2024), CC BY 4.0; full citation in [pipeline/MODEL.md](pipeline/MODEL.md).
+Contains modified Copernicus Sentinel data 2026. Produced using Copernicus WorldDEM-30 © DLR e.V. 2010–2014 and © Airbus Defence and Space GmbH 2014–2018 provided under COPERNICUS by the European Union and ESA; all rights reserved. © OpenStreetMap contributors (ODbL); the run data published with the live site (`/data`) contains OpenStreetMap data and is available under the ODbL. Flood model trained on Kuro Siwo (Bountos et al., NeurIPS 2024), CC BY 4.0; full citation in [pipeline/MODEL.md](pipeline/MODEL.md).
 
 ## Splash screen
 
