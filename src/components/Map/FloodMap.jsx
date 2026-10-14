@@ -429,7 +429,7 @@ export default function FloodMap({ data, settlementRows, priority, confidence })
             />
           </Source>
 
-          <DamageOverlay zones={data.floodZones} visible={visibleLayers.damage} />
+          <DamageOverlay zones={data.floodZones} visible={visibleLayers.damage} darkBase={darkBase} />
 
           <Source id="buildings" type="geojson" data={data.buildings}>
             <Layer

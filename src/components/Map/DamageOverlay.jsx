@@ -13,7 +13,7 @@ const TYPE_COLOR = [
   DAMAGE_TYPES.uncertain.color,
 ]
 
-export default function DamageOverlay({ zones, visible }) {
+export default function DamageOverlay({ zones, visible, darkBase = false }) {
   const filters = useMapStore((s) => s.filters)
   const filter = useMemo(() => zoneFilterExpression(filters), [filters])
   // Layers stay mounted and are hidden via layout, so draw order never changes.
@@ -22,20 +22,33 @@ export default function DamageOverlay({ zones, visible }) {
 
   return (
     <Source id="zones" type="geojson" data={zones}>
-      {/* Most zones are a few pixels across when the whole valley is in view. A soft
-          halo in the zone's own colour makes them findable; it fades out on the way in,
-          so close up only the true outline is drawn. */}
+      {/* Most zones are a few pixels across when the whole valley is in view, and a soft
+          glow vanished into the satellite picture. So at overview zooms each zone gets a crisp
+          stroke in its own colour over a thin casing that stands off the basemap (light on
+          imagery or the dark map, dark on the paper map). Both fade out on the way in; close up
+          only the true outline is drawn. */}
+      <Layer
+        id="zones-casing"
+        beforeId={FIRST_LABEL_LAYER}
+        type="line"
+        filter={filter}
+        layout={{ ...layout, 'line-join': 'round', 'line-cap': 'round' }}
+        paint={{
+          'line-color': darkBase ? '#ffffff' : '#111315',
+          'line-width': ['interpolate', ['linear'], ['zoom'], 8, 8, 11, 6.5, 13.5, 0],
+          'line-opacity': ['interpolate', ['linear'], ['zoom'], 8, 0.9, 12, 0.7, 13.5, 0],
+        }}
+      />
       <Layer
         id="zones-halo"
         beforeId={FIRST_LABEL_LAYER}
         type="line"
         filter={filter}
-        layout={layout}
+        layout={{ ...layout, 'line-join': 'round', 'line-cap': 'round' }}
         paint={{
           'line-color': TYPE_COLOR,
-          'line-width': ['interpolate', ['linear'], ['zoom'], 8, 7, 12, 5, 14.5, 0],
-          'line-blur': 4,
-          'line-opacity': ['interpolate', ['linear'], ['zoom'], 8, 0.6, 13, 0.3, 14.5, 0],
+          'line-width': ['interpolate', ['linear'], ['zoom'], 8, 5, 11, 4, 13.5, 0],
+          'line-opacity': ['interpolate', ['linear'], ['zoom'], 8, 1, 12, 0.9, 13.5, 0],
         }}
       />
       <Layer
