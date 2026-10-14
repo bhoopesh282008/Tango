@@ -10,17 +10,17 @@ How to reply: for each problem, send the item (the heading and the line) and you
 
 | Meaning | Nepali used | Times it appears below |
 | --- | --- | --- |
-| cut off (no road to a hospital) | सम्पर्कविहीन | 17 |
+| cut off (no road to a hospital) | सम्पर्कविहीन | 20 |
 | damaged | क्षतिग्रस्त | 51 |
 | mapped building | नक्साङ्कित भवन | 46 |
 | lower bound | न्यूनतम अनुमान | 5 |
-| flood | बाढी | 34 |
+| flood | बाढी | 41 |
 | still connected by road | सडक सम्पर्कमा रहेका | 2 |
 | access unknown | पहुँचको अवस्था अज्ञात | 2 |
 | infrastructure | पूर्वाधार | 11 |
 | rescue | उद्धार | 15 |
 | priority | प्राथमिक | 15 |
-| settlement | बस्ती | 38 |
+| settlement | बस्ती | 41 |
 
 ## 1. The opening screen
 
@@ -44,9 +44,9 @@ How to reply: for each problem, send the item (the heading and the line) and you
 > Villages checked for road access
 > loaded
 >
-> System operational. Ready to begin.
+> Analysis ready: satellite images of a past flood, not a live feed.
 >
-> Launch monitoring
+> Open the analysis
 >
 > Earth: NASA Blue Marble. Star map and satellite model: NASA.
 
@@ -68,9 +68,9 @@ How to reply: for each problem, send the item (the heading and the line) and you
 > बस्तीहरूमा सडक पहुँचको जाँच
 > लोड भयो
 >
-> प्रणाली सञ्चालनमा छ। सुरु गर्न तयार।
+> विश्लेषण तयार छ: विगतको बाढीका भू-उपग्रह तस्बिर, प्रत्यक्ष प्रसारण होइन।
 >
-> अनुगमन सुरु गर्नुहोस्
+> विश्लेषण खोल्नुहोस्
 >
 > Earth: NASA Blue Marble. Star map and satellite model: NASA.
 
@@ -97,7 +97,7 @@ How to reply: for each problem, send the item (the heading and the line) and you
 > Damaged infrastructure?
 > 563 structures
 > Which settlements cut off?
-> 11 of 149
+> 12 of 149
 > Priority rescue zones?
 > Bhainse first
 > Full situation report
@@ -125,7 +125,7 @@ How to reply: for each problem, send the item (the heading and the line) and you
 > क्षतिग्रस्त पूर्वाधार?
 > 563 structures
 > कुन बस्ती सम्पर्कविहीन छन्?
-> 11 of 149
+> 12 of 149
 > प्राथमिक उद्धार क्षेत्र?
 > Bhainse first
 > पूर्ण स्थिति प्रतिवेदन
@@ -151,11 +151,11 @@ How to reply: for each problem, send the item (the heading and the line) and you
 > Largest affected reaches:
 >
 > 1
-> Water z126: 0.1 km² (water, 74% confidence)
+> Water z126: 0.1 km² (water, change score 74%)
 > 2
-> Water z192: 0.1 km² (water, 72% confidence)
+> Water z192: 0.1 km² (water, change score 72%)
 > 3
-> Water z133: 0.1 km² (water, 69% confidence)
+> Water z133: 0.1 km² (water, change score 69%)
 >
 > Settlements with the most damaged structures: Betrawati (144), Naubisephat (126), Bhyagute (109).
 >
@@ -178,11 +178,11 @@ How to reply: for each problem, send the item (the heading and the line) and you
 > सबैभन्दा बढी प्रभावित खण्डहरू:
 >
 > 1
-> Water z126: 0.1 वर्ग कि.मी. (पानी, 74% विश्वसनीयता)
+> Water z126: 0.1 वर्ग कि.मी. (पानी, परिवर्तन अङ्क 74%)
 > 2
-> Water z192: 0.1 वर्ग कि.मी. (पानी, 72% विश्वसनीयता)
+> Water z192: 0.1 वर्ग कि.मी. (पानी, परिवर्तन अङ्क 72%)
 > 3
-> Water z133: 0.1 वर्ग कि.मी. (पानी, 69% विश्वसनीयता)
+> Water z133: 0.1 वर्ग कि.मी. (पानी, परिवर्तन अङ्क 69%)
 >
 > सबैभन्दा बढी संरचना क्षति भएका बस्तीहरू: बेत्रावती (144), नौविसे फाँट (126), भ्यागुते (109)।
 >
@@ -294,7 +294,7 @@ How to reply: for each problem, send the item (the heading and the line) and you
 >
 > Cut-off settlements
 >
-> 11 of 149 settlements are cut off by road. They contain 5,720 mapped buildings; OpenStreetMap does not record the population of most of them, so no head count is given.
+> 12 of 149 settlements are cut off by road. They contain 7,936 mapped buildings; OpenStreetMap does not record the population of most of them, so no head count is given.
 >
 > Betrawati: 1,217 mapped buildings, 144 damaged
 > Rasuwa Gadhi: 180 mapped buildings, 10 damaged
@@ -306,9 +306,11 @@ How to reply: for each problem, send the item (the heading and the line) and you
 > Mailung: 54 mapped buildings, 7 damaged
 > Tetanchet: 174 mapped buildings, 0 damaged
 > Gogne: 226 mapped buildings, 5 damaged
-> and 1 more
+> and 2 more
 >
-> Still connected by road (73): Somdang, गोठेन, Godam, Bahun Danda, Sano Bharkhu, Gul Bhanjyang, Brabal, माथिल्लो चौर, Archale, Shanti Bazar, and 63 more.
+> 7 of them are cut off even if only the flooded stretches of road are closed; the other 5 only if every road that touches a flood zone is closed.
+>
+> Still connected by road (72): Somdang, गोठेन, Godam, Bahun Danda, Sano Bharkhu, Gul Bhanjyang, Brabal, माथिल्लो चौर, Archale, Shanti Bazar, and 62 more.
 >
 > Access unknown (no road to them in the pre-event map) (65): Dursagang, Laurebina, Gosainkund, Chandanbari, Sherpagaun, Angbu Danda, Magingoth, Phedi, Sanugopte, Thadepati, and 55 more.
 >
@@ -322,7 +324,7 @@ How to reply: for each problem, send the item (the heading and the line) and you
 >
 > सम्पर्कविहीन बस्तीहरू
 >
-> 149 बस्तीमध्ये 11 बस्ती सडक सम्पर्कविहीन छन्। तिनमा 5,720 नक्साङ्कित भवन छन्; OpenStreetMap मा धेरैजसो बस्तीको जनसंख्या अभिलेख नभएकाले मानिसको सङ्ख्या दिइएको छैन।
+> 149 बस्तीमध्ये 12 बस्ती सडक सम्पर्कविहीन छन्। तिनमा 7,936 नक्साङ्कित भवन छन्; OpenStreetMap मा धेरैजसो बस्तीको जनसंख्या अभिलेख नभएकाले मानिसको सङ्ख्या दिइएको छैन।
 >
 > बेत्रावती: 1,217 नक्साङ्कित भवन, 144 क्षतिग्रस्त
 > रसुवागढी: 180 नक्साङ्कित भवन, 10 क्षतिग्रस्त
@@ -334,9 +336,11 @@ How to reply: for each problem, send the item (the heading and the line) and you
 > मैलुङ: 54 नक्साङ्कित भवन, 7 क्षतिग्रस्त
 > तेटाङचेट: 174 नक्साङ्कित भवन, 0 क्षतिग्रस्त
 > गोगने: 226 नक्साङ्कित भवन, 5 क्षतिग्रस्त
-> र थप 1
+> र थप 2
 >
-> सडक सम्पर्कमा रहेका (73): Somdang, गोठेन, गोदाम, बाहुनडाँडा, ठुलो भार्खु, गोल भञ्ज्याङ, ब्राबल, माथिल्लो चौर, अर्चले, शान्ति बजार, र थप 63।
+> तीमध्ये 7 बस्ती बाढीले छोपेको सडक खण्ड मात्र बन्द हुँदा पनि सम्पर्कविहीन हुन्छन्; बाँकी 5 बाढी क्षेत्र छुने पूरै सडक बन्द भएमा मात्र।
+>
+> सडक सम्पर्कमा रहेका (72): Somdang, गोठेन, गोदाम, बाहुनडाँडा, ठुलो भार्खु, गोल भञ्ज्याङ, ब्राबल, माथिल्लो चौर, अर्चले, शान्ति बजार, र थप 62।
 >
 > पहुँचको अवस्था अज्ञात (बाढीअघिको नक्सामा यी बस्तीसम्म सडक छैन) (65): दुर्सागाङ, लौरिबिना, गोसाइँकुण्ड, चंदन बाडी, शेर्पागाउँ, आङ्बु डाँडा, माङ्गिन गोथ, फेदी, सानो गोप्टे, थाडेपाटी, र थप 55।
 >
@@ -359,23 +363,23 @@ How to reply: for each problem, send the item (the heading and the line) and you
 > 2
 > Betrawati: 57/100, medium. 1,217 mapped buildings, 12% of structures damaged; bridge in flood zone.
 > 3
-> Lingling: 47/100, medium. 513 mapped buildings, 0% of structures damaged.
+> Naubisephat: 49/100, medium. 2,216 mapped buildings, 6% of structures damaged.
 > 4
-> Haku Besi: 34/100, low. 295 mapped buildings, 0% of structures damaged.
+> Lingling: 47/100, medium. 513 mapped buildings, 0% of structures damaged.
 > 5
-> Rasuwa Gadhi: 29/100, low. 180 mapped buildings, 6% of structures damaged; bridge in flood zone.
+> Haku Besi: 34/100, low. 295 mapped buildings, 0% of structures damaged.
 > 6
-> Gogne: 27/100, low. 226 mapped buildings, 2% of structures damaged.
+> Rasuwa Gadhi: 29/100, low. 180 mapped buildings, 6% of structures damaged; bridge in flood zone.
 > 7
-> Resuo: 25/100, low. 64 mapped buildings, 53% of structures damaged.
+> Gogne: 27/100, low. 226 mapped buildings, 2% of structures damaged.
 > 8
-> Tetanchet: 20/100, low. 174 mapped buildings, 0% of structures damaged.
+> Resuo: 25/100, low. 64 mapped buildings, 53% of structures damaged.
 > 9
-> Tatopani: 18/100, low. 158 mapped buildings, 0% of structures damaged.
+> Tetanchet: 20/100, low. 174 mapped buildings, 0% of structures damaged.
 > 10
-> Mailung: 11/100, low. 54 mapped buildings, 13% of structures damaged.
+> Tatopani: 18/100, low. 158 mapped buildings, 0% of structures damaged.
 >
-> and 1 more, in the ranking on the dashboard.
+> and 2 more, in the ranking on the dashboard.
 >
 > 2,807 mapped buildings are in critical or high priority settlements.
 >
@@ -398,23 +402,23 @@ How to reply: for each problem, send the item (the heading and the line) and you
 > 2
 > बेत्रावती: 57/100, मध्यम। 1,217 नक्साङ्कित भवन, 12% संरचना क्षतिग्रस्त। पुल बाढी क्षेत्रभित्र।
 > 3
-> लिङलिङ: 47/100, मध्यम। 513 नक्साङ्कित भवन, 0% संरचना क्षतिग्रस्त।
+> नौविसे फाँट: 49/100, मध्यम। 2,216 नक्साङ्कित भवन, 6% संरचना क्षतिग्रस्त।
 > 4
-> हाकु बेसी: 34/100, न्यून। 295 नक्साङ्कित भवन, 0% संरचना क्षतिग्रस्त।
+> लिङलिङ: 47/100, मध्यम। 513 नक्साङ्कित भवन, 0% संरचना क्षतिग्रस्त।
 > 5
-> रसुवागढी: 29/100, न्यून। 180 नक्साङ्कित भवन, 6% संरचना क्षतिग्रस्त। पुल बाढी क्षेत्रभित्र।
+> हाकु बेसी: 34/100, न्यून। 295 नक्साङ्कित भवन, 0% संरचना क्षतिग्रस्त।
 > 6
-> गोगने: 27/100, न्यून। 226 नक्साङ्कित भवन, 2% संरचना क्षतिग्रस्त।
+> रसुवागढी: 29/100, न्यून। 180 नक्साङ्कित भवन, 6% संरचना क्षतिग्रस्त। पुल बाढी क्षेत्रभित्र।
 > 7
-> Resuo: 25/100, न्यून। 64 नक्साङ्कित भवन, 53% संरचना क्षतिग्रस्त।
+> गोगने: 27/100, न्यून। 226 नक्साङ्कित भवन, 2% संरचना क्षतिग्रस्त।
 > 8
-> तेटाङचेट: 20/100, न्यून। 174 नक्साङ्कित भवन, 0% संरचना क्षतिग्रस्त।
+> Resuo: 25/100, न्यून। 64 नक्साङ्कित भवन, 53% संरचना क्षतिग्रस्त।
 > 9
-> तातोपानी: 18/100, न्यून। 158 नक्साङ्कित भवन, 0% संरचना क्षतिग्रस्त।
+> तेटाङचेट: 20/100, न्यून। 174 नक्साङ्कित भवन, 0% संरचना क्षतिग्रस्त।
 > 10
-> मैलुङ: 11/100, न्यून। 54 नक्साङ्कित भवन, 13% संरचना क्षतिग्रस्त।
+> तातोपानी: 18/100, न्यून। 158 नक्साङ्कित भवन, 0% संरचना क्षतिग्रस्त।
 >
-> र थप 1 बस्ती ड्यासबोर्डको सूचीमा छन्।
+> र थप 2 बस्ती ड्यासबोर्डको सूचीमा छन्।
 >
 > अति गम्भीर वा उच्च प्राथमिकताका बस्तीमा 2,807 नक्साङ्कित भवन छन्।
 >
@@ -449,11 +453,11 @@ How to reply: for each problem, send the item (the heading and the line) and you
 > Largest affected reaches:
 >
 > 1
-> Water z126: 0.1 km² (water, 74% confidence)
+> Water z126: 0.1 km² (water, change score 74%)
 > 2
-> Water z192: 0.1 km² (water, 72% confidence)
+> Water z192: 0.1 km² (water, change score 72%)
 > 3
-> Water z133: 0.1 km² (water, 69% confidence)
+> Water z133: 0.1 km² (water, change score 69%)
 >
 > Settlements with the most damaged structures: Betrawati (144), Naubisephat (126), Bhyagute (109).
 >
@@ -497,7 +501,7 @@ How to reply: for each problem, send the item (the heading and the line) and you
 > and 28 more
 > CUT-OFF SETTLEMENTS
 >
-> 11 of 149 settlements are cut off by road. They contain 5,720 mapped buildings; OpenStreetMap does not record the population of most of them, so no head count is given.
+> 12 of 149 settlements are cut off by road. They contain 7,936 mapped buildings; OpenStreetMap does not record the population of most of them, so no head count is given.
 >
 > Betrawati: 1,217 mapped buildings, 144 damaged
 > Rasuwa Gadhi: 180 mapped buildings, 10 damaged
@@ -509,9 +513,11 @@ How to reply: for each problem, send the item (the heading and the line) and you
 > Mailung: 54 mapped buildings, 7 damaged
 > Tetanchet: 174 mapped buildings, 0 damaged
 > Gogne: 226 mapped buildings, 5 damaged
-> and 1 more
+> and 2 more
 >
-> Still connected by road (73): Somdang, गोठेन, Godam, Bahun Danda, Sano Bharkhu, Gul Bhanjyang, Brabal, माथिल्लो चौर, Archale, Shanti Bazar, and 63 more.
+> 7 of them are cut off even if only the flooded stretches of road are closed; the other 5 only if every road that touches a flood zone is closed.
+>
+> Still connected by road (72): Somdang, गोठेन, Godam, Bahun Danda, Sano Bharkhu, Gul Bhanjyang, Brabal, माथिल्लो चौर, Archale, Shanti Bazar, and 62 more.
 >
 > Access unknown (no road to them in the pre-event map) (65): Dursagang, Laurebina, Gosainkund, Chandanbari, Sherpagaun, Angbu Danda, Magingoth, Phedi, Sanugopte, Thadepati, and 55 more.
 >
@@ -524,23 +530,23 @@ How to reply: for each problem, send the item (the heading and the line) and you
 > 2
 > Betrawati: 57/100, medium. 1,217 mapped buildings, 12% of structures damaged; bridge in flood zone.
 > 3
-> Lingling: 47/100, medium. 513 mapped buildings, 0% of structures damaged.
+> Naubisephat: 49/100, medium. 2,216 mapped buildings, 6% of structures damaged.
 > 4
-> Haku Besi: 34/100, low. 295 mapped buildings, 0% of structures damaged.
+> Lingling: 47/100, medium. 513 mapped buildings, 0% of structures damaged.
 > 5
-> Rasuwa Gadhi: 29/100, low. 180 mapped buildings, 6% of structures damaged; bridge in flood zone.
+> Haku Besi: 34/100, low. 295 mapped buildings, 0% of structures damaged.
 > 6
-> Gogne: 27/100, low. 226 mapped buildings, 2% of structures damaged.
+> Rasuwa Gadhi: 29/100, low. 180 mapped buildings, 6% of structures damaged; bridge in flood zone.
 > 7
-> Resuo: 25/100, low. 64 mapped buildings, 53% of structures damaged.
+> Gogne: 27/100, low. 226 mapped buildings, 2% of structures damaged.
 > 8
-> Tetanchet: 20/100, low. 174 mapped buildings, 0% of structures damaged.
+> Resuo: 25/100, low. 64 mapped buildings, 53% of structures damaged.
 > 9
-> Tatopani: 18/100, low. 158 mapped buildings, 0% of structures damaged.
+> Tetanchet: 20/100, low. 174 mapped buildings, 0% of structures damaged.
 > 10
-> Mailung: 11/100, low. 54 mapped buildings, 13% of structures damaged.
+> Tatopani: 18/100, low. 158 mapped buildings, 0% of structures damaged.
 >
-> and 1 more, in the ranking on the dashboard.
+> and 2 more, in the ranking on the dashboard.
 >
 > 2,807 mapped buildings are in critical or high priority settlements.
 >
@@ -573,11 +579,11 @@ How to reply: for each problem, send the item (the heading and the line) and you
 > सबैभन्दा बढी प्रभावित खण्डहरू:
 >
 > 1
-> Water z126: 0.1 वर्ग कि.मी. (पानी, 74% विश्वसनीयता)
+> Water z126: 0.1 वर्ग कि.मी. (पानी, परिवर्तन अङ्क 74%)
 > 2
-> Water z192: 0.1 वर्ग कि.मी. (पानी, 72% विश्वसनीयता)
+> Water z192: 0.1 वर्ग कि.मी. (पानी, परिवर्तन अङ्क 72%)
 > 3
-> Water z133: 0.1 वर्ग कि.मी. (पानी, 69% विश्वसनीयता)
+> Water z133: 0.1 वर्ग कि.मी. (पानी, परिवर्तन अङ्क 69%)
 >
 > सबैभन्दा बढी संरचना क्षति भएका बस्तीहरू: बेत्रावती (144), नौविसे फाँट (126), भ्यागुते (109)।
 >
@@ -621,7 +627,7 @@ How to reply: for each problem, send the item (the heading and the line) and you
 > र थप 28
 > सम्पर्कविहीन बस्तीहरू
 >
-> 149 बस्तीमध्ये 11 बस्ती सडक सम्पर्कविहीन छन्। तिनमा 5,720 नक्साङ्कित भवन छन्; OpenStreetMap मा धेरैजसो बस्तीको जनसंख्या अभिलेख नभएकाले मानिसको सङ्ख्या दिइएको छैन।
+> 149 बस्तीमध्ये 12 बस्ती सडक सम्पर्कविहीन छन्। तिनमा 7,936 नक्साङ्कित भवन छन्; OpenStreetMap मा धेरैजसो बस्तीको जनसंख्या अभिलेख नभएकाले मानिसको सङ्ख्या दिइएको छैन।
 >
 > बेत्रावती: 1,217 नक्साङ्कित भवन, 144 क्षतिग्रस्त
 > रसुवागढी: 180 नक्साङ्कित भवन, 10 क्षतिग्रस्त
@@ -633,9 +639,11 @@ How to reply: for each problem, send the item (the heading and the line) and you
 > मैलुङ: 54 नक्साङ्कित भवन, 7 क्षतिग्रस्त
 > तेटाङचेट: 174 नक्साङ्कित भवन, 0 क्षतिग्रस्त
 > गोगने: 226 नक्साङ्कित भवन, 5 क्षतिग्रस्त
-> र थप 1
+> र थप 2
 >
-> सडक सम्पर्कमा रहेका (73): Somdang, गोठेन, गोदाम, बाहुनडाँडा, ठुलो भार्खु, गोल भञ्ज्याङ, ब्राबल, माथिल्लो चौर, अर्चले, शान्ति बजार, र थप 63।
+> तीमध्ये 7 बस्ती बाढीले छोपेको सडक खण्ड मात्र बन्द हुँदा पनि सम्पर्कविहीन हुन्छन्; बाँकी 5 बाढी क्षेत्र छुने पूरै सडक बन्द भएमा मात्र।
+>
+> सडक सम्पर्कमा रहेका (72): Somdang, गोठेन, गोदाम, बाहुनडाँडा, ठुलो भार्खु, गोल भञ्ज्याङ, ब्राबल, माथिल्लो चौर, अर्चले, शान्ति बजार, र थप 62।
 >
 > पहुँचको अवस्था अज्ञात (बाढीअघिको नक्सामा यी बस्तीसम्म सडक छैन) (65): दुर्सागाङ, लौरिबिना, गोसाइँकुण्ड, चंदन बाडी, शेर्पागाउँ, आङ्बु डाँडा, माङ्गिन गोथ, फेदी, सानो गोप्टे, थाडेपाटी, र थप 55।
 >
@@ -648,23 +656,23 @@ How to reply: for each problem, send the item (the heading and the line) and you
 > 2
 > बेत्रावती: 57/100, मध्यम। 1,217 नक्साङ्कित भवन, 12% संरचना क्षतिग्रस्त। पुल बाढी क्षेत्रभित्र।
 > 3
-> लिङलिङ: 47/100, मध्यम। 513 नक्साङ्कित भवन, 0% संरचना क्षतिग्रस्त।
+> नौविसे फाँट: 49/100, मध्यम। 2,216 नक्साङ्कित भवन, 6% संरचना क्षतिग्रस्त।
 > 4
-> हाकु बेसी: 34/100, न्यून। 295 नक्साङ्कित भवन, 0% संरचना क्षतिग्रस्त।
+> लिङलिङ: 47/100, मध्यम। 513 नक्साङ्कित भवन, 0% संरचना क्षतिग्रस्त।
 > 5
-> रसुवागढी: 29/100, न्यून। 180 नक्साङ्कित भवन, 6% संरचना क्षतिग्रस्त। पुल बाढी क्षेत्रभित्र।
+> हाकु बेसी: 34/100, न्यून। 295 नक्साङ्कित भवन, 0% संरचना क्षतिग्रस्त।
 > 6
-> गोगने: 27/100, न्यून। 226 नक्साङ्कित भवन, 2% संरचना क्षतिग्रस्त।
+> रसुवागढी: 29/100, न्यून। 180 नक्साङ्कित भवन, 6% संरचना क्षतिग्रस्त। पुल बाढी क्षेत्रभित्र।
 > 7
-> Resuo: 25/100, न्यून। 64 नक्साङ्कित भवन, 53% संरचना क्षतिग्रस्त।
+> गोगने: 27/100, न्यून। 226 नक्साङ्कित भवन, 2% संरचना क्षतिग्रस्त।
 > 8
-> तेटाङचेट: 20/100, न्यून। 174 नक्साङ्कित भवन, 0% संरचना क्षतिग्रस्त।
+> Resuo: 25/100, न्यून। 64 नक्साङ्कित भवन, 53% संरचना क्षतिग्रस्त।
 > 9
-> तातोपानी: 18/100, न्यून। 158 नक्साङ्कित भवन, 0% संरचना क्षतिग्रस्त।
+> तेटाङचेट: 20/100, न्यून। 174 नक्साङ्कित भवन, 0% संरचना क्षतिग्रस्त।
 > 10
-> मैलुङ: 11/100, न्यून। 54 नक्साङ्कित भवन, 13% संरचना क्षतिग्रस्त।
+> तातोपानी: 18/100, न्यून। 158 नक्साङ्कित भवन, 0% संरचना क्षतिग्रस्त।
 >
-> र थप 1 बस्ती ड्यासबोर्डको सूचीमा छन्।
+> र थप 2 बस्ती ड्यासबोर्डको सूचीमा छन्।
 >
 > अति गम्भीर वा उच्च प्राथमिकताका बस्तीमा 2,807 नक्साङ्कित भवन छन्।
 >
@@ -688,7 +696,7 @@ How to reply: for each problem, send the item (the heading and the line) and you
 > Satellite images
 > 16 Aug 2026 / 28 Aug 2026
 > Generated
-> 12 Oct 2026
+> 14 Oct 2026
 > Mapped flood area
 > 2.2 km²
 > Water
@@ -698,9 +706,9 @@ How to reply: for each problem, send the item (the heading and the line) and you
 > Uncertain
 > 0.1 km²
 > Settlements cut off
-> 11 of 149
+> 12 of 149
 > Buildings in them
-> 5,720
+> 7,936
 > population not recorded
 > Buildings in a flood zone
 > 563
@@ -718,18 +726,20 @@ How to reply: for each problem, send the item (the heading and the line) and you
 >
 > WHO IS CUT OFF
 >
-> 11 of 149 settlements have lost their road connection to a hospital.
+> 12 of 149 settlements have lost their road connection to a hospital.
+>
+> 7 of the 12 are cut off even if only the flooded stretches of road are closed; the rest only if every road that touches a flood zone is closed.
 >
 > 65 more had no mapped road before the event, so their access is unknown.
 >
 > 2
-> 5
-> 3
-> 1
-> 4
-> 8
 > 6
+> 4
+> 1
+> 5
 > 7
+> 8
+> 3
 > N
 > 10 km
 > Cut off, numbered by priority
@@ -742,18 +752,18 @@ How to reply: for each problem, send the item (the heading and the line) and you
 > #	SETTLEMENT	BAND	SCORE	BUILDINGS	DAMAGED	ALSO
 > 1	Bhainse	High	63	2,807	1%	health post unreachable, bridge in flood zone
 > 2	Betrawati	Medium	57	1,217	12%	bridge in flood zone
-> 3	Lingling	Medium	47	513	0%	
-> 4	Haku Besi	Low	34	295	0%	
-> 5	Rasuwa Gadhi	Low	29	180	6%	bridge in flood zone
-> 6	Gogne	Low	27	226	2%	
-> 7	Resuo	Low	25	64	53%	
-> 8	Tetanchet	Low	20	174	0%	
+> 3	Naubisephat	Medium	49	2,216	6%	
+> 4	Lingling	Medium	47	513	0%	
+> 5	Haku Besi	Low	34	295	0%	
+> 6	Rasuwa Gadhi	Low	29	180	6%	bridge in flood zone
+> 7	Gogne	Low	27	226	2%	
+> 8	Resuo	Low	25	64	53%	
 >
-> and 3 more cut-off settlements, in the ranking on the dashboard.
+> and 4 more cut-off settlements, in the ranking on the dashboard.
 >
 > From Sentinel-1 radar change between the two images, pre-event OpenStreetMap and the Copernicus DEM. A satellite estimate from an educational prototype: confirm on the ground before acting on it.
 >
-> Contains modified Copernicus Sentinel data 2026. Produced using Copernicus WorldDEM-30 © DLR e.V. 2010–2014 and © Airbus Defence and Space GmbH 2014–2018 provided under COPERNICUS by the European Union and ESA; all rights reserved. © OpenStreetMap contributors. Flood model trained on Kuro Siwo (Bountos et al., NeurIPS 2024), CC BY 4.0.
+> Contains modified Copernicus Sentinel data 2026. Produced using Copernicus WorldDEM-30 © DLR e.V. 2010–2014 and © Airbus Defence and Space GmbH 2014–2018 provided under COPERNICUS by the European Union and ESA; all rights reserved. © OpenStreetMap contributors. Flood model trained on Kuro Siwo (Bountos et al., NeurIPS 2024), CC BY 4.0. Reference maps used for checking only: European Union, Copernicus Emergency Management Service data (EMSR927).
 
 **नेपाली**
 
@@ -765,7 +775,7 @@ How to reply: for each problem, send the item (the heading and the line) and you
 > भू-उपग्रह तस्बिर
 > 16 Aug 2026 / 28 Aug 2026
 > तयार मिति
-> 12 Oct 2026
+> 14 Oct 2026
 > नक्साङ्कित बाढी क्षेत्र
 > 2.2 km²
 > पानी
@@ -775,9 +785,9 @@ How to reply: for each problem, send the item (the heading and the line) and you
 > अनिश्चित
 > 0.1 km²
 > सम्पर्कविहीन बस्ती
-> 11 149 मध्ये
+> 12 149 मध्ये
 > तिनमा रहेका भवन
-> 5,720
+> 7,936
 > जनसङ्ख्या अभिलेख छैन
 > बाढी क्षेत्रभित्रका भवन
 > 563
@@ -795,18 +805,20 @@ How to reply: for each problem, send the item (the heading and the line) and you
 >
 > को सम्पर्कविहीन छ
 >
-> 149 बस्तीमध्ये 11 बस्तीको अस्पतालसम्मको सडक सम्पर्क टुटेको छ।
+> 149 बस्तीमध्ये 12 बस्तीको अस्पतालसम्मको सडक सम्पर्क टुटेको छ।
+>
+> यी 12 मध्ये 7 बस्ती बाढीले छोपेको सडक खण्ड मात्र बन्द हुँदा पनि सम्पर्कविहीन हुन्छन्; बाँकी बाढी क्षेत्र छुने पूरै सडक बन्द भएमा मात्र।
 >
 > थप 65 बस्तीमा घटनाअघि नै नक्साङ्कित सडक थिएन, त्यसैले तिनको पहुँच अज्ञात छ।
 >
 > 2
-> 5
-> 3
-> 1
-> 4
-> 8
 > 6
+> 4
+> 1
+> 5
 > 7
+> 8
+> 3
 > N
 > 10 km
 > सम्पर्कविहीन, प्राथमिकता क्रमसहित
@@ -819,18 +831,18 @@ How to reply: for each problem, send the item (the heading and the line) and you
 > क्रम	बस्ती	तह	अङ्क	भवन	क्षति	थप
 > 1	भैंसे	उच्च	63	2,807	1%	स्वास्थ्य चौकी पहुँच बाहिर, पुल बाढी क्षेत्रभित्र
 > 2	बेत्रावती	मध्यम	57	1,217	12%	पुल बाढी क्षेत्रभित्र
-> 3	लिङलिङ	मध्यम	47	513	0%	
-> 4	हाकु बेसी	न्यून	34	295	0%	
-> 5	रसुवागढी	न्यून	29	180	6%	पुल बाढी क्षेत्रभित्र
-> 6	गोगने	न्यून	27	226	2%	
-> 7	Resuo	न्यून	25	64	53%	
-> 8	तेटाङचेट	न्यून	20	174	0%	
+> 3	नौविसे फाँट	मध्यम	49	2,216	6%	
+> 4	लिङलिङ	मध्यम	47	513	0%	
+> 5	हाकु बेसी	न्यून	34	295	0%	
+> 6	रसुवागढी	न्यून	29	180	6%	पुल बाढी क्षेत्रभित्र
+> 7	गोगने	न्यून	27	226	2%	
+> 8	Resuo	न्यून	25	64	53%	
 >
-> र थप 3 सम्पर्कविहीन बस्ती ड्यासबोर्डको सूचीमा छन्।
+> र थप 4 सम्पर्कविहीन बस्ती ड्यासबोर्डको सूचीमा छन्।
 >
 > दुई तस्बिरबीचको Sentinel-1 राडार परिवर्तन, घटनाअघिको OpenStreetMap र Copernicus DEM बाट तयार। यो शैक्षिक प्रोटोटाइपको भू-उपग्रह अनुमान हो: कारबाही गर्नुअघि स्थलगत रूपमा पुष्टि गर्नुहोस्।
 >
-> Contains modified Copernicus Sentinel data 2026. Produced using Copernicus WorldDEM-30 © DLR e.V. 2010–2014 and © Airbus Defence and Space GmbH 2014–2018 provided under COPERNICUS by the European Union and ESA; all rights reserved. © OpenStreetMap contributors. Flood model trained on Kuro Siwo (Bountos et al., NeurIPS 2024), CC BY 4.0.
+> Contains modified Copernicus Sentinel data 2026. Produced using Copernicus WorldDEM-30 © DLR e.V. 2010–2014 and © Airbus Defence and Space GmbH 2014–2018 provided under COPERNICUS by the European Union and ESA; all rights reserved. © OpenStreetMap contributors. Flood model trained on Kuro Siwo (Bountos et al., NeurIPS 2024), CC BY 4.0. Reference maps used for checking only: European Union, Copernicus Emergency Management Service data (EMSR927).
 
 ## 4. Lines that read the same in both languages
 
