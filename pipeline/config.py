@@ -50,6 +50,8 @@ OPTICAL_BY_DEFAULT = True
 # Change in the VH band too, beside VV (segment.classify_bands). Adopted only if the false-alarm test
 # (null_test.py) on the Trishuli no-change pairs stays at or below 15% of the mapped area; that rule was
 # fixed on 14 Oct 2026 before any VH result was seen, and no published damage map plays any part in it.
+# Result (14 Oct 2026): VV or VH mapped 4.47 km2 on Trishuli against 2.07 for VV, but marked 0.63 and
+# 0.71 km2 on the two no-change pairs (14.0% and 15.9%), above the bar: not adopted. --vh still tries it.
 VH_BY_DEFAULT = False
 BASELINE_IMAGES = 3          # the run's "before" scene and the two before it, 12 days apart
 SIGMA_SMOOTHING = 5          # the spread is median-filtered over this many pixels: three images give a noisy estimate

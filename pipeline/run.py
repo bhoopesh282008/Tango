@@ -356,6 +356,8 @@ def main():
     args = ap.parse_args()
 
     have_rasters = bool(args.pre and args.post)
+    # The model check needs the VH band too; it is read for it even when the rule looks at VV only
+    wants_model_check = args.model_check and not args.model and not have_rasters and MODEL_FILE.exists()
     if args.baseline_images is None:
         args.baseline_images = 1 if (have_rasters or args.model) else C.BASELINE_IMAGES
     if args.baseline_images == 2 or args.baseline_images < 1:
@@ -390,7 +392,7 @@ def main():
             ap.error(f'model file not found: {args.model}')
         progress.step(f'Finding the Sentinel-1 pair around {args.event} and reading the scenes')
         paths, scenes = prepare_pair(args.bbox, args.event, Path(args.out) / 'rasters',
-                                     pols=('vv', 'vh') if (args.model or args.vh) else ('vv',),
+                                     pols=('vv', 'vh') if (args.model or args.vh or wants_model_check) else ('vv',),
                                      search_days=args.search_days)
         args.pre, args.post, args.slope = str(paths['pre']), str(paths['post']), str(paths['slope'])
     elif args.model or args.vh:
@@ -400,6 +402,9 @@ def main():
 
     pre, transform, crs = read_db(args.pre)
     post, _, _ = read_db(args.post)
+    pre_vh = post_vh = None
+    if not have_rasters and 'pre_vh' in paths:
+        pre_vh, post_vh = read_db(paths['pre_vh'])[0], read_db(paths['post_vh'])[0]
     slope = read_db(args.slope)[0] if args.slope else None
 
     # Where a flood can be: ground within a few tens of metres above the nearest drainage line.
@@ -442,7 +447,6 @@ def main():
     else:
         bands = [(before, post, spread)]
         if args.vh:
-            pre_vh, post_vh = read_db(paths['pre_vh'])[0], read_db(paths['post_vh'])[0]
             before_vh, spread_vh = pre_vh, None
             if baseline:
                 earlier_vh = read_history(history, Path(args.out) / 'rasters', crs, transform, pre.shape, height, pol='vh')
@@ -483,7 +487,7 @@ def main():
             method += ' + Sentinel-2 (confirms detections, fills radar blind spots)'
     # The trained model as a second, independent opinion on the rule's water (it does not change the map)
     model_water, model_check = None, None
-    if args.model_check and args.vh and not args.model and MODEL_FILE.exists():
+    if wants_model_check and pre_vh is not None:
         print('  Running the trained flood model as a check on the rule', flush=True)
         import predict
         model, device = predict.load_model(str(MODEL_FILE))
