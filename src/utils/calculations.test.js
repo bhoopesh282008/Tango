@@ -343,3 +343,24 @@ describe('road to a town, beside the road to a hospital', () => {
     expect(buildAnswer('cut-off', 'np', run).answer).toContain('यी बस्तीमध्ये 2 मा अझै सहरसम्म सडक छ र 1 मा छैन')
   })
 })
+
+describe('the firmer cut-off count', () => {
+  test('is not given when the run does not record it (the demo data)', () => {
+    expect(stats.cutOffFirm).toBeNull()
+  })
+
+  test('counts the cut-off settlements still cut off with only the flooded stretches closed', () => {
+    const cut = demo.settlements.filter((s) => s.connected === false)
+    const firmIds = new Set(cut.slice(0, 1).map((s) => s.id))
+    const settlements = demo.settlements.map((s) =>
+      s.connected === false ? { ...s, connected_pieces: !firmIds.has(s.id) } : { ...s, connected_pieces: s.connected === true ? true : null },
+    )
+    const run = computeStats({ ...demo, settlements })
+    expect(run.cutOff).toHaveLength(cut.length)
+    expect(run.cutOffFirm).toBe(1)
+    // the copilot says how many hold under each rule
+    expect(buildAnswer('cut-off', 'en', run).answer).toContain(
+      `1 of them are cut off even if only the flooded stretches of road are closed; the other ${cut.length - 1} only if`,
+    )
+  })
+})

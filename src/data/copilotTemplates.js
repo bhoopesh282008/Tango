@@ -105,7 +105,7 @@ const en = {
       ]),
       `Largest affected reaches:\n${numbered(
         s.zones.slice(0, 3).map(
-          (z) => `${z.name}: ${n(z.area_km2, 1)} km² (${DAMAGE_TYPES[z.type].label.toLowerCase()}, ${pct(z.confidence)}% confidence)`,
+          (z) => `${z.name}: ${n(z.area_km2, 1)} km² (${DAMAGE_TYPES[z.type].label.toLowerCase()}, change score ${pct(z.confidence)}%)`,
         ),
       )}`,
       `Settlements with the most damaged structures: ${worst.map((w) => `${w.name} (${n(w.damaged)})`).join(', ')}.`,
@@ -143,6 +143,9 @@ const en = {
           moreEn,
         ),
       ),
+      s.cutOffFirm != null
+        ? `${s.cutOffFirm} of them are cut off even if only the flooded stretches of road are closed; the other ${s.cutOff.length - s.cutOffFirm} only if every road that touches a flood zone is closed.`
+        : null,
       s.townAccess.known
         ? `Cut off here means no road to a hospital. Of these settlements, ${n(s.townAccess.open)} still have a road to a town and ${n(s.townAccess.none)} have none.`
         : null,
@@ -214,7 +217,7 @@ const np = {
       ]),
       `सबैभन्दा बढी प्रभावित खण्डहरू:\n${numbered(
         s.zones.slice(0, 3).map(
-          (z) => `${z.name_np ?? z.name}: ${n(z.area_km2, 1)} वर्ग कि.मी. (${DAMAGE_TYPES[z.type].label_np}, ${pct(z.confidence)}% विश्वसनीयता)`,
+          (z) => `${z.name_np ?? z.name}: ${n(z.area_km2, 1)} वर्ग कि.मी. (${DAMAGE_TYPES[z.type].label_np}, परिवर्तन अङ्क ${pct(z.confidence)}%)`,
         ),
       )}`,
       `सबैभन्दा बढी संरचना क्षति भएका बस्तीहरू: ${worst.map((w) => `${w.name_np ?? w.name} (${n(w.damaged)})`).join(', ')}।`,
@@ -252,6 +255,9 @@ const np = {
           moreNp,
         ),
       ),
+      s.cutOffFirm != null
+        ? `तीमध्ये ${s.cutOffFirm} बस्ती बाढीले छोपेको सडक खण्ड मात्र बन्द हुँदा पनि सम्पर्कविहीन हुन्छन्; बाँकी ${s.cutOff.length - s.cutOffFirm} बाढी क्षेत्र छुने पूरै सडक बन्द भएमा मात्र।`
+        : null,
       s.townAccess.known
         ? `यहाँ सम्पर्कविहीन भन्नाले अस्पतालसम्म सडक नभएको जनाउँछ। यी बस्तीमध्ये ${n(s.townAccess.open)} मा अझै सहरसम्म सडक छ र ${n(s.townAccess.none)} मा छैन।`
         : null,

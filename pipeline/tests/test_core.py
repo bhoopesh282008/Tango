@@ -81,6 +81,51 @@ def test_cutoff_reports_unknown_when_never_connected():
     assert result == {'X': None}
 
 
+def test_cutoff_closing_only_the_flooded_stretches_is_the_firmer_answer():
+    # One road A-B-C-D-E, hospital at D; the water touches only the stretch D-E, beyond the hospital.
+    crs = 'EPSG:32645'
+    x0, y0 = 500000, 3000000
+    pts = [(x0 + i * 1000, y0) for i in range(5)]
+    zones = gpd.GeoDataFrame({'type': ['water']}, geometry=[box(x0 + 3600, y0 - 50, x0 + 3800, y0 + 50)], crs=crs)
+    roads = damage.flag_damaged(gpd.GeoDataFrame(geometry=[LineString(pts)], crs=crs), zones)
+    assert roads['damaged'].tolist() == [True]
+    settlement = gpd.GeoDataFrame({'id': ['A']}, geometry=[Point(pts[0])], crs=crs)
+    hospital = gpd.GeoDataFrame({'id': ['h']}, geometry=[Point(pts[3])], crs=crs)
+    # The whole flagged road closed: A is cut off. Only the flooded stretch closed: it is not.
+    assert cutoff.connectivity(settlement, hospital, roads) == {'A': False}
+    assert cutoff.connectivity(settlement, hospital, roads, rule='pieces', zones=zones) == {'A': True}
+
+
+def test_cutoff_pieces_needs_the_zones():
+    roads, settlements, hospital = _network()
+    try:
+        cutoff.connectivity(settlements, hospital, roads, rule='pieces')
+    except ValueError as error:
+        assert 'zones' in str(error)
+    else:
+        raise AssertionError('a pieces cut without zones should be refused')
+
+
+def test_cutoff_does_not_move_a_settlement_to_another_road_after_the_cut():
+    # S sits on a flagged road S-J; the hospital H is reached from J. Another, open road runs 300 m
+    # north of S and also reaches J. Before the fix, S was placed again after the cut, landed on the
+    # northern road and was reported connected.
+    crs = 'EPSG:32645'
+    x0, y0 = 500000, 3000000
+    roads = gpd.GeoDataFrame(
+        {'damaged': [True, False, False]},
+        geometry=[
+            LineString([(x0, y0), (x0 + 1000, y0)]),                          # S-J, flagged
+            LineString([(x0 + 1000, y0), (x0 + 2000, y0)]),                   # J-H
+            LineString([(x0, y0 + 300), (x0 + 900, y0 + 300), (x0 + 1000, y0)]),  # the northern road to J
+        ],
+        crs=crs,
+    )
+    settlement = gpd.GeoDataFrame({'id': ['S']}, geometry=[Point(x0, y0)], crs=crs)
+    hospital = gpd.GeoDataFrame({'id': ['h']}, geometry=[Point(x0 + 2000, y0)], crs=crs)
+    assert cutoff.connectivity(settlement, hospital, roads) == {'S': False}
+
+
 def test_flag_damaged_and_assign_settlement():
     crs = 'EPSG:32645'
     zones = gpd.GeoDataFrame(

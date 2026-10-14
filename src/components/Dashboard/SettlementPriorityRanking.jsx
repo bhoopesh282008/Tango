@@ -64,6 +64,8 @@ function PriorityRow({ settlement: s, buildings, selected, people }) {
   const band = PRIORITY_BANDS.find((b) => b.id === s.band)
   const access = s.access_difficulty != null ? ACCESS_LEVELS[s.access_difficulty - 1] : null
   const notes = [
+    // Its road is cut only under the whole-road rule: the water covers part of a flagged road, not the way out
+    s.connected_pieces === true && 'Cut off only if the whole flagged road is closed',
     access && `Access: ${access.label}`,
     s.healthPostUnreachable && 'Health post unreachable',
     s.bridgeDestroyed && WORDING.bridgeIssue,

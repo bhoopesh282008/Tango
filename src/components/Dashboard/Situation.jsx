@@ -85,7 +85,14 @@ export default function Situation({ stats, children }) {
                 tone="cutOff"
                 value={formatNumber(stats.cutOff.length)}
                 unit={`of ${formatNumber(stats.settlementRows.length)}`}
-                note={stats.unknownAccess.length > 0 ? `${formatNumber(stats.unknownAccess.length)} with road access unknown` : undefined}
+                note={
+                  [
+                    stats.cutOffFirm != null && `${formatNumber(stats.cutOffFirm)} even if only flooded stretches close`,
+                    stats.unknownAccess.length > 0 && `${formatNumber(stats.unknownAccess.length)} with road access unknown`,
+                  ]
+                    .filter(Boolean)
+                    .join(' · ') || undefined
+                }
               />
             </div>
             <div className={CELL}>

@@ -40,6 +40,8 @@ const TEXT = {
     notAssessed: 'Bridges and health facilities were not assessed in this run.',
     cutOff: 'Who is cut off',
     cutOffLine: (n, total) => `${n} of ${total} settlements have lost their road connection to a hospital.`,
+    firmLine: (firm, n) =>
+      `${firm} of the ${n} are cut off even if only the flooded stretches of road are closed; the rest only if every road that touches a flood zone is closed.`,
     unknown: (n) => `${n} more had no mapped road before the event, so their access is unknown.`,
     priority: 'Rescue priority',
     columns: (buildings) => ['#', 'Settlement', 'Band', 'Score', buildings ? 'Buildings' : 'People', 'Damaged', 'Also'],
@@ -76,6 +78,8 @@ const TEXT = {
     notAssessed: 'यस विश्लेषणमा पुल र स्वास्थ्य संस्थाको मूल्याङ्कन गरिएको छैन।',
     cutOff: 'को सम्पर्कविहीन छ',
     cutOffLine: (n, total) => `${total} बस्तीमध्ये ${n} बस्तीको अस्पतालसम्मको सडक सम्पर्क टुटेको छ।`,
+    firmLine: (firm, n) =>
+      `यी ${n} मध्ये ${firm} बस्ती बाढीले छोपेको सडक खण्ड मात्र बन्द हुँदा पनि सम्पर्कविहीन हुन्छन्; बाँकी बाढी क्षेत्र छुने पूरै सडक बन्द भएमा मात्र।`,
     unknown: (n) => `थप ${n} बस्तीमा घटनाअघि नै नक्साङ्कित सडक थिएन, त्यसैले तिनको पहुँच अज्ञात छ।`,
     priority: 'उद्धार प्राथमिकता',
     columns: (buildings) => ['क्रम', 'बस्ती', 'तह', 'अङ्क', buildings ? 'भवन' : 'जना', 'क्षति', 'थप'],
@@ -377,6 +381,7 @@ export default function ReportPage() {
 
             <Section title={t.cutOff}>
               <p className="font-medium">{t.cutOffLine(stats.cutOff.length, stats.settlementRows.length)}</p>
+              {stats.cutOffFirm != null && <p className="text-ink-soft">{t.firmLine(stats.cutOffFirm, stats.cutOff.length)}</p>}
               {stats.unknownAccess.length > 0 && <p className="text-ink-soft">{t.unknown(stats.unknownAccess.length)}</p>}
             </Section>
           </div>

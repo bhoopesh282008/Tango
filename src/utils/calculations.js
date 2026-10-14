@@ -233,6 +233,13 @@ export function computeStats({ floodZones, buildings, roads, settlements, infras
     // Cut-off settlements whose population the source does not record
     populationUnknown: cutOff.filter((s) => s.population == null).length,
     cutOff,
+    // How many of them are cut off even when only the stretches of road inside a flood zone are closed,
+    // not whole flagged roads (`connected_pieces`, pipeline/cutoff.py). Null when the run does not record
+    // it (older runs, the demo data), so nothing is said.
+    cutOffFirm:
+      cutOff.length && cutOff.every((s) => typeof s.connected_pieces === 'boolean')
+        ? cutOff.filter((s) => s.connected_pieces === false).length
+        : null,
     // Of the cut-off settlements (no road to a hospital), whether a town can still be reached by road;
     // `known` is false when the run mapped no town, so there is nothing to say
     townAccess: {

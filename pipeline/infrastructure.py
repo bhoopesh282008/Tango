@@ -65,12 +65,13 @@ def build(bridges, health, roads, zones, settlements, snap_m=500):
     if len(health):
         crs = roads.estimate_utm_crs()
         metric_roads = roads.to_crs(crs)
-        before = cutoff.build_graph(metric_roads, include_damaged=True)
-        after = cutoff.build_graph(metric_roads, include_damaged=False)
+        before = cutoff.road_graph(metric_roads)
+        after = cutoff.after_graph(before, cutoff.closed_edges(before, 'ways'))
         # The main network is the largest connected piece of the pre-event roads.
         main = max(nx.connected_components(before), key=len) if len(before) else set()
         still_main = max(nx.connected_components(after), key=len) if len(after) else set()
-        snap_before, snap_after = cutoff.snapper(before), cutoff.snapper(after)
+        # Placed once, on the pre-event roads: a facility whose road is closed is not moved to another
+        snap_before = cutoff.snapper(before)
 
         pts = _points(health)
         metric = pts.to_crs(crs)
@@ -80,7 +81,7 @@ def build(bridges, health, roads, zones, settlements, snap_m=500):
             node = snap_before(m, snap_m)
             if node is None or node not in main:
                 continue  # not on the mapped road network before the event: cannot be assessed
-            status = 'operational' if snap_after(m, snap_m) in still_main else 'unreachable'
+            status = 'operational' if node in still_main else 'unreachable'
             name, name_np = _names(h, 'Unnamed health facility')
             items.append({
                 'id': f'h{i + 1:03d}', 'settlement_id': near[i], 'type': HEALTH_TYPE,

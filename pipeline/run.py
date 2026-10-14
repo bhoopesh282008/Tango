@@ -193,11 +193,13 @@ def towns_of(settlements):
     return settlements[settlements['place'].isin(TOWN_PLACES)]
 
 
-def settlement_records(settlements, status, town_status=None):
+def settlement_records(settlements, status, town_status=None, firm=None):
     """Rows for settlements.json. pandas holds a missing value as NaN, which is not valid JSON.
 
-    `connected` is the road to a hospital; `town_connected` the road to a town (None: not known)."""
-    town_status = town_status or {}
+    `connected` is the road to a hospital with every flagged road closed; `connected_pieces` the same
+    with only the flooded stretches closed (cutoff.py); `town_connected` the road to a town. None:
+    not known."""
+    town_status, firm = town_status or {}, firm or {}
     rows = []
     for s in settlements.to_dict('records'):
         population = s['population']
@@ -206,6 +208,7 @@ def settlement_records(settlements, status, town_status=None):
             'lat': s['lat'], 'lng': s['lng'],
             'population': None if population is None or population != population else int(population),
             'connected': status[s['id']],
+            'connected_pieces': firm.get(s['id']),
             'town_connected': town_status.get(s['id']),
         })
     return rows
@@ -439,7 +442,10 @@ def main():
     settlements = settlements_from_places(osm['places'])
     buildings = damage.assign_settlement(buildings, settlements)
 
-    status = cutoff.connectivity(settlements, hospitals_or_any(osm['health']), roads)
+    hospitals = hospitals_or_any(osm['health'])
+    status = cutoff.connectivity(settlements, hospitals, roads)
+    # The firmer answer: only the stretches inside a water or debris zone closed, not whole roads
+    firm = cutoff.connectivity(settlements, hospitals, roads, rule='pieces', zones=zones)
     # The brief asks for the road to the nearest town or hospital: the hospital test is the cut-off, and
     # whether a town can still be reached is told beside it (a run with no town mapped has no answer).
     towns = towns_of(settlements)
@@ -461,7 +467,7 @@ def main():
             near = settlements.loc[settlements.to_crs(crs).distance(centre).idxmin(), 'name']
         detail = {'near': near, 'width_km': round(cols * cell / 1000, 1), 'height_km': round(rows * cell / 1000, 1)}
 
-    settlement_rows = settlement_records(settlements, status, town_status)
+    settlement_rows = settlement_records(settlements, status, town_status, firm)
     area_name = args.name or default_area_name(buildings, settlements) or f'Area {args.bbox}'
     infra = infrastructure.build(osm['bridges'], osm['health'], roads, zones, settlements)
     context_data = None
@@ -504,6 +510,7 @@ def main():
         'buildings_damaged': int(buildings['damaged'].sum()),
         'roads_damaged': int(roads['damaged'].sum()),
         'cut_off': [k for k, v in status.items() if v is False],
+        'cut_off_by_flooded_stretches': [k for k, v in firm.items() if v is False],
         'unknown': [k for k, v in status.items() if v is None],
     }, indent=2))
 
