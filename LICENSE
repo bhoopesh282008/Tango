@@ -19,14 +19,3 @@ AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
 LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
 OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
-
-This licence covers the code in this repository. The data it uses and produces
-keeps its own terms: Sentinel-1 and Sentinel-2 (Copernicus, free, full and open),
-OpenStreetMap (ODbL, (c) OpenStreetMap contributors), Copernicus DEM (see the
-attribution in the README), Kuro Siwo (see its dataset licence; cite Bountos et
-al., 2024) and NASA imagery used on the opening screen. See the README for the
-required credits.
-
-The run data published with the live dashboard (the data/ folder of the site)
-contains OpenStreetMap data, (c) OpenStreetMap contributors, and is available
-under the Open Database License (ODbL) 1.0.

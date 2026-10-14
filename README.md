@@ -72,7 +72,7 @@ That is the whole system, end to end from raw Sentinel-1 data, for an area (up t
 ```bash
 npm install
 npm run dev      # http://localhost:5173
-npm run test     # 319 tests
+npm run test     # 320 tests
 npm run lint
 npm run build
 ```
@@ -105,7 +105,7 @@ Python 3.11 to 3.13 (the geospatial packages have no wheels for 3.14 yet). From 
 ```bash
 py -3.13 -m venv pipeline/.venv
 pipeline/.venv/Scripts/python -m pip install -r pipeline/requirements.txt
-pipeline/.venv/Scripts/python -m pytest pipeline/tests     # 201 tests
+pipeline/.venv/Scripts/python -m pytest pipeline/tests     # 202 tests
 ```
 
 For GPU training install PyTorch from its own index first: `pip install torch --index-url https://download.pytorch.org/whl/cu124`.
@@ -127,7 +127,7 @@ The system is built to be run on an area and date chosen on the day:
 
 Each published area lives in `public/data/<id>/` and is listed in `public/data/runs.json` (`publish.py`). The title, map view, statistics, before/after pictures, copilot answers, one-page situation report and flood-path terrain all follow the selected area. What stays tied to the Trishuli case study: the bundled demo data, six district labels on the map, and the wording of the Method and limitations page. `python publish.py <run folder> --name "..."` publishes a run made earlier.
 
-A first run on a new area downloads its scenes, elevation and OpenStreetMap snapshot: OpenStreetMap is asked for at the start, in the background, so it arrives while the radar scenes are being read; the free service is sometimes busy for a quarter of an hour, and the pipeline keeps retrying for about 22 minutes before it stops with a message (run the same command again to continue from the cache). A re-run reuses the rasters and takes under a minute. Rehearsals so far: Trishuli, a second Trishuli reach, the Bhote Koshi valley, a dry-season date on it, and the Chamoli glacier flood of 2021.
+A first run on a new area downloads its scenes, elevation and OpenStreetMap snapshot: OpenStreetMap is asked for at the start, in the background, so it arrives while the radar scenes are being read; the free service is sometimes busy for a quarter of an hour, and the pipeline keeps retrying for about 22 minutes before it stops with a message (run the same command again to continue from the cache). A re-run reuses the rasters and takes under a minute. Rehearsals so far: Trishuli, a second Trishuli reach, the Bhote Koshi valley, a dry-season date on it, the Chamoli glacier flood of 2021 and the South Lhonak glacial-lake flood down the Teesta valley in 2023.
 
 By default the flood map compares with the median of three images on the same track (the "before" scene and the two 12 days earlier), counting a change only if it also exceeds the normal variation of that ground; `--baseline-images 1` gives the single "before" image. With given rasters (`--pre`, `--post`) or a model it is one image. `--context` adds modelled population (WorldPop) and river flow (GloFAS) beside the map; it is off by default because these are not among the inputs the challenge lists, and nothing in the results reads them (`publish.py --with-context` publishes the file).
 
@@ -142,7 +142,7 @@ cd pipeline
 
 Sentinel-2 is part of every run by default: where the sky was clear on both sides of the event it confirms the radar's detections and fills radar blind spots, and change only it sees is recorded but not drawn (`--optical-only-uncertain` draws it as "uncertain"). Reading it takes about 17 minutes per area; `--no-optical` gives a radar-only run that much faster, which is the choice when time is short.
 
-The run first checks the area, the date, the credentials and the output folder, and reports every problem at once before anything is downloaded. It then prints numbered steps with the time; reading the two Sentinel-1 scenes is the slow one. `--search-days N` widens the search for scenes around the event (default 20). Areas up to about 0.2 square degrees (the case studies are 0.15) are expected; from 0.2 to 0.4 the run warns that it will be long, and larger ones are refused with a message.
+The run first checks the area, the date, the credentials and the output folder, and reports every problem at once before anything is downloaded. It then prints numbered steps with the time; reading the two Sentinel-1 scenes is the slow one. `--search-days N` widens the search for scenes around the event (default 20). `--track ORBIT` keeps only one Sentinel-1 relative orbit, for example to make a published run again on the pair it used (the Bhote Koshi area is track 121; left to itself the pipeline now picks track 85 there, two days after the event instead of five). Areas up to about 0.2 square degrees (the case studies are 0.15) are expected; from 0.2 to 0.4 the run warns that it will be long, and larger ones are refused with a message.
 
 | If it says | What it means | What to do |
 | --- | --- | --- |
@@ -188,7 +188,7 @@ The flood-path trace runs without any account:
 
 ### Data rules
 
-Inputs are Sentinel-1, Copernicus DEM, OpenStreetMap as it was before the event, and Kuro Siwo for training. Published damage maps (Copernicus EMS, UNOSAT) and post-event OpenStreetMap edits are not used as inputs; `config.osm_snapshot_for` takes the snapshot 30 days before the event (never later than 27 July 2026), so an earlier event never reads mapping made after it, and `fetch_osm.py` refuses a snapshot date on or after 26 August 2026.
+Inputs are Sentinel-1, Sentinel-2, Copernicus DEM, OpenStreetMap as it was before the event, and Kuro Siwo for training. Published damage maps (Copernicus EMS, UNOSAT) and post-event OpenStreetMap edits are not used as inputs; `config.osm_snapshot_for` takes the snapshot 30 days before the event (never later than 27 July 2026), so an earlier event never reads mapping made after it, and `fetch_osm.py` refuses a snapshot date on or after 26 August 2026.
 
 Datasets outside that list (modelled population, river flow) are not fetched unless `--context` is given, and nothing in the results reads them.
 
@@ -196,7 +196,9 @@ The ohsome API, which the challenge names for the OpenStreetMap snapshot, answer
 
 ### Attribution
 
-Contains modified Copernicus Sentinel data 2026. Produced using Copernicus WorldDEM-30 © DLR e.V. 2010–2014 and © Airbus Defence and Space GmbH 2014–2018 provided under COPERNICUS by the European Union and ESA; all rights reserved. © OpenStreetMap contributors (ODbL); the run data published with the live site (`/data`) contains OpenStreetMap data and is available under the ODbL. Flood model trained on Kuro Siwo (Bountos et al., NeurIPS 2024), CC BY 4.0; full citation in [pipeline/MODEL.md](pipeline/MODEL.md).
+Contains modified Copernicus Sentinel data 2026. Produced using Copernicus WorldDEM-30 © DLR e.V. 2010–2014 and © Airbus Defence and Space GmbH 2014–2018 provided under COPERNICUS by the European Union and ESA; all rights reserved. © OpenStreetMap contributors (ODbL); the run data published with the live site (`/data`) contains OpenStreetMap data and is available under the ODbL. Flood model trained on Kuro Siwo (Bountos et al., NeurIPS 2024), CC BY 4.0; full citation in [pipeline/MODEL.md](pipeline/MODEL.md). Reference maps used for checking only: European Union, Copernicus Emergency Management Service data (EMSR927). Opening screen: Earth from NASA Blue Marble, star map and satellite model from NASA.
+
+The code is under the MIT licence ([LICENSE](LICENSE)). The data it uses and produces keeps its own terms: Sentinel-1 and Sentinel-2 under the Copernicus free, full and open data policy, OpenStreetMap under the ODbL, the Copernicus DEM as credited above, and Kuro Siwo under its dataset licence.
 
 ## Splash screen
 
