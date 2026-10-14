@@ -80,9 +80,11 @@ def overpass_to_geojson(elements, areas):
     return {'type': 'FeatureCollection', 'features': features}
 
 
-# The public Overpass server sheds load (429, 502, 503, 504) and now and then is down for minutes.
-# Each wait below is the pause before the next try: about seven minutes in all.
-OVERPASS_WAITS = (20, 60, 120, 240)
+# The public Overpass server sheds load (429, 502, 503, 504) and now and then is down for a quarter of
+# an hour (a rehearsal on 12 Oct 2026 met 504s for more than ten minutes). Each wait below is the pause
+# before the next try: about 22 minutes in all, so a busy spell is waited out instead of ending the run.
+# run.py fetches these layers while the satellite scenes are being read, so most of the wait is hidden.
+OVERPASS_WAITS = (20, 60, 120, 240, 300, 300, 300)
 
 
 class OverpassBusy(RuntimeError):

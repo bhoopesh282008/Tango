@@ -40,7 +40,9 @@ def export_all(out, zones, buildings, roads, settlements, infrastructure, satell
     zones = zones.copy()
     # Built row by row so that a run which finds no flood (no rows) still exports.
     zones['name'] = [f'{t.capitalize()} {i}' for t, i in zip(zones['type'], zones['id'])]
-    _write(out / 'flood_zones.geojson', _fc(zones, ['id', 'name', 'type', 'confidence', 'area_km2']))
+    # model_share: where the run also ran the trained model, the share of each zone it marks as flood too
+    zone_columns = ['id', 'name', 'type', 'confidence', 'area_km2'] + (['model_share'] if 'model_share' in zones.columns else [])
+    _write(out / 'flood_zones.geojson', _fc(zones, zone_columns))
     _write(out / 'buildings.geojson', _fc(buildings, ['settlement_id', 'damaged']))
     roads = roads.copy()
     roads['id'] = [f'r{i + 1:04d}' for i in range(len(roads))]

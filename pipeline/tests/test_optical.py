@@ -77,13 +77,13 @@ def test_fuse_confirms_fills_blind_spots_and_never_removes():
     valid = np.ones(SHAPE, bool)
     valid[3] = False
 
-    classes, out_conf, counts = fetch_s2.fuse(radar, conf, seen, optical, valid)
+    classes, out_conf, counts = fetch_s2.fuse(radar, conf, seen, optical, valid, add_optical_only=True)
     assert (classes[0] == C.CLASS_WATER).all()                       # radar water kept everywhere
     assert np.allclose(out_conf[0, :2], 0.9) and np.allclose(out_conf[0, 2:], 0.65)
     assert (classes[1] == C.CLASS_UNCERTAIN).all()                   # optical-only: a prompt to check
     assert (classes[2] == C.CLASS_WATER).all() and np.allclose(out_conf[2], 0.6)
     assert (classes[3] == C.CLASS_NONE).all()
-    assert counts == {'confirmed': 2, 'filled_blind_spots': 4, 'optical_only': 4,
+    assert counts == {'optical_only_drawn': True, 'confirmed': 2, 'filled_blind_spots': 4, 'optical_only': 4,
                       'off_floor_kept': 0, 'off_floor_dropped': 0}
     assert (radar[1] == 0).all()                                     # inputs untouched
 
@@ -103,13 +103,37 @@ def test_fuse_gives_flood_classes_only_on_the_valley_floor():
     optical[5, 5] = fetch_s2.OPTICAL_WATER         # a lone pixel on the slope
     valid = np.ones(shape, bool)
 
-    classes, out_conf, counts = fetch_s2.fuse(radar, conf, seen, optical, valid, floor=floor, min_pixels=6)
+    classes, out_conf, counts = fetch_s2.fuse(radar, conf, seen, optical, valid, floor=floor, min_pixels=6,
+                                              add_optical_only=True)
     assert classes[0, 0] == C.CLASS_DEBRIS                           # blind spot on the floor: filled
     assert (classes[0, 1:] == C.CLASS_UNCERTAIN).all()
     assert (classes[2:4, :3] == C.CLASS_UNCERTAIN).all()             # big slope patch: a prompt, never a flood class
     assert classes[5, 5] == C.CLASS_NONE                             # small slope patch: dropped
-    assert counts == {'confirmed': 0, 'filled_blind_spots': 1, 'optical_only': 5,
+    assert counts == {'optical_only_drawn': True, 'confirmed': 0, 'filled_blind_spots': 1, 'optical_only': 5,
                       'off_floor_kept': 6, 'off_floor_dropped': 1}
+
+
+def test_by_default_optical_only_change_is_counted_but_not_drawn():
+    # Off the floor it was mostly cloud and haze on the real scenes; on the floor it is a lead, not a
+    # detection. Confirming radar detections and filling radar blind spots still happen.
+    shape = (6, 6)
+    radar, conf = np.zeros(shape, 'uint8'), np.zeros(shape, 'float32')
+    radar[0, 3:], conf[0, 3:] = C.CLASS_WATER, 0.65
+    seen = np.ones(shape, bool)
+    seen[0, 0] = False
+    floor = np.zeros(shape, bool)
+    floor[0] = True
+    optical = np.zeros(shape, 'uint8')
+    optical[0] = fetch_s2.OPTICAL_WATER            # blind spot, radar-empty and radar-water cells on the floor
+    optical[2:4, :3] = fetch_s2.OPTICAL_DEBRIS     # a big slope patch
+    valid = np.ones(shape, bool)
+
+    classes, out_conf, counts = fetch_s2.fuse(radar, conf, seen, optical, valid, floor=floor, min_pixels=6)
+    assert classes[0, 0] == C.CLASS_WATER                            # blind spot filled
+    assert np.allclose(out_conf[0, 3:], 0.9)                         # radar water confirmed
+    assert (classes[0, 1:3] == C.CLASS_NONE).all()                   # optical only: not drawn
+    assert (classes[2:4, :3] == C.CLASS_NONE).all()
+    assert counts['optical_only_drawn'] is False and counts['optical_only'] == 2 and counts['off_floor_kept'] == 6
 
 
 def test_composites_are_cached_and_reused(tmp_path, monkeypatch):

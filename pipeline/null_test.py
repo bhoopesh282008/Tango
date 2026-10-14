@@ -35,20 +35,26 @@ DEFAULT_HISTORY = 2
 choose_history = fetch_s1.choose_history
 
 
-def flagged_km2(pre, post, slope, floor, transform, crs, spread=None):
-    """{'water': km2, 'debris': km2, 'uncertain': km2} the classifier marks for this pair, as zones."""
-    classes, conf = segment.classify(pre, post, slope, floor, spread)
+def flagged_km2(bands, slope, floor, transform, crs):
+    """{'water': km2, 'debris': km2, 'uncertain': km2} the classifier marks for this pair, as zones.
+
+    bands: [(before, after, spread)], VV first and VH after it when the VV-or-VH rule is tested."""
+    classes, conf = segment.classify_bands(bands, slope, floor)
     zones = segment.vectorise(classes, conf, transform, crs)
     return {name: round(float(zones.loc[zones['type'] == name, 'area_km2'].sum()), 3)
             for name in ('water', 'debris', 'uncertain')}
 
 
-def baseline_rule(series, target_index, slope, floor, transform, crs):
-    """Km2 the baseline rule marks for series[target_index], against the three images before it; None if too few."""
+def baseline_rule(series_by_band, target_index, slope, floor, transform, crs):
+    """Km2 the baseline rule marks for image `target_index`, against the three images before it, in each
+    band's own series (VV first); None if too few."""
     if target_index < 3:
         return None
-    median, spread = segment.temporal_baseline(np.stack([a for _, a in series[target_index - 3:target_index]]))
-    return flagged_km2(median, series[target_index][1], slope, floor, transform, crs, spread)
+    bands = []
+    for series in series_by_band:
+        median, spread = segment.temporal_baseline(np.stack([a for _, a in series[target_index - 3:target_index]]))
+        bands.append((median, series[target_index][1], spread))
+    return flagged_km2(bands, slope, floor, transform, crs)
 
 
 def summarise(real, nulls, real_baseline=None):
@@ -93,7 +99,8 @@ def attach(run_dir, result):
                 for r in result['no_change_pairs']]
         real, rule = result['real_flood_km2'], 'single image'
     shares = [r['share_of_real'] for r in rows if r['share_of_real'] is not None]
-    satellite['null_test'] = {'rule': rule, 'real_flood_km2': real, 'worst_share_of_real': max(shares, default=None), 'pairs': rows}
+    satellite['null_test'] = {'rule': rule, 'polarisations': result.get('polarisations', ['VV']), 'real_flood_km2': real,
+                              'worst_share_of_real': max(shares, default=None), 'pairs': rows}
     path.write_text(json.dumps(satellite, ensure_ascii=False, separators=(',', ':')), encoding='utf-8')
 
 
@@ -101,6 +108,8 @@ def main():
     ap = argparse.ArgumentParser(description=__doc__.split('\n')[0])
     ap.add_argument('run_dir', help='a finished run (out/trishuli): its rasters and satellite.json are read')
     ap.add_argument('--history', type=int, default=DEFAULT_HISTORY, help='how many earlier scenes (default 2)')
+    ap.add_argument('--vh', action='store_true',
+                    help='test the VV-or-VH rule (the run must have read VH; earlier VH scenes are read too)')
     ap.add_argument('--attach', action='store_true',
                     help="record a summary in the run's satellite.json so the dashboard can show it")
     args = ap.parse_args()
@@ -112,8 +121,11 @@ def main():
     pre_day = date.fromisoformat(pre_meta['date'])
     rasters = run / 'rasters'
 
+    pols = ['vv', 'vh'] if args.vh else ['vv']
     pre, transform, crs = read_db(rasters / 'pre_vv_db.tif')
-    post, _, _ = read_db(rasters / 'post_vv_db.tif')
+    before_by, after_by = {'vv': pre}, {'vv': read_db(rasters / 'post_vv_db.tif')[0]}
+    for pol in pols[1:]:
+        before_by[pol], after_by[pol] = read_db(rasters / f'pre_{pol}_db.tif')[0], read_db(rasters / f'post_{pol}_db.tif')[0]
     slope = read_db(rasters / 'slope.tif')[0]
 
     history, items = fetch_s1.find_history(bbox, pre_meta['relative_orbit'], pre_meta['orbit_state'], pre_day, args.history)
@@ -132,18 +144,25 @@ def main():
     floor, _ = terrain.valley_floor(height, abs(transform.a), rivers, transform, crs)
 
     # oldest first, ending with the run's own "before" scene
-    series = read_history(history, rasters, crs, transform, pre.shape, height) + [(pre_day.isoformat(), pre)]
-    real = flagged_km2(pre, post, slope, floor, transform, crs)
+    series_by_band = [read_history(history, rasters, crs, transform, pre.shape, height, pol=pol)
+                      + [(pre_day.isoformat(), before_by[pol])] for pol in pols]
+    series = series_by_band[0]
+    real = flagged_km2([(before_by[pol], after_by[pol], None) for pol in pols], slope, floor, transform, crs)
     real_baseline = None
     if len(series) >= 3:
-        median, spread = segment.temporal_baseline(np.stack([a for _, a in series[-3:]]))
-        real_baseline = flagged_km2(median, post, slope, floor, transform, crs, spread)
+        bands = []
+        for pol, band_series in zip(pols, series_by_band):
+            median, spread = segment.temporal_baseline(np.stack([a for _, a in band_series[-3:]]))
+            bands.append((median, after_by[pol], spread))
+        real_baseline = flagged_km2(bands, slope, floor, transform, crs)
     nulls = []
     for j in range(1, len(series)):
-        (d0, a), (d1, b) = series[j - 1], series[j]
-        nulls.append({'pair': f'{d0} to {d1}', **flagged_km2(a, b, slope, floor, transform, crs),
-                      'baseline': baseline_rule(series, j, slope, floor, transform, crs)})
+        d0, d1 = series[j - 1][0], series[j][0]
+        pair = [(band_series[j - 1][1], band_series[j][1], None) for band_series in series_by_band]
+        nulls.append({'pair': f'{d0} to {d1}', **flagged_km2(pair, slope, floor, transform, crs),
+                      'baseline': baseline_rule(series_by_band, j, slope, floor, transform, crs)})
     result = summarise(real, nulls, real_baseline)
+    result['polarisations'] = [pol.upper() for pol in pols]
     result['real_pair'] = f'{pre_day} to {satellite["after"]["date"]}'
     (run / 'null_test.json').write_text(json.dumps(result, indent=1), encoding='utf-8')
     if args.attach:

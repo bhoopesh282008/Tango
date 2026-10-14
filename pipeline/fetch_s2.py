@@ -136,7 +136,7 @@ def classify(before, after):
 
 
 def fuse(radar_classes, radar_conf, radar_seen, optical_classes, optical_valid, floor=None,
-         min_pixels=C.SLOPE_MIN_PIXELS):
+         min_pixels=C.SLOPE_MIN_PIXELS, add_optical_only=False):
     """Combine the radar map with optical evidence. Optical never removes a radar detection.
 
     - Both agree on water or debris: confidence raised to at least 0.9.
@@ -150,6 +150,12 @@ def fuse(radar_classes, radar_conf, radar_seen, optical_classes, optical_valid, 
     the same rule: a flood class only on the floor. Away from it a flood cannot
     be the cause (cloud edges, haze, harvest and landslides all change the
     indices), so only patches of at least `min_pixels` are kept, as "uncertain".
+
+    The last two (change optical sees where radar saw the ground and found nothing) are drawn only with
+    `add_optical_only`. By default they are counted and recorded but left off the map: off the floor
+    they were mostly thin cloud and haze (58 to 82 km2 per run on the Trishuli areas), and on the floor
+    they are a lead that a later look found, not a detection. Confirming and filling blind spots are
+    always applied.
     """
     classes, conf = radar_classes.copy(), radar_conf.copy()
     optical_class = np.where(optical_classes == OPTICAL_WATER, C.CLASS_WATER,
@@ -164,13 +170,15 @@ def fuse(radar_classes, radar_conf, radar_seen, optical_classes, optical_valid, 
     classes[blind], conf[blind] = optical_class[blind], 0.6
 
     extra = found & radar_seen & on_floor & (classes == C.CLASS_NONE)
-    classes[extra], conf[extra] = C.CLASS_UNCERTAIN, 0.4
+    if add_optical_only:
+        classes[extra], conf[extra] = C.CLASS_UNCERTAIN, 0.4
 
     slope = found & ~on_floor & (classes == C.CLASS_NONE)
     labels, _ = ndimage.label(slope)
     large = slope & (np.bincount(labels.ravel())[labels] >= min_pixels)
-    classes[large], conf[large] = C.CLASS_UNCERTAIN, 0.4
-    return classes, conf, {'confirmed': int(agree.sum()), 'filled_blind_spots': int(blind.sum()),
+    if add_optical_only:
+        classes[large], conf[large] = C.CLASS_UNCERTAIN, 0.4
+    return classes, conf, {'optical_only_drawn': bool(add_optical_only), 'confirmed': int(agree.sum()), 'filled_blind_spots': int(blind.sum()),
                            'optical_only': int(extra.sum()), 'off_floor_kept': int(large.sum()),
                            'off_floor_dropped': int((slope & ~large).sum())}
 

@@ -24,7 +24,7 @@ The judges give an area and a date; the system has to run end to end from raw Se
    .venv\Scripts\python run.py --bbox <west,south,east,north> --event <YYYY-MM-DD> --out out\<folder> --name "<area name>" --publish
    ```
 
-   A new `--out` folder for every area. It checks the area, the date, the credentials and the folder first and reports every problem at once, before downloading anything.
+   A new `--out` folder for every area. It checks the area, the date, the credentials and the folder first and reports every problem at once, before downloading anything. **If time is short, add `--no-optical`**: Sentinel-2 adds about 17 minutes and, where cloud allows, only confirms what the radar found. OpenStreetMap is asked for at once, in the background, while the radar scenes are read.
 3. It prints eight numbered steps with the time. The slow one is step 2, reading the two Sentinel-1 scenes (about 4 minutes for the Teesta valley rehearsal); step 5 reads two more earlier scenes for the baseline.
 4. When it prints that the area is published, reload the dashboard (`npm run dev`) and pick the new area in the header's selector. Show the figures, the map, the before/after viewer, the rescue table and `/report`.
 
@@ -34,7 +34,7 @@ The public Pages site does not change when you publish: it holds the data it was
 
 | It says | Do |
 | --- | --- |
-| `Overpass ... did not answer ... after 5 tries over about 7 minutes. Layers already fetched are cached and the satellite scenes are saved, so run the same command again` | **Run the same command again.** It continues from the cache. This happened on the first try of the Teesta rehearsal (the free OpenStreetMap service answered 504 for more than ten minutes) and the second try got past OpenStreetMap in under a minute. Public Overpass mirrors were tried from this network on 12 Oct and none answered (kumi.systems, private.coffee and mail.ru timed out; openstreetmap.fr refused), so there is no second server to switch to |
+| `Overpass ... did not answer ... after 8 tries over about 22 minutes. Layers already fetched are cached and the satellite scenes are saved, so run the same command again` | **Run the same command again.** It continues from the cache. This happened on the first try of the Teesta rehearsal (the free OpenStreetMap service answered 504 for more than ten minutes) and the second try got past OpenStreetMap in under a minute. Public Overpass mirrors were tried from this network on 12 Oct and none answered (kumi.systems, private.coffee and mail.ru timed out; openstreetmap.fr refused), so there is no second server to switch to |
 | `No Sentinel-1 pair brackets the event` | `--search-days 40`. For a very recent event the later scene may not exist yet |
 | `No Copernicus Data Space credentials were found` | The terminal was opened before the keys were set: open a new one |
 | `The area is larger than anything this pipeline has run on` | Over 0.4 square degrees: split it into two areas, run and publish each |

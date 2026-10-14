@@ -48,7 +48,7 @@ def test_a_busy_server_is_waited_for_and_then_answers(monkeypatch, waited):
     result = fetch_osm._overpass('places', BBOX, '2026-07-27', say=lambda text, **k: said.append(text))
     assert len(result['features']) == 1
     assert waited == [20, 60]                                   # the pauses grow
-    assert 'HTTP 504' in said[0] and 'Waiting 20 s' in said[0] and '2 of 5' in said[0]
+    assert 'HTTP 504' in said[0] and 'Waiting 20 s' in said[0] and '2 of 8' in said[0]
 
 
 def test_a_dropped_connection_and_a_timeout_are_retried_too(monkeypatch, waited):
@@ -65,11 +65,11 @@ def test_a_bad_query_is_not_retried(monkeypatch, waited):
 
 
 def test_a_service_that_stays_down_ends_in_a_message_that_says_what_to_do(monkeypatch, waited):
-    serve(monkeypatch, *[reply(504)] * 5)
+    serve(monkeypatch, *[reply(504)] * (len(fetch_osm.OVERPASS_WAITS) + 1))
     with pytest.raises(fetch_osm.OverpassBusy) as error:
         fetch_osm._overpass('buildings', BBOX, '2026-07-27', say=lambda *a, **k: None)
     message = str(error.value)
-    assert 'buildings layer (HTTP 504)' in message and 'after 5 tries over about 7 minutes' in message
+    assert 'buildings layer (HTTP 504)' in message and 'after 8 tries over about 22 minutes' in message
     assert 'run the same command again' in message
     assert sum(waited) == sum(fetch_osm.OVERPASS_WAITS)
 

@@ -104,6 +104,7 @@ def test_the_baseline_option_refuses_what_cannot_work(monkeypatch, capsys, extra
     (['--baseline-images', '1'], 7),                          # the single before image, when asked for
     (['--pre', 'a.tif', '--post', 'b.tif'], 7),               # given rasters cannot read earlier scenes: no baseline, no error
     (['--model', 'm.pt'], 7),
+    (['--optical'], 7 + 1 + 1),                               # Sentinel-2 (on by default in a real run) is one more
 ])
 def test_the_three_image_baseline_is_the_default_where_it_can_work(monkeypatch, extra, steps):
     import run
@@ -115,6 +116,35 @@ def test_the_three_image_baseline_is_the_default_where_it_can_work(monkeypatch, 
         assert total == steps
         raise Stop
     monkeypatch.setattr(run, 'Progress', progress)
-    monkeypatch.setattr('sys.argv', ['run.py', '--bbox', '85.1,27.9,85.3,28.1', '--event', '2026-08-26', *extra])
+    # radar only unless the case asks for Sentinel-2, so each case counts one thing
+    monkeypatch.setattr('sys.argv', ['run.py', '--bbox', '85.1,27.9,85.3,28.1', '--event', '2026-08-26', '--no-optical', *extra])
     with pytest.raises(Stop):
         run.main()
+
+
+def test_a_second_band_adds_flood_on_the_floor_but_never_overrides_vv_or_adds_hillside_noise():
+    # Stripes two pixels wide: the rule median-filters the change over 3 x 3 pixels
+    floor = np.zeros((8, 10), bool)
+    floor[:, :7] = True
+    vv_pre, vv_post = np.full((8, 10), -10.0), np.full((8, 10), -10.0)
+    vh_pre, vh_post = np.full((8, 10), -18.0), np.full((8, 10), -18.0)
+    vv_post[:, 0:2] = -5.0        # VV debris
+    vh_post[:, 0:2] = -25.0       # VH says water there: VV wins
+    vh_post[:, 4:6] = -25.0       # VH alone sees water on the floor: added
+    vh_post[:, 8:10] = -25.0      # VH change off the floor: not added (no 'uncertain' from VH)
+    vv_only, _ = segment.classify_bands([(vv_pre, vv_post, None)], None, floor)
+    both, _ = segment.classify_bands([(vv_pre, vv_post, None), (vh_pre, vh_post, None)], None, floor)
+    assert (both[:, 0:2] == C.CLASS_DEBRIS).all()
+    assert (both[:, 4:6] == C.CLASS_WATER).all() and (vv_only[:, 4:6] == 0).all()
+    assert (both[:, 8:10] == vv_only[:, 8:10]).all()
+
+
+def test_zone_share_is_the_part_of_each_zone_the_mask_covers():
+    from rasterio.transform import from_origin
+    from shapely.geometry import box
+    import geopandas as gpd
+    transform = from_origin(0, 10, 1, 1)
+    mask = np.zeros((10, 10), bool)
+    mask[:, :5] = True
+    zones = gpd.GeoDataFrame(geometry=[box(0, 0, 10, 10), box(0, 0, 5, 5)], crs='EPSG:32645')
+    assert segment.zone_share(zones, mask, transform) == [0.5, 1.0]

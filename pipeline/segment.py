@@ -103,6 +103,33 @@ def classify(pre_db, post_db, slope_deg=None, floor=None, spread=None):
     return classes, conf
 
 
+def classify_bands(bands, slope_deg=None, floor=None):
+    """(classes, confidence) from several polarisations of the same pair.
+
+    `bands` is [(before, after, spread)] with VV first, then VH. Each band is classified with the same
+    rules (`classify`). A water or debris class found in any band counts; where bands disagree the
+    first (VV) wins, and "uncertain" (strong change off the valley floor) comes from VV alone, so a
+    second band can add flood on the floor but never more noise on the hillsides. VH sees some changes
+    VV does not (rough, wet debris and vegetation flattened by flow), which is why it is added at all.
+    """
+    before, after, spread = bands[0]
+    classes, conf = classify(before, after, slope_deg, floor, spread)
+    for before, after, spread in bands[1:]:
+        other, other_conf = classify(before, after, slope_deg, floor, spread)
+        add = (classes == 0) & np.isin(other, (C.CLASS_WATER, C.CLASS_DEBRIS))
+        classes[add] = other[add]
+        conf[add] = other_conf[add]
+    return classes, conf
+
+
+def zone_share(zones, mask, transform):
+    """For each zone, the share of its pixels where `mask` is true (zones in the raster's CRS)."""
+    return [
+        round(float(mask[rasterio.features.geometry_mask([g], mask.shape, transform, invert=True)].mean()), 2)
+        for g in zones.geometry
+    ]
+
+
 def vectorise(classes, conf, transform, crs):
     """Polygonise a class raster into a GeoDataFrame (geometry in `crs`).
 

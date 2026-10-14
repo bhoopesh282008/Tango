@@ -45,6 +45,12 @@ SLOPE_MIN_PIXELS = 100     # 1 ha at 10 m
 # deviations of how much the pixel varied between them. 3 is the conventional three-sigma rule, chosen
 # in advance; it was checked on pairs of scenes from before the flood (null_test.py), not tuned on a map.
 BASELINE_SIGMA_K = 3.0
+# Sentinel-2 where the sky was clear, in every run unless --no-optical (adds about 17 minutes)
+OPTICAL_BY_DEFAULT = True
+# Change in the VH band too, beside VV (segment.classify_bands). Adopted only if the false-alarm test
+# (null_test.py) on the Trishuli no-change pairs stays at or below 15% of the mapped area; that rule was
+# fixed on 14 Oct 2026 before any VH result was seen, and no published damage map plays any part in it.
+VH_BY_DEFAULT = False
 BASELINE_IMAGES = 3          # the run's "before" scene and the two before it, 12 days apart
 SIGMA_SMOOTHING = 5          # the spread is median-filtered over this many pixels: three images give a noisy estimate
 

@@ -152,18 +152,18 @@ def prepare_pair(bbox, event, out, res=10.0, pols=('vv',), search_days=20, say=p
     return paths, meta
 
 
-def read_history(items, rasters, crs, transform, shape, height, say=print):
-    """Earlier scenes (VV, dB) on the run's grid: [(date, array)], oldest first. Cached beside the run's rasters."""
+def read_history(items, rasters, crs, transform, shape, height, say=print, pol='vv'):
+    """Earlier scenes (dB, one band) on the run's grid: [(date, array)], oldest first. Cached beside the run's rasters."""
     crs_name = crs.to_string()
     xs = transform.c + transform.a * (np.arange(shape[1]) + 0.5)
     ys = transform.f + transform.e * (np.arange(shape[0]) + 0.5)
     out = []
     for item in items:
         day = fetch_s1._day(item).isoformat()
-        path = Path(rasters) / f'history_{day}_vv_db.tif'
+        path = Path(rasters) / f'history_{day}_{pol}_db.tif'
         if not path.exists():
-            say(f'  Reading the {day} scene and correcting it for terrain', flush=True)
-            db = read_pass(item, 'vv', crs_name, xs, ys, height, None, say)[0]
+            say(f'  Reading the {day} scene ({pol.upper()}) and correcting it for terrain', flush=True)
+            db = read_pass(item, pol, crs_name, xs, ys, height, None, say)[0]
             write_raster(path, db, crs, transform)
         out.append((day, read_db(path)[0]))
     return sorted(out)
@@ -280,6 +280,33 @@ def default_area_name(buildings, settlements):
 TOWN_PLACES = ('town', 'city')
 
 
+# The trained model the check uses (pipeline/MODEL.md); a run without it simply skips the check
+MODEL_FILE = C.ROOT / 'models' / 'unet_kurosiwo.pt'
+
+
+def in_background(fn, *args):
+    """Start fn(*args) on a daemon thread and return a function that waits for it and gives its result
+    (or raises its error). A daemon thread, so a run that stops early does not wait for it to finish."""
+    box = {}
+
+    def work():
+        try:
+            box['value'] = fn(*args)
+        except BaseException as error:   # handed to whoever asks for the result
+            box['error'] = error
+
+    thread = threading.Thread(target=work, daemon=True)
+    thread.start()
+
+    def result():
+        thread.join()
+        if 'error' in box:
+            raise box['error']
+        return box['value']
+
+    return result
+
+
 def hospitals_or_any(health):
     """Hospitals as destinations; any health facility where none is mapped."""
     health = health.copy()
@@ -299,8 +326,17 @@ def main():
     ap.add_argument('--event', required=True)
     ap.add_argument('--slope', help='optional slope raster (degrees) on the same grid')
     ap.add_argument('--model', help='trained U-Net checkpoint; without it the threshold baseline is used')
-    ap.add_argument('--optical', action='store_true',
-                    help='add Sentinel-2: confirm radar detections and fill radar blind spots where the sky was clear')
+    ap.add_argument('--optical', action=argparse.BooleanOptionalAction, default=C.OPTICAL_BY_DEFAULT,
+                    help='Sentinel-2 where the sky was clear: confirms radar detections and fills radar blind spots '
+                         '(on by default; --no-optical gives a radar-only run about 17 minutes shorter)')
+    ap.add_argument('--optical-only-uncertain', action='store_true',
+                    help='also draw change only Sentinel-2 sees (radar saw the ground and found none) as "uncertain"; '
+                         'off by default: off the valley floor it was mostly cloud and haze')
+    ap.add_argument('--vh', action=argparse.BooleanOptionalAction, default=C.VH_BY_DEFAULT,
+                    help='look for change in the VH band as well as VV (reads two more bands of each scene)')
+    ap.add_argument('--model-check', action=argparse.BooleanOptionalAction, default=True,
+                    help='when VH is read, also run the trained flood model and record where it agrees with the rule '
+                         '(the map itself is the rule\'s)')
     ap.add_argument('--search-days', type=int, default=20,
                     help='how many days either side of the event to look for Sentinel-1 scenes (default 20)')
     ap.add_argument('--baseline-images', type=int, default=None, metavar='N',
@@ -338,6 +374,10 @@ def main():
     # Only mapping made before the event may be used (see config.osm_snapshot_for)
     snapshot = C.osm_snapshot_for(args.event)
 
+    # OpenStreetMap comes from a free service that can be slow or busy for many minutes: ask for it now,
+    # in the background, so it arrives while the satellite scenes are being read rather than after them.
+    osm_result = in_background(fetch_osm.fetch_all, args.bbox, snapshot)
+
     # The population file is big and its server slow; fetch it while the scenes are being read
     background = None
     if args.context:
@@ -350,11 +390,11 @@ def main():
             ap.error(f'model file not found: {args.model}')
         progress.step(f'Finding the Sentinel-1 pair around {args.event} and reading the scenes')
         paths, scenes = prepare_pair(args.bbox, args.event, Path(args.out) / 'rasters',
-                                     pols=('vv', 'vh') if args.model else ('vv',),
+                                     pols=('vv', 'vh') if (args.model or args.vh) else ('vv',),
                                      search_days=args.search_days)
         args.pre, args.post, args.slope = str(paths['pre']), str(paths['post']), str(paths['slope'])
-    elif args.model:
-        ap.error('--model needs the VH rasters too, so it cannot be combined with --pre/--post')
+    elif args.model or args.vh:
+        ap.error('--model and --vh need the VH rasters too, so they cannot be combined with --pre/--post (use --no-vh)')
     else:
         progress.step('Using the rasters given (--pre and --post)')
 
@@ -364,7 +404,7 @@ def main():
 
     # Where a flood can be: ground within a few tens of metres above the nearest drainage line.
     progress.step(f'OpenStreetMap as of {snapshot}: buildings, roads, bridges, health facilities, places, rivers')
-    osm = fetch_osm.fetch_all(args.bbox, snapshot)
+    osm = osm_result()   # asked for at the beginning; usually here by now
     progress.step('Elevation, and where the valley floor is')
     cell = abs(transform.a)
     xs = transform.c + transform.a * (np.arange(pre.shape[1]) + 0.5)
@@ -377,7 +417,7 @@ def main():
     floor, drainage_source = terrain.valley_floor(height, cell, rivers, transform, crs)
 
     # Optionally a steadier "before": the median of several earlier images and how much the ground varies
-    before, spread, baseline = pre, None, None
+    before, spread, baseline, history = pre, None, None, []
     if args.baseline_images > 1:
         progress.step(f'Earlier images for a steadier baseline ({args.baseline_images - 1} before the "before" scene)')
         meta = scenes['pre']
@@ -400,8 +440,16 @@ def main():
         classes, conf = predict.classify(probability, pre, post, slope, floor)
         method = 'U-Net trained on Kuro Siwo (water) + change detection (debris), on valley floors'
     else:
-        classes, conf = segment.classify(before, post, slope, floor, spread)
-        method = 'Sentinel-1 change detection on valley floors'
+        bands = [(before, post, spread)]
+        if args.vh:
+            pre_vh, post_vh = read_db(paths['pre_vh'])[0], read_db(paths['post_vh'])[0]
+            before_vh, spread_vh = pre_vh, None
+            if baseline:
+                earlier_vh = read_history(history, Path(args.out) / 'rasters', crs, transform, pre.shape, height, pol='vh')
+                before_vh, spread_vh = segment.temporal_baseline(np.stack([a for _, a in earlier_vh] + [pre_vh]))
+            bands.append((before_vh, post_vh, spread_vh))
+        classes, conf = segment.classify_bands(bands, slope, floor)
+        method = f"Sentinel-1 change detection ({'VV or VH' if args.vh else 'VV'}) on valley floors"
         if baseline:
             method += (f' against the median of {baseline["images"]} images, counting only change beyond '
                        f'{C.BASELINE_SIGMA_K:g} standard deviations of the ground\'s normal variation')
@@ -424,13 +472,36 @@ def main():
             optical['note'] = 'No Sentinel-2 pass on both sides of the event; radar only.'
         else:
             seen = np.isfinite(pre) & np.isfinite(post)   # radar is blind only in layover and shadow
-            classes, conf, counts = fetch_s2.fuse(classes, conf, seen, *fetch_s2.classify(before, after), floor=floor)
-            optical.update(used=True, pixels=counts)
+            classes, conf, counts = fetch_s2.fuse(classes, conf, seen, *fetch_s2.classify(before, after), floor=floor,
+                                                  add_optical_only=args.optical_only_uncertain)
+            cell_km2 = abs(transform.a) * abs(transform.e) / 1e6
+            optical.update(used=True, pixels=counts,
+                           km2={k: round(v * cell_km2, 3) for k, v in counts.items() if not isinstance(v, bool)})
             quicklook.optical_png(before, out / 'before_optical.png')
             quicklook.optical_png(after, out / 'after_optical.png')
             images['pre']['optical_url'], images['post']['optical_url'] = 'before_optical.png', 'after_optical.png'
             method += ' + Sentinel-2 (confirms detections, fills radar blind spots)'
+    # The trained model as a second, independent opinion on the rule's water (it does not change the map)
+    model_water, model_check = None, None
+    if args.model_check and args.vh and not args.model and MODEL_FILE.exists():
+        print('  Running the trained flood model as a check on the rule', flush=True)
+        import predict
+        model, device = predict.load_model(str(MODEL_FILE))
+        probability = predict.flood_probability(model, device, post, post_vh, pre, pre_vh)
+        model_water = predict.classify(probability, pre, post, slope, floor)[0] == C.CLASS_WATER
+        cell_km2 = abs(transform.a) * abs(transform.e) / 1e6
+        rule_water = classes == C.CLASS_WATER
+        rule_flood = np.isin(classes, (C.CLASS_WATER, C.CLASS_DEBRIS))
+        model_check = {
+            'model': 'U-Net trained on Kuro Siwo (water only)',
+            'rule_water_km2': round(float(rule_water.sum()) * cell_km2, 3),
+            'model_water_km2': round(float(model_water.sum()) * cell_km2, 3),
+            'both_water_km2': round(float((rule_water & model_water).sum()) * cell_km2, 3),
+            'model_only_km2': round(float((model_water & ~rule_flood).sum()) * cell_km2, 3),
+        }
     zones = segment.vectorise(classes, conf, transform, crs)
+    if model_water is not None and len(zones):
+        zones['model_share'] = segment.zone_share(zones, model_water, transform)
     # A full-resolution close-up of where the most flood was mapped, for the before/after viewer.
     detail_window = quicklook.detail_pngs(pre, post, np.isin(classes, (C.CLASS_WATER, C.CLASS_DEBRIS)), out)
     # The zones drawn over those pictures (in their own pixels), so the viewer can outline what was mapped
@@ -491,6 +562,8 @@ def main():
         'before': {**(scenes.get('pre') or {}), **images['pre']},
         'after': {**(scenes.get('post') or {}), **images['post']},
         'optical': optical,
+        'polarisations': ['VV', 'VH'] if (args.vh and not args.model) else ['VV'],
+        'model_check': model_check,
         'detail': detail,
         'valley_floor': {'drainage': drainage_source, 'share_of_area': round(float(floor.mean()), 3)},
     })

@@ -53,7 +53,7 @@ def test_attach_records_a_short_summary_next_to_the_rest_of_the_run(tmp_path):
     null_test.attach(tmp_path, result)
     saved = json.loads((tmp_path / 'satellite.json').read_text(encoding='utf-8'))
     assert saved['validation'] == {'areas': 3} and saved['event'] == '2026-08-26'      # nothing else touched
-    assert saved['null_test'] == {'rule': 'single image', 'real_flood_km2': 2.5, 'worst_share_of_real': 0.1,
+    assert saved['null_test'] == {'rule': 'single image', 'polarisations': ['VV'], 'real_flood_km2': 2.5, 'worst_share_of_real': 0.1,
                                   'pairs': [{'pair': 'a to b', 'flood_km2': 0.25, 'share_of_real': 0.1}]}
 
 
