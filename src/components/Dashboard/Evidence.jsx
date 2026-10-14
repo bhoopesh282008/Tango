@@ -49,6 +49,9 @@ function ItemList({ items }) {
 
 const share = (part, whole) => (whole > 0 ? `${Math.round((part / whole) * 100)}%` : 'none')
 
+// A small area is "under 0.01 km²", not "0.00 km²", which reads as nothing at all.
+const km2 = (value) => (value > 0 && value < 0.005 ? 'under 0.01' : formatNumber(value, 2))
+
 // Two independent looks at the same flood, when the run made them: the trained model on the same radar
 // images, and Sentinel-2 where the sky was clear. Neither changes the map; both say how far to trust it.
 export function ChecksOnTheMap({ stats }) {
@@ -61,10 +64,10 @@ export function ChecksOnTheMap({ stats }) {
         <p>
           <span className="font-medium text-ink">Checked by the flood model.</span> The trained model, run on the same
           radar images as an independent check, also marks{' '}
-          <span className="num font-semibold text-ink">{formatNumber(model.both_water_km2, 2)} km²</span> of the{' '}
-          <span className="num">{formatNumber(model.rule_water_km2, 2)} km²</span> of water the rule found (
+          <span className="num font-semibold text-ink">{km2(model.both_water_km2)} km²</span> of the{' '}
+          <span className="num">{km2(model.rule_water_km2)} km²</span> of water the rule found (
           {share(model.both_water_km2, model.rule_water_km2)}), and{' '}
-          <span className="num">{formatNumber(model.model_only_km2, 2)} km²</span> the rule does not. Water both mark is the
+          <span className="num">{km2(model.model_only_km2)} km²</span> the rule does not. Water both mark is the
           firmest part of the map. The model has no debris class.
         </p>
       )}
@@ -72,8 +75,8 @@ export function ChecksOnTheMap({ stats }) {
         <p>
           <span className="font-medium text-ink">Sentinel-2.</span> The sky was clear on both sides of the event over{' '}
           {share(optical.clear_both ?? 0, 1)} of the area. There it confirmed{' '}
-          <span className="num">{formatNumber(optical.km2?.confirmed ?? 0, 2)} km²</span> of the radar&apos;s detections and
-          filled <span className="num">{formatNumber(optical.km2?.filled_blind_spots ?? 0, 2)} km²</span> the radar could not
+          <span className="num">{km2(optical.km2?.confirmed ?? 0)} km²</span> of the radar&apos;s detections and
+          filled <span className="num">{km2(optical.km2?.filled_blind_spots ?? 0)} km²</span> the radar could not
           see. Change it saw where the radar found none ({formatNumber(optical.km2?.optical_only ?? 0, 1)} km² on valley
           floors) is recorded, not drawn: a later look is a lead, not a detection.
         </p>

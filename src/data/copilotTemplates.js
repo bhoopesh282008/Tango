@@ -7,6 +7,8 @@ import { formatDate, formatNumber } from '../utils/formatters'
 import { WORDING } from '../utils/wording'
 
 const n = formatNumber
+// A small area is "under 0.01", not "0.00", which reads as nothing at all.
+const area = (value, under) => (value > 0 && value < 0.005 ? under : n(value, 2))
 // Flooded road lengths are often tens of metres; one decimal would print them as 0.0.
 const km = (value) => n(value, value < 1 ? 2 : 1)
 const pct = (fraction) => Math.round(fraction * 100)
@@ -110,7 +112,7 @@ const en = {
       )}`,
       `Settlements with the most damaged structures: ${worst.map((w) => `${w.name} (${n(w.damaged)})`).join(', ')}.`,
       s.modelCheck
-        ? `The trained flood model, run on the same images as a check, also marks ${n(s.modelCheck.both_water_km2, 2)} of the ${n(s.modelCheck.rule_water_km2, 2)} km² of water; where both agree is the firmest part of the map.`
+        ? `The trained flood model, run on the same images as a check, also marks ${area(s.modelCheck.both_water_km2, 'under 0.01')} of the ${n(s.modelCheck.rule_water_km2, 2)} km² of water; where both agree is the firmest part of the map.`
         : null,
     ].filter(Boolean).join('\n\n')
   },
@@ -225,7 +227,7 @@ const np = {
       )}`,
       `सबैभन्दा बढी संरचना क्षति भएका बस्तीहरू: ${worst.map((w) => `${w.name_np ?? w.name} (${n(w.damaged)})`).join(', ')}।`,
       s.modelCheck
-        ? `उही तस्बिरमा जाँचका लागि चलाइएको प्रशिक्षित बाढी मोडेलले पनि ${n(s.modelCheck.rule_water_km2, 2)} वर्ग कि.मी. पानीमध्ये ${n(s.modelCheck.both_water_km2, 2)} वर्ग कि.मी. देखाउँछ; दुवै सहमत भएको भाग नक्साको सबैभन्दा भरपर्दो भाग हो।`
+        ? `उही तस्बिरमा जाँचका लागि चलाइएको प्रशिक्षित बाढी मोडेलले पनि ${n(s.modelCheck.rule_water_km2, 2)} वर्ग कि.मी. पानीमध्ये ${area(s.modelCheck.both_water_km2, '0.01 भन्दा कम')} वर्ग कि.मी. देखाउँछ; दुवै सहमत भएको भाग नक्साको सबैभन्दा भरपर्दो भाग हो।`
         : null,
     ].filter(Boolean).join('\n\n')
   },

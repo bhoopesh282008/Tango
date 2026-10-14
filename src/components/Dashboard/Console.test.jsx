@@ -162,6 +162,21 @@ describe('the two independent looks at the map', () => {
     expect(screen.getByText(/is recorded, not drawn/)).toBeInTheDocument()
   })
 
+  test('give a tiny area as under 0.01 km², not as 0.00', async () => {
+    const { ChecksOnTheMap } = await import('./Evidence')
+    show(
+      <ChecksOnTheMap
+        stats={{
+          ...stats,
+          modelCheck: { rule_water_km2: 0.152, model_water_km2: 0.013, both_water_km2: 0.002, model_only_km2: 0.011 },
+          optical: null,
+        }}
+      />,
+    )
+    expect(screen.getByText('under 0.01 km²')).toBeInTheDocument()
+    expect(screen.queryByText('0.00 km²')).not.toBeInTheDocument()
+  })
+
   test('say nothing when the run made neither', async () => {
     const { ChecksOnTheMap } = await import('./Evidence')
     const { container } = show(<ChecksOnTheMap stats={{ ...stats, modelCheck: null, optical: null }} />)
