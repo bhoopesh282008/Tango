@@ -1,0 +1,86 @@
+[
+  {
+    "id": "trishuli-corridor-rasuwa",
+    "name": "Trishuli corridor, Rasuwa",
+    "event": "2026-08-26",
+    "bbox": [
+      85.1,
+      27.9,
+      85.5,
+      28.3
+    ],
+    "before": "2026-08-16",
+    "after": "2026-08-28",
+    "published": "2026-10-14T16:16:35"
+  },
+  {
+    "id": "trishuli-corridor-flood-model-u-net",
+    "name": "Trishuli corridor, flood model (U-Net)",
+    "event": "2026-08-26",
+    "bbox": [
+      85.1,
+      27.9,
+      85.5,
+      28.3
+    ],
+    "before": "2026-08-16",
+    "after": "2026-08-28",
+    "published": "2026-10-14T14:43:00"
+  },
+  {
+    "id": "bhote-koshi-sindhupalchok",
+    "name": "Bhote Koshi, Sindhupalchok",
+    "event": "2026-08-26",
+    "bbox": [
+      85.75,
+      27.78,
+      86.05,
+      28.05
+    ],
+    "before": "2026-08-19",
+    "after": "2026-08-31",
+    "published": "2026-10-14T19:40:45"
+  },
+  {
+    "id": "lower-trishuli-nuwakot",
+    "name": "Lower Trishuli, Nuwakot",
+    "event": "2026-08-26",
+    "bbox": [
+      84.9,
+      27.75,
+      85.25,
+      28.02
+    ],
+    "before": "2026-08-16",
+    "after": "2026-08-28",
+    "published": "2026-10-14T16:22:16"
+  },
+  {
+    "id": "chamoli-uttarakhand-rehearsal-feb-2021",
+    "name": "Chamoli, Uttarakhand (rehearsal, Feb 2021)",
+    "event": "2021-02-07",
+    "bbox": [
+      79.55,
+      30.35,
+      79.85,
+      30.65
+    ],
+    "before": "2021-01-29",
+    "after": "2021-02-10",
+    "published": "2026-10-14T14:58:43"
+  },
+  {
+    "id": "teesta-valley-sikkim-rehearsal-oct-2023",
+    "name": "Teesta valley, Sikkim (rehearsal, Oct 2023)",
+    "event": "2023-10-04",
+    "bbox": [
+      88.4,
+      27.2,
+      88.75,
+      27.65
+    ],
+    "before": "2023-09-25",
+    "after": "2023-10-07",
+    "published": "2026-10-14T14:59:32"
+  }
+]
